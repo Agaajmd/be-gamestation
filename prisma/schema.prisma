@@ -1,0 +1,385 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum UserRole {
+  customer
+  admin
+  super_admin
+}
+
+enum DeviceType {
+  ps
+  racing
+  vr
+  pc
+  arcade
+}
+
+enum DeviceStatus {
+  active
+  maintenance
+  disabled
+}
+
+enum Platform {
+  ps
+  pc
+  pcvr
+  racing
+}
+
+enum OrderStatus {
+  pending
+  paid
+  cancelled
+  checked_in
+  completed
+  no_show
+  refunded
+}
+
+enum PaymentStatus {
+  unpaid
+  paid
+  failed
+  refund_pending
+}
+
+enum PaymentMethod {
+  e_wallet
+  bank_transfer
+  gateway
+}
+
+enum PaymentProviderStatus {
+  pending
+  paid
+  failed
+  refunded
+}
+
+enum SessionStatus {
+  running
+  stopped
+}
+
+enum AdminRole {
+  staff
+  manager
+}
+
+enum NotificationChannel {
+  push
+  email
+  sms
+}
+
+enum NotificationStatus {
+  pending
+  sent
+  failed
+}
+
+enum SubscriptionStatus {
+  active
+  expired
+  cancelled
+}
+
+// Models
+model User {
+  id            BigInt    @id @default(autoincrement())
+  email         String    @unique @db.VarChar(255)
+  passwordHash  String?   @map("password_hash") @db.VarChar(255)
+  fullname      String    @db.VarChar(100)
+  role          UserRole
+  phone         String?   @db.VarChar(20)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime? @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  // Relations
+  owner         Owner?
+  orders        Order[]
+  notifications Notification[]
+  admin         Admin?
+  reviews       Review[]
+  auditLogs     AuditLog[]
+
+  @@index([email], name: "idx_users_email")
+  @@map("users")
+}
+
+model Owner {
+  id          BigInt    @id @default(autoincrement())
+  userId      BigInt    @unique @map("user_id")
+  companyName String    @map("company_name") @db.VarChar(150)
+  address     String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime? @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  // Relations
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branches      Branch[]
+  subscriptions Subscription[]
+
+  @@map("owners")
+}
+
+model Branch {
+  id        BigInt    @id @default(autoincrement())
+  ownerId   BigInt    @map("owner_id")
+  name      String    @db.VarChar(120)
+  address   String?   @db.Text
+  phone     String?   @db.VarChar(20)
+  timezone  String    @default("Asia/Jakarta") @db.VarChar(50)
+  openTime  DateTime? @map("open_time") @db.Time(6)
+  closeTime DateTime? @map("close_time") @db.Time(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime? @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  // Relations
+  owner    Owner      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  devices  Device[]
+  packages Package[]
+  orders   Order[]
+  admins   Admin[]
+
+  @@index([ownerId], name: "idx_branches_owner")
+  @@map("branches")
+}
+
+model Device {
+  id        BigInt       @id @default(autoincrement())
+  branchId  BigInt       @map("branch_id")
+  code      String       @db.VarChar(32)
+  type      DeviceType
+  specs     Json?
+  status    DeviceStatus @default(active)
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime?    @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  // Relations
+  branch                 Branch                  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  orderItems             OrderItem[]
+  availabilityExceptions AvailabilityException[]
+  sessions               Session[]
+
+  @@unique([branchId, code])
+  @@map("devices")
+}
+
+model Game {
+  id        BigInt   @id @default(autoincrement())
+  name      String   @db.VarChar(100)
+  platform  Platform
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  // Relations
+  orderItems OrderItem[]
+
+  @@map("games")
+}
+
+model Package {
+  id              BigInt    @id @default(autoincrement())
+  branchId        BigInt?   @map("branch_id")
+  name            String    @db.VarChar(50)
+  durationMinutes Int       @map("duration_minutes")
+  price           Decimal   @db.Decimal(12, 2)
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+
+  // Relations
+  branch         Branch?          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  orderItems     OrderItem[]
+  devicePackages DevicePackage[]
+
+  @@map("packages")
+}
+
+model DevicePackage {
+  id         BigInt     @id @default(autoincrement())
+  deviceType DeviceType @map("device_type")
+  packageId  BigInt     @map("package_id")
+
+  // Relations
+  package Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@map("device_packages")
+}
+
+model AvailabilityException {
+  id       BigInt   @id @default(autoincrement())
+  deviceId BigInt   @map("device_id")
+  startAt  DateTime @map("start_at") @db.Timestamp(6)
+  endAt    DateTime @map("end_at") @db.Timestamp(6)
+  reason   String?  @db.VarChar(255)
+
+  // Relations
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@map("availability_exceptions")
+}
+
+model Order {
+  id             BigInt        @id @default(autoincrement())
+  orderCode      String        @unique @map("order_code") @db.VarChar(32)
+  customerId     BigInt        @map("customer_id")
+  branchId       BigInt        @map("branch_id")
+  status         OrderStatus
+  totalAmount    Decimal       @map("total_amount") @db.Decimal(12, 2)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt      DateTime?     @updatedAt @map("updated_at") @db.Timestamp(6)
+  bookingStart   DateTime      @map("booking_start") @db.Timestamp(6)
+  bookingEnd     DateTime      @map("booking_end") @db.Timestamp(6)
+  paymentMethod  String?       @map("payment_method") @db.VarChar(50)
+  paymentStatus  PaymentStatus @map("payment_status")
+  notes          String?       @db.Text
+
+  // Relations
+  customer   User        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  branch     Branch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+  payment    Payment?
+  session    Session?
+  review     Review?
+
+  @@index([customerId], name: "idx_orders_customer")
+  @@index([branchId, bookingStart], name: "idx_orders_branch_booking")
+  @@map("orders")
+}
+
+model OrderItem {
+  id              BigInt   @id @default(autoincrement())
+  orderId         BigInt   @map("order_id")
+  deviceId        BigInt?  @map("device_id")
+  packageId       BigInt   @map("package_id")
+  gameId          BigInt?  @map("game_id")
+  durationMinutes Int      @map("duration_minutes")
+  price           Decimal  @db.Decimal(12, 2)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  // Relations
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  device  Device?  @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  package Package  @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  game    Game?    @relation(fields: [gameId], references: [id], onDelete: SetNull)
+
+  @@map("order_items")
+}
+
+model Payment {
+  id            BigInt                 @id @default(autoincrement())
+  orderId       BigInt                 @unique @map("order_id")
+  amount        Decimal                @db.Decimal(12, 2)
+  method        PaymentMethod
+  provider      String?                @db.VarChar(50)
+  status        PaymentProviderStatus
+  transactionId String?                @map("transaction_id") @db.VarChar(255)
+  paidAt        DateTime?              @map("paid_at") @db.Timestamp(6)
+  metadata      Json?
+
+  // Relations
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model Notification {
+  id      BigInt               @id @default(autoincrement())
+  userId  BigInt               @map("user_id")
+  type    String               @db.VarChar(50)
+  channel NotificationChannel
+  payload Json
+  status  NotificationStatus
+  sentAt  DateTime?            @map("sent_at") @db.Timestamp(6)
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model Session {
+  id        BigInt        @id @default(autoincrement())
+  orderId   BigInt        @unique @map("order_id")
+  deviceId  BigInt        @map("device_id")
+  startedAt DateTime      @map("started_at") @db.Timestamp(6)
+  endedAt   DateTime?     @map("ended_at") @db.Timestamp(6)
+  status    SessionStatus
+
+  // Relations
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model AuditLog {
+  id        BigInt   @id @default(autoincrement())
+  userId    BigInt?  @map("user_id")
+  action    String   @db.VarChar(100)
+  entity    String   @db.VarChar(100)
+  entityId  BigInt?  @map("entity_id")
+  meta      Json?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}
+
+model Subscription {
+  id       BigInt             @id @default(autoincrement())
+  ownerId  BigInt             @map("owner_id")
+  plan     String             @db.VarChar(50)
+  price    Decimal            @db.Decimal(12, 2)
+  startsAt DateTime           @map("starts_at") @db.Timestamp(6)
+  endsAt   DateTime           @map("ends_at") @db.Timestamp(6)
+  status   SubscriptionStatus
+
+  // Relations
+  owner Owner @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+model Admin {
+  id       BigInt    @id @default(autoincrement())
+  userId   BigInt    @unique @map("user_id")
+  branchId BigInt    @map("branch_id")
+  role     AdminRole
+
+  // Relations
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@map("admins")
+}
+
+model Review {
+  id         BigInt   @id @default(autoincrement())
+  orderId    BigInt   @unique @map("order_id")
+  customerId BigInt   @map("customer_id")
+  rating     Int      @db.SmallInt
+  comment    String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  // Relations
+  order    Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  customer User  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("reviews")
+}

@@ -1,0 +1,156 @@
+### Game Station Auth API - Testing Examples
+### Pastikan server sudah running: npm run dev
+
+@baseUrl = http://localhost:3000
+@accessToken = 
+@refreshToken = 
+
+### Health Check
+GET {{baseUrl}}/health
+
+### ===============================================
+### 1. REGISTER - Create new user
+### ===============================================
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "customer@test.com",
+  "password": "password123",
+  "fullname": "Customer Test",
+  "phone": "081234567890",
+  "role": "customer"
+}
+
+### ===============================================
+### 2. LOGIN - Login with email & password
+### ===============================================
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "customer@test.com",
+  "password": "password123"
+}
+
+### ===============================================
+### 3. LOGIN OTP - Step 1: Request OTP
+### ===============================================
+POST {{baseUrl}}/auth/login-otp
+Content-Type: application/json
+
+{
+  "email": "customer@test.com"
+}
+
+### ===============================================
+### 4. LOGIN OTP - Step 2: Verify OTP
+### (Check console for OTP code)
+### ===============================================
+POST {{baseUrl}}/auth/login-otp
+Content-Type: application/json
+
+{
+  "email": "customer@test.com",
+  "otp": "123456"
+}
+
+### ===============================================
+### 5. REFRESH TOKEN - Get new access token
+### ===============================================
+POST {{baseUrl}}/auth/refresh-token
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### ===============================================
+### 6. LOGOUT - Invalidate token
+### ===============================================
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{accessToken}}
+
+### ===============================================
+### TEST CASES - Error Handling
+### ===============================================
+
+### Register with existing email
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "customer@test.com",
+  "password": "password123",
+  "fullname": "Another User"
+}
+
+### Login with wrong password
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "customer@test.com",
+  "password": "wrongpassword"
+}
+
+### Login with non-existent email
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "notfound@test.com",
+  "password": "password123"
+}
+
+### Register with invalid email
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "invalid-email",
+  "password": "password123",
+  "fullname": "Test User"
+}
+
+### Register without required fields
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "test@test.com"
+}
+
+### Refresh with invalid token
+POST {{baseUrl}}/auth/refresh-token
+Content-Type: application/json
+
+{
+  "refreshToken": "invalid-token"
+}
+
+### ===============================================
+### ADMIN & SUPER ADMIN TESTING
+### ===============================================
+
+### Register Admin
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "admin@gamestation.com",
+  "password": "admin123",
+  "fullname": "Admin User",
+  "role": "admin"
+}
+
+### Register Super Admin
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "superadmin@gamestation.com",
+  "password": "super123",
+  "fullname": "Super Admin User",
+  "role": "super_admin"
+}
