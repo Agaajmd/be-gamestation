@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express, { Application, Request, Response } from "express";
 import authRoutes from "./route/authRoutes";
+import branchRoutes from "./route/branchRoutes";
 
 const app: Application = express();
 const PORT = process.env.PORT || 3000;
@@ -11,6 +12,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use("/auth", authRoutes);
+app.use("/branches", branchRoutes);
 
 // Health check
 app.get("/health", (_req: Request, res: Response) => {

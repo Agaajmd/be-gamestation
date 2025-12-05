@@ -32,23 +32,13 @@ interface JWTPayload {
  */
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password, fullname, phone, role } = req.body;
+    const { email, password, fullname, phone } = req.body;
 
     // Validasi input
     if (!email || !fullname) {
       res.status(400).json({
         success: false,
         message: "Email dan fullname wajib diisi",
-      });
-      return;
-    }
-
-    // Validasi role (default customer)
-    const userRole = role || "customer";
-    if (!["customer", "admin", "super_admin"].includes(userRole)) {
-      res.status(400).json({
-        success: false,
-        message: "Role tidak valid",
       });
       return;
     }
@@ -79,7 +69,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         passwordHash,
         fullname,
         phone,
-        role: userRole as any,
+        role: "customer",
       },
       select: {
         id: true,
@@ -150,9 +140,17 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Cari user berdasarkan email
+    // Cari user berdasarkan email dengan relasi owner dan admin
     const user = await prisma.user.findUnique({
       where: { email },
+      include: {
+        owner: true,
+        admin: {
+          include: {
+            branch: true,
+          },
+        },
+      },
     });
 
     if (!user) {
@@ -210,20 +208,42 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       data: { updatedAt: new Date() },
     });
 
+    // Response dengan data tambahan sesuai role
+    const responseData: any = {
+      user: {
+        id: user.id.toString(),
+        email: user.email,
+        fullname: user.fullname,
+        role: user.role,
+        phone: user.phone,
+      },
+      accessToken,
+      refreshToken,
+    };
+
+    // Tambahkan data owner jika role owner
+    if (user.owner) {
+      responseData.owner = {
+        id: user.owner.id.toString(),
+        companyName: user.owner.companyName,
+        address: user.owner.address,
+      };
+    }
+
+    // Tambahkan data admin jika role admin
+    if (user.admin) {
+      responseData.admin = {
+        id: user.admin.id.toString(),
+        branchId: user.admin.branchId.toString(),
+        branchName: user.admin.branch.name,
+        role: user.admin.role,
+      };
+    }
+
     res.status(200).json({
       success: true,
       message: "Login berhasil",
-      data: {
-        user: {
-          id: user.id.toString(),
-          email: user.email,
-          fullname: user.fullname,
-          role: user.role,
-          phone: user.phone,
-        },
-        accessToken,
-        refreshToken,
-      },
+      data: responseData,
     });
   } catch (error) {
     console.error("Login error:", error);

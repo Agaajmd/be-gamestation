@@ -1,14 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { JWTPayload } from "../helper/jwtHelper";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "your-secret-key-change-in-production";
-
-interface JWTPayload {
-  userId: string;
-  email: string;
-  role: string;
-}
 
 // Extend Express Request type
 declare global {
@@ -63,27 +58,3 @@ export const authenticateToken = (
   }
 };
 
-/**
- * Middleware untuk cek role user
- */
-export const authorizeRoles = (...allowedRoles: string[]) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        message: "Unauthorized",
-      });
-      return;
-    }
-
-    if (!allowedRoles.includes(req.user.role)) {
-      res.status(403).json({
-        success: false,
-        message: "Anda tidak memiliki akses untuk resource ini",
-      });
-      return;
-    }
-
-    next();
-  };
-};

@@ -18,15 +18,9 @@ export const registerSchema = Joi.object({
   }),
   phone: Joi.string()
     .pattern(/^[0-9+\-\s()]+$/)
-    .optional()
+    .required()
     .messages({
       "string.pattern.base": "Format nomor telepon tidak valid",
-    }),
-  role: Joi.string()
-    .valid("customer", "admin", "super_admin")
-    .optional()
-    .messages({
-      "any.only": "Role harus salah satu dari: customer, admin, super_admin",
     }),
 });
 
