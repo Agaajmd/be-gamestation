@@ -1,7 +1,20 @@
 import { Request, Response } from "express";
-import { PrismaClient } from "../../generated/prisma";
+import prisma from "../lib/prisma";
+import { formatTime } from "../helper/timeHelper";
+import { updateBranchFacilities } from "../helper/branchAmenitiesHelper";
 
-const prisma = new PrismaClient();
+/**
+ * Helper function to serialize branch data with formatted times
+ */
+const serializeBranch = (branch: any) => {
+  return {
+    ...branch,
+    id: branch.id?.toString(),
+    ownerId: branch.ownerId?.toString(),
+    openTime: formatTime(branch.openTime),
+    closeTime: formatTime(branch.closeTime),
+  };
+};
 
 /**
  * POST /branches
@@ -14,7 +27,8 @@ export const createBranch = async (
 ): Promise<void> => {
   try {
     const userId = BigInt(req.user!.userId);
-    const { name, address, phone, timezone, openTime, closeTime } = req.body;
+    const { name, address, phone, timezone, openTime, closeTime, facilities } =
+      req.body;
 
     // Cek apakah user adalah owner
     const owner = await prisma.owner.findUnique({
@@ -43,11 +57,27 @@ export const createBranch = async (
     let parsedCloseTime: Date | undefined;
 
     if (openTime) {
-      parsedOpenTime = new Date(`1970-01-01T${openTime}`);
+      parsedOpenTime = new Date(`1970-01-01T${openTime}Z`);
     }
     if (closeTime) {
-      parsedCloseTime = new Date(`1970-01-01T${closeTime}`);
+      parsedCloseTime = new Date(`1970-01-01T${closeTime}Z`);
     }
+
+    // Initialize amenities structure
+    const initialAmenities = {
+      auto: {
+        roomAndDevices: { types: [], versions: [], total: 0 },
+        categories: { tiers: [], names: [], total: 0 },
+      },
+      facilities: facilities || {
+        general: [],
+        foodAndBeverage: [],
+        parking: [],
+        entertainment: [],
+        accessibility: [],
+      },
+      lastUpdated: new Date().toISOString(),
+    };
 
     // Buat cabang baru
     const branch = await prisma.branch.create({
@@ -59,6 +89,7 @@ export const createBranch = async (
         timezone: timezone || "Asia/Jakarta",
         openTime: parsedOpenTime,
         closeTime: parsedCloseTime,
+        amenities: initialAmenities as any,
       },
     });
 
@@ -79,11 +110,7 @@ export const createBranch = async (
     res.status(201).json({
       success: true,
       message: "Cabang berhasil dibuat",
-      data: {
-        ...branch,
-        id: branch.id.toString(),
-        ownerId: branch.ownerId.toString(),
-      },
+      data: serializeBranch(branch),
     });
   } catch (error) {
     console.error("Create branch error:", error);
@@ -108,8 +135,8 @@ export const getBranches = async (
 
     let branches;
 
-    if (userRole === "super_admin") {
-      // Super admin bisa lihat semua cabang
+    if (userRole === "owner") {
+      // Owner bisa lihat semua cabang
       branches = await prisma.branch.findMany({
         include: {
           owner: {
@@ -124,7 +151,7 @@ export const getBranches = async (
           },
           _count: {
             select: {
-              devices: true,
+              roomAndDevices: true,
               packages: true,
               orders: true,
             },
@@ -143,33 +170,47 @@ export const getBranches = async (
 
       branches = admin ? [admin.branch] : [];
     } else {
-      // Owner melihat cabangnya sendiri
-      const owner = await prisma.owner.findUnique({
-        where: { userId },
-        include: {
-          branches: {
-            include: {
-              _count: {
-                select: {
-                  devices: true,
-                  packages: true,
-                  orders: true,
-                },
-              },
-            },
-            orderBy: {
-              createdAt: "desc",
+      // Customer melihat semua cabang yang tersedia (untuk pilihan saat order)
+      branches = await prisma.branch.findMany({
+        select: {
+          id: true,
+          name: true,
+          address: true,
+          phone: true,
+          timezone: true,
+          openTime: true,
+          closeTime: true,
+          amenities: true,
+          _count: {
+            select: {
+              roomAndDevices: true,
+              packages: true,
             },
           },
         },
+        orderBy: {
+          createdAt: "desc",
+        },
       });
-
-      branches = owner?.branches || [];
     }
+
+    // Serialize branches with proper time formatting
+    const serializedBranches = Array.isArray(branches)
+      ? branches.map((branch: any) => ({
+          ...serializeBranch(branch),
+          owner: branch.owner
+            ? {
+                ...branch.owner,
+                id: branch.owner.id?.toString(),
+                userId: branch.owner.userId?.toString(),
+              }
+            : undefined,
+        }))
+      : [];
 
     res.status(200).json({
       success: true,
-      data: branches,
+      data: serializedBranches,
     });
   } catch (error) {
     console.error("Get branches error:", error);
@@ -207,8 +248,8 @@ export const getBranchById = async (
             },
           },
         },
-        devices: {
-          orderBy: { code: "asc" },
+        roomAndDevices: {
+          orderBy: { roomNumber: "asc" },
         },
         packages: {
           where: { isActive: true },
@@ -268,9 +309,37 @@ export const getBranchById = async (
       }
     }
 
+    // Serialize branch with proper formatting
+    const serializedBranch = {
+      ...serializeBranch(branch),
+      owner: branch.owner
+        ? {
+            ...branch.owner,
+            id: branch.owner.id?.toString(),
+            userId: branch.owner.userId?.toString(),
+          }
+        : undefined,
+      roomAndDevices: branch.roomAndDevices?.map((device: any) => ({
+        ...device,
+        id: device.id?.toString(),
+        branchId: device.branchId?.toString(),
+      })),
+      packages: branch.packages?.map((pkg: any) => ({
+        ...pkg,
+        id: pkg.id?.toString(),
+        branchId: pkg.branchId?.toString(),
+      })),
+      admins: branch.admins?.map((admin: any) => ({
+        ...admin,
+        id: admin.id?.toString(),
+        userId: admin.userId?.toString(),
+        branchId: admin.branchId?.toString(),
+      })),
+    };
+
     res.status(200).json({
       success: true,
-      data: branch,
+      data: serializedBranch,
     });
   } catch (error) {
     console.error("Get branch detail error:", error);
@@ -292,7 +361,8 @@ export const updateBranch = async (
   try {
     const branchId = BigInt(req.params.id);
     const userId = BigInt(req.user!.userId);
-    const { name, address, phone, timezone, openTime, closeTime } = req.body;
+    const { name, address, phone, timezone, openTime, closeTime, facilities } =
+      req.body;
 
     // Cek cabang exist
     const branch = await prisma.branch.findUnique({
@@ -325,10 +395,15 @@ export const updateBranch = async (
     let parsedCloseTime: Date | undefined;
 
     if (openTime) {
-      parsedOpenTime = new Date(`1970-01-01T${openTime}`);
+      parsedOpenTime = new Date(`1970-01-01T${openTime}Z`);
     }
     if (closeTime) {
-      parsedCloseTime = new Date(`1970-01-01T${closeTime}`);
+      parsedCloseTime = new Date(`1970-01-01T${closeTime}Z`);
+    }
+
+    // Update facilities if provided
+    if (facilities !== undefined) {
+      await updateBranchFacilities(branchId, facilities);
     }
 
     // Update branch
@@ -360,10 +435,11 @@ export const updateBranch = async (
       },
     });
 
+    // Serialize updated branch
     res.status(200).json({
       success: true,
       message: "Cabang berhasil diupdate",
-      data: updatedBranch,
+      data: serializeBranch(updatedBranch),
     });
   } catch (error) {
     console.error("Update branch error:", error);
@@ -392,7 +468,7 @@ export const deleteBranch = async (
       include: {
         _count: {
           select: {
-            devices: true,
+            roomAndDevices: true,
             orders: true,
           },
         },
@@ -461,443 +537,3 @@ export const deleteBranch = async (
     });
   }
 };
-
-/**
- * POST /branches/:id/admins
- * Owner menambahkan admin/staff ke cabang
- */
-export const addBranchAdmin = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const branchId = BigInt(req.params.id);
-    const userId = BigInt(req.user!.userId);
-    const { email, role } = req.body;
-
-    // Validasi input
-    if (!email || !role) {
-      res.status(400).json({
-        success: false,
-        message: "Email dan role wajib diisi",
-      });
-      return;
-    }
-
-    if (!["staff", "manager"].includes(role)) {
-      res.status(400).json({
-        success: false,
-        message: "Role harus staff atau manager",
-      });
-      return;
-    }
-
-    // Cek cabang exist
-    const branch = await prisma.branch.findUnique({
-      where: { id: branchId },
-    });
-
-    if (!branch) {
-      res.status(404).json({
-        success: false,
-        message: "Cabang tidak ditemukan",
-      });
-      return;
-    }
-
-    // Cek authorization - hanya owner
-    const owner = await prisma.owner.findUnique({
-      where: { userId },
-    });
-
-    if (!owner || branch.ownerId !== owner.id) {
-      res.status(403).json({
-        success: false,
-        message: "Hanya owner yang dapat menambahkan admin",
-      });
-      return;
-    }
-
-    // Cari user berdasarkan email
-    const targetUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (!targetUser) {
-      res.status(404).json({
-        success: false,
-        message: "User dengan email tersebut tidak ditemukan",
-      });
-      return;
-    }
-
-    // Cek apakah user sudah jadi admin di cabang lain
-    const existingAdmin = await prisma.admin.findUnique({
-      where: { userId: targetUser.id },
-    });
-
-    if (existingAdmin) {
-      res.status(400).json({
-        success: false,
-        message: "User sudah menjadi admin di cabang lain",
-      });
-      return;
-    }
-
-    // Update role user menjadi admin jika masih customer
-    if (targetUser.role === "customer") {
-      await prisma.user.update({
-        where: { id: targetUser.id },
-        data: { role: "admin" },
-      });
-    }
-
-    // Buat record admin
-    const admin = await prisma.admin.create({
-      data: {
-        userId: targetUser.id,
-        branchId,
-        role: role as any,
-      },
-      include: {
-        user: {
-          select: {
-            email: true,
-            fullname: true,
-            phone: true,
-          },
-        },
-      },
-    });
-
-    // Log audit
-    await prisma.auditLog.create({
-      data: {
-        userId,
-        action: "ADD_BRANCH_ADMIN",
-        entity: "Admin",
-        entityId: admin.id,
-        meta: {
-          branchId: branchId.toString(),
-          adminEmail: email,
-          role,
-          timestamp: new Date().toISOString(),
-        },
-      },
-    });
-
-    res.status(201).json({
-      success: true,
-      message: "Admin berhasil ditambahkan",
-      data: admin,
-    });
-  } catch (error) {
-    console.error("Add branch admin error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat menambahkan admin",
-    });
-  }
-};
-
-/**
- * DELETE /branches/:id/admins/:adminId
- * Owner menghapus admin dari cabang
- */
-export const removeBranchAdmin = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const branchId = BigInt(req.params.id);
-    const adminId = BigInt(req.params.adminId);
-    const userId = BigInt(req.user!.userId);
-
-    // Cek admin exist
-    const admin = await prisma.admin.findUnique({
-      where: { id: adminId },
-      include: { user: true },
-    });
-
-    if (!admin || admin.branchId !== branchId) {
-      res.status(404).json({
-        success: false,
-        message: "Admin tidak ditemukan",
-      });
-      return;
-    }
-
-    // Cek authorization
-    const branch = await prisma.branch.findUnique({
-      where: { id: branchId },
-    });
-
-    const owner = await prisma.owner.findUnique({
-      where: { userId },
-    });
-
-    if (!owner || branch?.ownerId !== owner.id) {
-      res.status(403).json({
-        success: false,
-        message: "Hanya owner yang dapat menghapus admin",
-      });
-      return;
-    }
-
-    // Delete admin
-    await prisma.admin.delete({
-      where: { id: adminId },
-    });
-
-    // Update role user kembali ke customer jika tidak punya role lain
-    await prisma.user.update({
-      where: { id: admin.userId },
-      data: { role: "customer" },
-    });
-
-    // Log audit
-    await prisma.auditLog.create({
-      data: {
-        userId,
-        action: "REMOVE_BRANCH_ADMIN",
-        entity: "Admin",
-        entityId: adminId,
-        meta: {
-          branchId: branchId.toString(),
-          adminEmail: admin.user.email,
-          timestamp: new Date().toISOString(),
-        },
-      },
-    });
-
-    res.status(200).json({
-      success: true,
-      message: "Admin berhasil dihapus",
-    });
-  } catch (error) {
-    console.error("Remove branch admin error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat menghapus admin",
-    });
-  }
-};
-
-/**
- * POST /branches/:id/devices
- * Owner/staff menambahkan device ke cabang
- */
-export const addDevice = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const branchId = BigInt(req.params.id);
-    const userId = BigInt(req.user!.userId);
-    const { code, type, specs, status } = req.body;
-
-    // Validasi input
-    if (!code || !type) {
-      res.status(400).json({
-        success: false,
-        message: "Code dan type wajib diisi",
-      });
-      return;
-    }
-
-    const validTypes = ["ps", "racing", "vr", "pc", "arcade"];
-    if (!validTypes.includes(type)) {
-      res.status(400).json({
-        success: false,
-        message: `Type harus salah satu dari: ${validTypes.join(", ")}`,
-      });
-      return;
-    }
-
-    // Cek authorization
-    const hasAccess = await checkBranchAccess(userId, branchId);
-    if (!hasAccess) {
-      res.status(403).json({
-        success: false,
-        message: "Anda tidak memiliki akses ke cabang ini",
-      });
-      return;
-    }
-
-    // Cek duplicate code dalam branch
-    const existingDevice = await prisma.device.findFirst({
-      where: {
-        branchId,
-        code,
-      },
-    });
-
-    if (existingDevice) {
-      res.status(400).json({
-        success: false,
-        message: "Kode device sudah digunakan di cabang ini",
-      });
-      return;
-    }
-
-    // Buat device
-    const device = await prisma.device.create({
-      data: {
-        branchId,
-        code,
-        type: type as any,
-        specs: specs || null,
-        status: status || "active",
-      },
-    });
-
-    // Log audit
-    await prisma.auditLog.create({
-      data: {
-        userId,
-        action: "ADD_DEVICE",
-        entity: "Device",
-        entityId: device.id,
-        meta: {
-          branchId: branchId.toString(),
-          code,
-          type,
-          timestamp: new Date().toISOString(),
-        },
-      },
-    });
-
-    res.status(201).json({
-      success: true,
-      message: "Device berhasil ditambahkan",
-      data: device,
-    });
-  } catch (error) {
-    console.error("Add device error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat menambahkan device",
-    });
-  }
-};
-
-/**
- * POST /branches/:id/packages
- * Owner/staff menambahkan paket ke cabang
- */
-export const addPackage = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const branchId = BigInt(req.params.id);
-    const userId = BigInt(req.user!.userId);
-    const { name, durationMinutes, price, isActive } = req.body;
-
-    // Validasi input
-    if (!name || !durationMinutes || !price) {
-      res.status(400).json({
-        success: false,
-        message: "Name, durationMinutes, dan price wajib diisi",
-      });
-      return;
-    }
-
-    if (durationMinutes <= 0) {
-      res.status(400).json({
-        success: false,
-        message: "Durasi harus lebih dari 0 menit",
-      });
-      return;
-    }
-
-    if (parseFloat(price) <= 0) {
-      res.status(400).json({
-        success: false,
-        message: "Harga harus lebih dari 0",
-      });
-      return;
-    }
-
-    // Cek authorization
-    const hasAccess = await checkBranchAccess(userId, branchId);
-    if (!hasAccess) {
-      res.status(403).json({
-        success: false,
-        message: "Anda tidak memiliki akses ke cabang ini",
-      });
-      return;
-    }
-
-    // Buat package
-    const packageData = await prisma.package.create({
-      data: {
-        branchId,
-        name,
-        durationMinutes: parseInt(durationMinutes),
-        price: parseFloat(price),
-        isActive: isActive !== undefined ? isActive : true,
-      },
-    });
-
-    // Log audit
-    await prisma.auditLog.create({
-      data: {
-        userId,
-        action: "ADD_PACKAGE",
-        entity: "Package",
-        entityId: packageData.id,
-        meta: {
-          branchId: branchId.toString(),
-          name,
-          price,
-          timestamp: new Date().toISOString(),
-        },
-      },
-    });
-
-    res.status(201).json({
-      success: true,
-      message: "Paket berhasil ditambahkan",
-      data: packageData,
-    });
-  } catch (error) {
-    console.error("Add package error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat menambahkan paket",
-    });
-  }
-};
-
-/**
- * Helper function untuk cek akses ke branch
- * Return true jika user adalah owner atau admin/staff dari branch
- */
-async function checkBranchAccess(
-  userId: bigint,
-  branchId: bigint
-): Promise<boolean> {
-  // Cek apakah user adalah owner dari branch
-  const branch = await prisma.branch.findUnique({
-    where: { id: branchId },
-  });
-
-  if (!branch) return false;
-
-  const owner = await prisma.owner.findUnique({
-    where: { userId },
-  });
-
-  if (owner && branch.ownerId === owner.id) {
-    return true;
-  }
-
-  // Cek apakah user adalah admin/staff dari branch
-  const admin = await prisma.admin.findUnique({
-    where: { userId },
-  });
-
-  if (admin && admin.branchId === branchId) {
-    return true;
-  }
-
-  return false;
-}

@@ -6,6 +6,8 @@ import {
   loginSchema,
   loginOTPSchema,
   refreshTokenSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
 } from "../validation/authValidation";
 
 const router = Router();
@@ -54,5 +56,29 @@ router.post(
  * @header  Authorization: Bearer <token>
  */
 router.post("/logout", AuthController.logout);
+
+/**
+ * @route   POST /auth/forgot-password
+ * @desc    Request reset password (kirim OTP ke email)
+ * @access  Public
+ * @body    { email }
+ */
+router.post(
+  "/forgot-password",
+  validate(forgotPasswordSchema),
+  AuthController.forgotPassword
+);
+
+/**
+ * @route   POST /auth/reset-password
+ * @desc    Reset password dengan OTP dan password baru
+ * @access  Public
+ * @body    { email, otp, newPassword }
+ */
+router.post(
+  "/reset-password",
+  validate(resetPasswordSchema),
+  AuthController.resetPassword
+);
 
 export default router;

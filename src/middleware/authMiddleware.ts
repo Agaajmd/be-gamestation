@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
-import { JWTPayload } from "../helper/jwtHelper";
-
-const JWT_SECRET =
-  process.env.JWT_SECRET || "your-secret-key-change-in-production";
+import {
+  JWTPayload,
+  extractTokenFromHeader,
+  decodeToken,
+} from "../helper/jwtHelper";
 
 // Extend Express Request type
 declare global {
@@ -25,7 +25,7 @@ export const authenticateToken = (
   try {
     // Get token from Authorization header
     const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
+    const token = extractTokenFromHeader(authHeader);
 
     if (!token) {
       res.status(401).json({
@@ -36,19 +36,19 @@ export const authenticateToken = (
     }
 
     // Verify token
-    jwt.verify(token, JWT_SECRET, (err, decoded) => {
-      if (err) {
-        res.status(403).json({
-          success: false,
-          message: "Token tidak valid atau expired",
-        });
-        return;
-      }
+    const payload = decodeToken(token);
 
-      // Attach user info to request
-      req.user = decoded as JWTPayload;
-      next();
-    });
+    if (!payload) {
+      res.status(403).json({
+        success: false,
+        message: "Token tidak valid atau expired",
+      });
+      return;
+    }
+
+    // Attach payload to req.user
+    req.user = payload as JWTPayload;
+    next();
   } catch (error) {
     console.error("Auth middleware error:", error);
     res.status(500).json({
@@ -57,4 +57,3 @@ export const authenticateToken = (
     });
   }
 };
-

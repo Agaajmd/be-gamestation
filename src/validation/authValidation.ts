@@ -63,3 +63,36 @@ export const refreshTokenSchema = Joi.object({
     "any.required": "Refresh token wajib diisi",
   }),
 });
+
+/**
+ * Validation schema untuk forgot password
+ */
+export const forgotPasswordSchema = Joi.object({
+  email: Joi.string().email().required().messages({
+    "string.email": "Format email tidak valid",
+    "any.required": "Email wajib diisi",
+  }),
+});
+
+/**
+ * Validation schema untuk reset password
+ */
+export const resetPasswordSchema = Joi.object({
+  email: Joi.string().email().required().messages({
+    "string.email": "Format email tidak valid",
+    "any.required": "Email wajib diisi",
+  }),
+  otp: Joi.string()
+    .length(6)
+    .pattern(/^[0-9]+$/)
+    .required()
+    .messages({
+      "string.length": "OTP harus 6 digit",
+      "string.pattern.base": "OTP harus berupa angka",
+      "any.required": "OTP wajib diisi",
+    }),
+  newPassword: Joi.string().min(8).required().messages({
+    "string.min": "Password minimal 8 karakter",
+    "any.required": "Password baru wajib diisi",
+  }),
+});

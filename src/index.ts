@@ -2,6 +2,19 @@ import "dotenv/config";
 import express, { Application, Request, Response } from "express";
 import authRoutes from "./route/authRoutes";
 import branchRoutes from "./route/branchRoutes";
+import adminRoutes from "./route/adminRoutes";
+import categoryRoutes from "./route/categoriesRoutes";
+import deviceRoutes from "./route/roomAndDeviceRoutes";
+import packageRoutes from "./route/packageRoutes";
+import gameRoutes from "./route/gameRoutes";
+import orderRoutes from "./route/orderRoutes";
+import paymentRoutes from "./route/paymentRoutes";
+import sessionRoutes from "./route/sessionRoutes";
+import reviewRoutes from "./route/reviewRoutes";
+import notificationRoutes from "./route/notificationRoutes";
+import subscriptionRoutes from "./route/subscriptionRoutes";
+import bookingRoutes from "./route/bookingRoutes";
+import { testEmailConnection } from "./helper/emailHelper";
 
 const app: Application = express();
 const PORT = process.env.PORT || 3000;
@@ -13,6 +26,18 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use("/auth", authRoutes);
 app.use("/branches", branchRoutes);
+app.use("/branches", adminRoutes);
+app.use("/branches", categoryRoutes);
+app.use("/branches", deviceRoutes);
+app.use("/branches", packageRoutes);
+app.use("/games", gameRoutes);
+app.use("/orders", orderRoutes);
+app.use("/payments", paymentRoutes);
+app.use("/sessions", sessionRoutes);
+app.use("/reviews", reviewRoutes);
+app.use("/notifications", notificationRoutes);
+app.use("/subscriptions", subscriptionRoutes);
+app.use("/booking", bookingRoutes);
 
 // Health check
 app.get("/health", (_req: Request, res: Response) => {
@@ -22,6 +47,8 @@ app.get("/health", (_req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+testEmailConnection().catch(console.error);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {

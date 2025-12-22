@@ -154,3 +154,12 @@ Content-Type: application/json
   "fullname": "Super Admin User",
   "role": "super_admin"
 }
+
+### CUSTOMER
+password123
+
+### ADMIN
+admin123
+
+### OWNER
+Owner12345!

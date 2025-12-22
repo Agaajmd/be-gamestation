@@ -1,6 +1,17 @@
 import Joi from "joi";
 
 /**
+ * Facilities schema for branch amenities
+ */
+const facilitiesSchema = Joi.object({
+  general: Joi.array().items(Joi.string()).optional().default([]),
+  foodAndBeverage: Joi.array().items(Joi.string()).optional().default([]),
+  parking: Joi.array().items(Joi.string()).optional().default([]),
+  entertainment: Joi.array().items(Joi.string()).optional().default([]),
+  accessibility: Joi.array().items(Joi.string()).optional().default([]),
+});
+
+/**
  * Validation schema untuk create branch
  */
 export const createBranchSchema = Joi.object({
@@ -36,6 +47,9 @@ export const createBranchSchema = Joi.object({
       "string.pattern.base":
         "Format waktu tidak valid (gunakan HH:MM atau HH:MM:SS)",
     }),
+  facilities: facilitiesSchema.optional().messages({
+    "object.base": "Facilities harus berupa object",
+  }),
 });
 
 /**
@@ -71,61 +85,7 @@ export const updateBranchSchema = Joi.object({
       "string.pattern.base":
         "Format waktu tidak valid (gunakan HH:MM atau HH:MM:SS)",
     }),
-});
-
-/**
- * Validation schema untuk add admin
- */
-export const addAdminSchema = Joi.object({
-  email: Joi.string().email().required().messages({
-    "string.email": "Format email tidak valid",
-    "any.required": "Email wajib diisi",
+  facilities: facilitiesSchema.optional().messages({
+    "object.base": "Facilities harus berupa object",
   }),
-  role: Joi.string().valid("staff", "manager").required().messages({
-    "any.only": "Role harus staff atau manager",
-    "any.required": "Role wajib diisi",
-  }),
-});
-
-/**
- * Validation schema untuk add device
- */
-export const addDeviceSchema = Joi.object({
-  code: Joi.string().max(32).required().messages({
-    "string.max": "Kode device maksimal 32 karakter",
-    "any.required": "Kode device wajib diisi",
-  }),
-  type: Joi.string()
-    .valid("ps", "racing", "vr", "pc", "arcade")
-    .required()
-    .messages({
-      "any.only": "Type harus salah satu dari: ps, racing, vr, pc, arcade",
-      "any.required": "Type device wajib diisi",
-    }),
-  specs: Joi.object().optional().allow(null),
-  status: Joi.string()
-    .valid("active", "maintenance", "disabled")
-    .optional()
-    .messages({
-      "any.only": "Status harus salah satu dari: active, maintenance, disabled",
-    }),
-});
-
-/**
- * Validation schema untuk add package
- */
-export const addPackageSchema = Joi.object({
-  name: Joi.string().max(50).required().messages({
-    "string.max": "Nama paket maksimal 50 karakter",
-    "any.required": "Nama paket wajib diisi",
-  }),
-  durationMinutes: Joi.number().integer().min(1).required().messages({
-    "number.min": "Durasi minimal 1 menit",
-    "any.required": "Durasi wajib diisi",
-  }),
-  price: Joi.number().positive().required().messages({
-    "number.positive": "Harga harus lebih dari 0",
-    "any.required": "Harga wajib diisi",
-  }),
-  isActive: Joi.boolean().optional(),
 });
