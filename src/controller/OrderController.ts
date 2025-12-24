@@ -25,7 +25,6 @@ export const createOrder = async (
       branchId,
       deviceId,
       categoryId,
-      packageId,
       gameId,
       bookingStart,
       bookingEnd,
@@ -35,7 +34,6 @@ export const createOrder = async (
 
     const branchIdBigInt = BigInt(branchId);
     const deviceIdBigInt = BigInt(deviceId);
-    const packageIdBigInt = BigInt(packageId);
     const categoryIdBigInt = categoryId ? BigInt(categoryId) : null;
     const gameIdBigInt = gameId ? BigInt(gameId) : null;
 
@@ -48,23 +46,6 @@ export const createOrder = async (
       res.status(404).json({
         success: false,
         message: "Branch tidak ditemukan",
-      });
-      return;
-    }
-
-    // Verify package exists
-    const pkg = await prisma.package.findFirst({
-      where: {
-        id: packageIdBigInt,
-        OR: [{ branchId: branchIdBigInt }, { branchId: null }],
-        isActive: true,
-      },
-    });
-
-    if (!pkg) {
-      res.status(400).json({
-        success: false,
-        message: "Package tidak ditemukan atau tidak aktif",
       });
       return;
     }
@@ -164,17 +145,21 @@ export const createOrder = async (
       }
     }
 
-    // Calculate pricing
-    const durationMinutes = pkg.durationMinutes;
+    // Calculate duration and pricing
+    const startTime = new Date(bookingStart);
+    const endTime = new Date(bookingEnd);
+    const durationMs = endTime.getTime() - startTime.getTime();
+    const durationMinutes = Math.floor(durationMs / (1000 * 60));
     const hours = durationMinutes / 60;
 
-    // Base amount from device
-    const baseAmount = Number(device.pricePerHour) * hours;
+    // Base amount from device price
+    const pricePerHour = Number(device.pricePerHour);
+    const baseAmount = pricePerHour * hours;
 
-    // Category fee
+    // Category fee (if category has different price than device)
     let categoryFee = 0;
-    if (category) {
-      categoryFee = Number(category.pricePerHour) * hours;
+    if (category && Number(category.pricePerHour) > pricePerHour) {
+      categoryFee = (Number(category.pricePerHour) - pricePerHour) * hours;
     }
 
     // Advance booking fee
@@ -227,10 +212,9 @@ export const createOrder = async (
         notes,
         orderItems: {
           create: {
-            packageId: packageIdBigInt,
             roomAndDeviceId: deviceIdBigInt,
             gameId: gameIdBigInt,
-            durationMinutes: pkg.durationMinutes,
+            durationMinutes,
             price: totalAmount,
           },
         },
@@ -238,7 +222,6 @@ export const createOrder = async (
       include: {
         orderItems: {
           include: {
-            package: true,
             roomAndDevice: {
               include: {
                 category: true,
@@ -312,7 +295,6 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
           },
           orderItems: {
             include: {
-              package: true,
               roomAndDevice: true,
               game: true,
             },
@@ -361,7 +343,6 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
           },
           orderItems: {
             include: {
-              package: true,
               roomAndDevice: true,
               game: true,
             },
@@ -415,7 +396,6 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
           },
           orderItems: {
             include: {
-              package: true,
               roomAndDevice: true,
               game: true,
             },
@@ -485,7 +465,6 @@ export const getOrderById = async (
         },
         orderItems: {
           include: {
-            package: true,
             roomAndDevice: true,
             game: true,
           },
@@ -615,7 +594,6 @@ export const updateOrderStatus = async (
       include: {
         orderItems: {
           include: {
-            package: true,
             roomAndDevice: true,
             game: true,
           },

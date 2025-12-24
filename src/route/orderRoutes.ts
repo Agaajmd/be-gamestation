@@ -12,12 +12,12 @@ import {
   requireOwnerOrAdmin,
   requireCustomer,
 } from "../middleware/roleMiddleware";
-import { validate } from "../middleware/validateMiddleware";
+import * as ValidateMiddleware from "../middleware/validateMiddleware";
 import {
   createOrderSchema,
   updateOrderStatusSchema,
   updatePaymentStatusSchema,
-} from "../validation/orderValidation";
+} from "../validation/bodyValidation/orderValidation";
 
 const router = Router();
 
@@ -26,7 +26,7 @@ router.post(
   "/",
   authenticateToken,
   requireCustomer,
-  validate(createOrderSchema),
+  ValidateMiddleware.validateBody(createOrderSchema),
   createOrder
 );
 
@@ -41,7 +41,7 @@ router.put(
   "/:id/status",
   authenticateToken,
   requireOwnerOrAdmin,
-  validate(updateOrderStatusSchema),
+  ValidateMiddleware.validateBody(updateOrderStatusSchema),
   updateOrderStatus
 );
 
@@ -49,7 +49,7 @@ router.put(
   "/:id/payment-status",
   authenticateToken,
   requireOwnerOrAdmin,
-  validate(updatePaymentStatusSchema),
+  ValidateMiddleware.validateBody(updatePaymentStatusSchema),
   updatePaymentStatus
 );
 

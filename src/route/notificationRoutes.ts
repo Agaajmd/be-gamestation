@@ -8,11 +8,11 @@ import {
 } from "../controller/NotificationController";
 import { authenticateToken } from "../middleware/authMiddleware";
 import { requireOwnerOrAdmin } from "../middleware/roleMiddleware";
-import { validate } from "../middleware/validateMiddleware";
+import * as ValidateMiddleware from "../middleware/validateMiddleware";
 import {
   createNotificationSchema,
   updateNotificationStatusSchema,
-} from "../validation/notificationValidation";
+} from "../validation/bodyValidation/notificationValidation";
 
 const router = Router();
 
@@ -25,7 +25,7 @@ router.post(
   "/",
   authenticateToken,
   requireOwnerOrAdmin,
-  validate(createNotificationSchema),
+  ValidateMiddleware.validateBody(createNotificationSchema),
   createNotification
 );
 
@@ -33,7 +33,7 @@ router.put(
   "/:id",
   authenticateToken,
   requireOwnerOrAdmin,
-  validate(updateNotificationStatusSchema),
+  ValidateMiddleware.validateBody(updateNotificationStatusSchema),
   updateNotificationStatus
 );
 

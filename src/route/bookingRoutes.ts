@@ -1,7 +1,8 @@
 import { Router } from "express";
 import * as BookingFlowController from "../controller/BookingFlowController";
-import { validate } from "../middleware/validateMiddleware";
-import { calculateBookingPriceSchema } from "../validation/bookingValidation";
+import * as ValidateMiddleware from "../middleware/validateMiddleware";
+import { calculateBookingPriceSchema } from "../validation/bodyValidation/bookingValidation";
+import { getAvailableRoomsAndDevicesSchema } from "../validation/queryValidation/bookingQueryValidation";
 
 const router = Router();
 
@@ -36,8 +37,9 @@ router.get(
  * Query: deviceType, deviceVersion, categoryId, bookingDate, startTime
  */
 router.get(
-  "/branches/:branchId/rooms",
-  BookingFlowController.getAvailableRooms
+  "/branches/:branchId/rooms-and-devices",
+  ValidateMiddleware.validateQuery(getAvailableRoomsAndDevicesSchema),
+  BookingFlowController.getAvailableRoomsAndDevices
 );
 
 /**
@@ -66,7 +68,7 @@ router.get(
  */
 router.post(
   "/calculate-price",
-  validate(calculateBookingPriceSchema),
+  ValidateMiddleware.validateBody(calculateBookingPriceSchema),
   BookingFlowController.calculateBookingPrice
 );
 

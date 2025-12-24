@@ -7,11 +7,11 @@ import {
 } from "../controller/SessionController";
 import { authenticateToken } from "../middleware/authMiddleware";
 import { requireOwnerOrAdmin } from "../middleware/roleMiddleware";
-import { validate } from "../middleware/validateMiddleware";
+import * as ValidateMiddleware from "../middleware/validateMiddleware";
 import {
   createSessionSchema,
   updateSessionSchema,
-} from "../validation/sessionValidation";
+} from "../validation/bodyValidation/sessionValidation";
 
 const router = Router();
 
@@ -20,7 +20,7 @@ router.post(
   "/",
   authenticateToken,
   requireOwnerOrAdmin,
-  validate(createSessionSchema),
+  ValidateMiddleware.validateBody(createSessionSchema),
   createSession
 );
 
@@ -30,7 +30,7 @@ router.put(
   "/:id",
   authenticateToken,
   requireOwnerOrAdmin,
-  validate(updateSessionSchema),
+  ValidateMiddleware.validateBody(updateSessionSchema),
   updateSession
 );
 

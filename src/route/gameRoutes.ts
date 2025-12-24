@@ -11,11 +11,11 @@ import {
   requireOwner,
   requireOwnerOrAdmin,
 } from "../middleware/roleMiddleware";
-import { validate } from "../middleware/validateMiddleware";
+import * as ValidateMiddleware from "../middleware/validateMiddleware";
 import {
   createGameSchema,
   updateGameSchema,
-} from "../validation/gameValidation";
+} from "../validation/bodyValidation/gameValidation";
 
 const router = Router();
 
@@ -28,7 +28,7 @@ router.post(
   "/",
   authenticateToken,
   requireOwnerOrAdmin,
-  validate(createGameSchema),
+  ValidateMiddleware.validateBody(createGameSchema),
   createGame
 );
 
@@ -36,7 +36,7 @@ router.put(
   "/:id",
   authenticateToken,
   requireOwnerOrAdmin,
-  validate(updateGameSchema),
+  ValidateMiddleware.validateBody(updateGameSchema),
   updateGame
 );
 

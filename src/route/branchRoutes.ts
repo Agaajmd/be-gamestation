@@ -1,11 +1,11 @@
 import { Router } from "express";
 import * as BranchController from "../controller/BranchController";
 import { authenticateToken } from "../middleware/authMiddleware";
-import { validate } from "../middleware/validateMiddleware";
+import * as ValidateMiddleware from "../middleware/validateMiddleware";
 import {
   createBranchSchema,
   updateBranchSchema,
-} from "../validation/branchValidation";
+} from "../validation/bodyValidation/branchValidation";
 
 const router = Router();
 
@@ -17,7 +17,7 @@ const router = Router();
 router.post(
   "/",
   authenticateToken,
-  validate(createBranchSchema),
+  ValidateMiddleware.validateBody(createBranchSchema),
   BranchController.createBranch
 );
 
@@ -43,7 +43,7 @@ router.get("/:id", authenticateToken, BranchController.getBranchById);
 router.put(
   "/:id",
   authenticateToken,
-  validate(updateBranchSchema),
+  ValidateMiddleware.validateBody(updateBranchSchema),
   BranchController.updateBranch
 );
 

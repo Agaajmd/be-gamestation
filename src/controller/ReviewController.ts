@@ -285,24 +285,7 @@ export const getReviewById = async (
             email: true,
           },
         },
-        order: {
-          include: {
-            branch: {
-              select: {
-                id: true,
-                name: true,
-                address: true,
-              },
-            },
-            orderItems: {
-              include: {
-                package: true,
-                roomAndDevice: true,
-                game: true,
-              },
-            },
-          },
-        },
+        order: true,
       },
     });
 

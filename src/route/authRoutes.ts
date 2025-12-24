@@ -1,6 +1,6 @@
 import { Router } from "express";
 import * as AuthController from "../controller/AuthController";
-import { validate } from "../middleware/validateMiddleware";
+import * as ValidateMiddleware from "../middleware/validateMiddleware";
 import {
   registerSchema,
   loginSchema,
@@ -8,7 +8,7 @@ import {
   refreshTokenSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
-} from "../validation/authValidation";
+} from "../validation/bodyValidation/authValidation";
 
 const router = Router();
 
@@ -18,7 +18,7 @@ const router = Router();
  * @access  Public
  * @body    { email, password?, fullname, phone?, role? }
  */
-router.post("/register", validate(registerSchema), AuthController.register);
+router.post("/register", ValidateMiddleware.validateBody(registerSchema), AuthController.register);
 
 /**
  * @route   POST /auth/login
@@ -26,7 +26,7 @@ router.post("/register", validate(registerSchema), AuthController.register);
  * @access  Public
  * @body    { email, password }
  */
-router.post("/login", validate(loginSchema), AuthController.login);
+router.post("/login", ValidateMiddleware.validateBody(loginSchema), AuthController.login);
 
 /**
  * @route   POST /auth/login-otp
@@ -35,7 +35,7 @@ router.post("/login", validate(loginSchema), AuthController.login);
  * @body    Step 1: { email }
  *          Step 2: { email, otp }
  */
-router.post("/login-otp", validate(loginOTPSchema), AuthController.loginOTP);
+router.post("/login-otp", ValidateMiddleware.validateBody(loginOTPSchema), AuthController.loginOTP);
 
 /**
  * @route   POST /auth/refresh-token
@@ -45,7 +45,7 @@ router.post("/login-otp", validate(loginOTPSchema), AuthController.loginOTP);
  */
 router.post(
   "/refresh-token",
-  validate(refreshTokenSchema),
+  ValidateMiddleware.validateBody(refreshTokenSchema),
   AuthController.refreshToken
 );
 
@@ -65,7 +65,7 @@ router.post("/logout", AuthController.logout);
  */
 router.post(
   "/forgot-password",
-  validate(forgotPasswordSchema),
+  ValidateMiddleware.validateBody(forgotPasswordSchema),
   AuthController.forgotPassword
 );
 
@@ -77,7 +77,7 @@ router.post(
  */
 router.post(
   "/reset-password",
-  validate(resetPasswordSchema),
+  ValidateMiddleware.validateBody(resetPasswordSchema),
   AuthController.resetPassword
 );
 

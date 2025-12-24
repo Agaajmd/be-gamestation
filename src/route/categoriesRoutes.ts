@@ -1,11 +1,11 @@
 import { Router } from "express";
 import * as CategoryController from "../controller/CategoryController";
 import { authenticateToken } from "../middleware/authMiddleware";
-import { validate } from "../middleware/validateMiddleware";
+import * as ValidateMiddleware from "../middleware/validateMiddleware";
 import {
     addCategorySchema,
     updateCategorySchema,
-} from "../validation/categoryValidation";
+} from "../validation/bodyValidation/categoryValidation";
 
 const router = Router();
 
@@ -17,7 +17,7 @@ const router = Router();
 router.post(
     "/:branchId/category",
     authenticateToken,
-    validate(addCategorySchema),
+    ValidateMiddleware.validateBody(addCategorySchema),
     CategoryController.addCategory
 );
 
@@ -40,7 +40,7 @@ router.get(
 router.put(
     "/:branchId/category/:categoryId",
     authenticateToken,
-    validate(updateCategorySchema),
+    ValidateMiddleware.validateBody(updateCategorySchema),
     CategoryController.updateCategory
 );
 

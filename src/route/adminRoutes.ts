@@ -2,8 +2,8 @@ import { Router } from "express";
 import * as AdminController from "../controller/AdminController";
 import { authenticateToken } from "../middleware/authMiddleware";
 import * as roleMiddleware from "../middleware/roleMiddleware";
-import { validate } from "../middleware/validateMiddleware";
-import { addAdminSchema, updateAdminSchema } from "../validation/adminValidation";
+import * as ValidateMiddleware from "../middleware/validateMiddleware";
+import { addAdminSchema, updateAdminSchema } from "../validation/bodyValidation/adminValidation";
 
 const router = Router();
 
@@ -16,7 +16,7 @@ router.post(
   "/:id/admins",
   authenticateToken,
   roleMiddleware.requireOwner,
-  validate(addAdminSchema),
+  ValidateMiddleware.validateBody(addAdminSchema),
   AdminController.addBranchAdmin
 );
 
@@ -41,7 +41,7 @@ router.put(
   "/:id/admins/:adminId",
   authenticateToken,
   roleMiddleware.requireOwner,
-  validate(updateAdminSchema),
+  ValidateMiddleware.validateBody(updateAdminSchema),
   AdminController.updateBranchAdmin
 );
 

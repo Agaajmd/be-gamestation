@@ -1,11 +1,11 @@
 import { Router } from "express";
 import * as DeviceController from "../controller/RoomAndDeviceController";
 import { authenticateToken } from "../middleware/authMiddleware";
-import { validate } from "../middleware/validateMiddleware";
+import * as ValidateMiddleware from "../middleware/validateMiddleware";
 import {
   addRoomAndDeviceSchema,
   updateRoomAndDeviceSchema,
-} from "../validation/roomAndDeviceValidation";
+} from "../validation/bodyValidation/roomAndDeviceValidation";
 
 const router = Router();
 
@@ -34,7 +34,7 @@ router.get(
 router.post(
   "/:id/rooms-and-devices",
   authenticateToken,
-  validate(addRoomAndDeviceSchema),
+  ValidateMiddleware.validateBody(addRoomAndDeviceSchema),
   DeviceController.addRoomAndDevice
 );
 
@@ -46,7 +46,7 @@ router.post(
 router.put(
   "/:branchId/rooms-and-devices/:roomAndDeviceId",
   authenticateToken,
-  validate(updateRoomAndDeviceSchema),
+  ValidateMiddleware.validateBody(updateRoomAndDeviceSchema),
   DeviceController.updateRoomAndDevice
 );
 

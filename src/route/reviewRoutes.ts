@@ -8,11 +8,11 @@ import {
 } from "../controller/ReviewController";
 import { authenticateToken } from "../middleware/authMiddleware";
 import { requireCustomer } from "../middleware/roleMiddleware";
-import { validate } from "../middleware/validateMiddleware";
+import * as ValidateMiddleware from "../middleware/validateMiddleware";
 import {
   createReviewSchema,
   updateReviewSchema,
-} from "../validation/reviewValidation";
+} from "../validation/bodyValidation/reviewValidation";
 
 const router = Router();
 
@@ -21,7 +21,7 @@ router.post(
   "/",
   authenticateToken,
   requireCustomer,
-  validate(createReviewSchema),
+  ValidateMiddleware.validateBody(createReviewSchema),
   createReview
 );
 
@@ -29,7 +29,7 @@ router.put(
   "/:id",
   authenticateToken,
   requireCustomer,
-  validate(updateReviewSchema),
+  ValidateMiddleware.validateBody(updateReviewSchema),
   updateReview
 );
 

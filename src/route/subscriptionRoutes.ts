@@ -9,11 +9,11 @@ import {
 } from "../controller/SubscriptionController";
 import { authenticateToken } from "../middleware/authMiddleware";
 import { requireOwner } from "../middleware/roleMiddleware";
-import { validate } from "../middleware/validateMiddleware";
+import * as ValidateMiddleware from "../middleware/validateMiddleware";
 import {
   createSubscriptionSchema,
   updateSubscriptionSchema,
-} from "../validation/subscriptionValidation";
+} from "../validation/bodyValidation/subscriptionValidation";
 
 const router = Router();
 
@@ -22,7 +22,7 @@ router.post(
   "/",
   authenticateToken,
   requireOwner,
-  validate(createSubscriptionSchema),
+  ValidateMiddleware.validateBody(createSubscriptionSchema),
   createSubscription
 );
 
@@ -34,7 +34,7 @@ router.put(
   "/:id",
   authenticateToken,
   requireOwner,
-  validate(updateSubscriptionSchema),
+  ValidateMiddleware.validateBody(updateSubscriptionSchema),
   updateSubscription
 );
 

@@ -331,7 +331,6 @@ export const getSessionById = async (
             },
             orderItems: {
               include: {
-                package: true,
                 roomAndDevice: true,
                 game: true,
               },

@@ -275,7 +275,6 @@ export const getPaymentById = async (
             },
             orderItems: {
               include: {
-                package: true,
                 roomAndDevice: true,
                 game: true,
               },
@@ -362,7 +361,34 @@ export const updatePayment = async (
 
     const payment = await prisma.payment.findUnique({
       where: { id: paymentId },
-      include: { order: true },
+      include: {
+        order: {
+          include: {
+            customer: {
+              select: {
+                id: true,
+                email: true,
+                fullname: true,
+                phone: true,
+              },
+            },
+            branch: {
+              select: {
+                id: true,
+                name: true,
+                address: true,
+                phone: true,
+              },
+            },
+            orderItems: {
+              include: {
+                roomAndDevice: true,
+                game: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!payment) {

@@ -152,7 +152,6 @@ export const getBranches = async (
           _count: {
             select: {
               roomAndDevices: true,
-              packages: true,
               orders: true,
             },
           },
@@ -184,7 +183,6 @@ export const getBranches = async (
           _count: {
             select: {
               roomAndDevices: true,
-              packages: true,
             },
           },
         },
@@ -250,10 +248,6 @@ export const getBranchById = async (
         },
         roomAndDevices: {
           orderBy: { roomNumber: "asc" },
-        },
-        packages: {
-          where: { isActive: true },
-          orderBy: { price: "asc" },
         },
         admins: {
           include: {
@@ -323,11 +317,6 @@ export const getBranchById = async (
         ...device,
         id: device.id?.toString(),
         branchId: device.branchId?.toString(),
-      })),
-      packages: branch.packages?.map((pkg: any) => ({
-        ...pkg,
-        id: pkg.id?.toString(),
-        branchId: pkg.branchId?.toString(),
       })),
       admins: branch.admins?.map((admin: any) => ({
         ...admin,
@@ -506,7 +495,7 @@ export const deleteBranch = async (
       return;
     }
 
-    // Delete branch (cascade akan menghapus devices, packages, admins)
+    // Delete branch (cascade akan menghapus devices, admins)
     await prisma.branch.delete({
       where: { id: branchId },
     });

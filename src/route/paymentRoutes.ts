@@ -7,11 +7,11 @@ import {
 } from "../controller/PaymentController";
 import { authenticateToken } from "../middleware/authMiddleware";
 import { requireOwnerOrAdmin } from "../middleware/roleMiddleware";
-import { validate } from "../middleware/validateMiddleware";
+import * as ValidateMiddleware from "../middleware/validateMiddleware";
 import {
   createPaymentSchema,
   updatePaymentSchema,
-} from "../validation/paymentValidation";
+} from "../validation/bodyValidation/paymentValidation";
 
 const router = Router();
 
@@ -19,7 +19,7 @@ const router = Router();
 router.post(
   "/",
   authenticateToken,
-  validate(createPaymentSchema),
+  ValidateMiddleware.validateBody(createPaymentSchema),
   createPayment
 );
 
@@ -30,7 +30,7 @@ router.put(
   "/:id",
   authenticateToken,
   requireOwnerOrAdmin,
-  validate(updatePaymentSchema),
+  ValidateMiddleware.validateBody(updatePaymentSchema),
   updatePayment
 );
 
