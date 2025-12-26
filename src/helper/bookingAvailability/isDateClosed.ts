@@ -10,8 +10,16 @@ export const isDateClosed = (
     startAt: Date;
     endAt: Date;
   }>,
+  holidayDates: Set<string>,
   totalDevices: number
 ): boolean => {
+  // Check if the date is a holiday
+  const dateStr = currentDate.toISOString().split("T")[0];
+  if (holidayDates.has(dateStr)) {
+    return true;
+  }
+
+  // Check if all devices have full-day exceptions
   const dayStart = new Date(currentDate);
   dayStart.setHours(openHour, 0, 0, 0);
   const dayEnd = new Date(currentDate);

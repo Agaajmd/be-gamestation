@@ -2,7 +2,10 @@ import { Router } from "express";
 import * as BookingFlowController from "../controller/BookingFlowController";
 import * as ValidateMiddleware from "../middleware/validateMiddleware";
 import { calculateBookingPriceSchema } from "../validation/bodyValidation/bookingValidation";
-import { getAvailableRoomsAndDevicesSchema, getAvailableDatesSchema } from "../validation/queryValidation/bookingQueryValidation";
+import {
+  getAvailableRoomsAndDevicesSchema,
+  getAvailableDatesSchema,
+} from "../validation/queryValidation/bookingQueryValidation";
 
 const router = Router();
 
@@ -12,6 +15,36 @@ const router = Router();
  */
 router.get("/branches", BookingFlowController.getBranches);
 
+/**
+ * GET /booking/branches/:branchId/available-dates
+ * Mendapatkan tanggal yang tersedia untuk booking (public)
+ * Query: startDate, endDate
+ */
+router.get(
+  "/branches/:branchId/available-dates",
+  ValidateMiddleware.validateQuery(getAvailableDatesSchema),
+  BookingFlowController.getAvailableDates
+);
+
+/**
+ * GET /booking/branches/:branchId/available-times
+ * Mendapatkan jam yang tersedia untuk booking (public)
+ * Query: deviceId, bookingDate, durationMinutes
+ */
+router.get(
+  "/branches/:branchId/available-times",
+  BookingFlowController.getAvailableTimes
+);
+
+/**
+ * GET /booking/branches/:branchId/duraion-options
+ * Mendapatkan opsi durasi booking berdasarkan date dan jam (public)
+ * Query: bookingDate, startTime
+ */
+router.get(
+  "/branches/:branchId/duration-options",
+  BookingFlowController.getDurationOptions
+);
 
 /**
  * GET /booking/branches/:branchId/categories
@@ -32,27 +65,6 @@ router.get(
   "/branches/:branchId/rooms-and-devices",
   ValidateMiddleware.validateQuery(getAvailableRoomsAndDevicesSchema),
   BookingFlowController.getAvailableRoomsAndDevices
-);
-
-/**
- * GET /booking/branches/:branchId/available-dates
- * Mendapatkan tanggal yang tersedia untuk booking (public)
- * Query: startDate, endDate
- */
-router.get(
-  "/available-dates",
-  ValidateMiddleware.validateQuery(getAvailableDatesSchema),
-  BookingFlowController.getAvailableDates
-);
-
-/**
- * GET /booking/branches/:branchId/available-times
- * Mendapatkan jam yang tersedia untuk booking (public)
- * Query: deviceId, bookingDate, durationMinutes
- */
-router.get(
-  "/branches/:branchId/available-times",
-  BookingFlowController.getAvailableTimes
 );
 
 /**

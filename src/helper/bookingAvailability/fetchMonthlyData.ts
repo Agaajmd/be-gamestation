@@ -40,5 +40,17 @@ export const fetchMonthlyData = async (
         reason: true,
       },
     }),
+    prisma.branchHoliday.findMany({
+      where: {
+        branchId,
+        date: { gte: startDate, lte: endDatePlusOne },
+      },
+      select: {
+        branchId: true,
+        date: true,
+        name: true,
+        description: true,
+      },
+    }),
   ]);
 };

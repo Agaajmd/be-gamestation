@@ -37,11 +37,16 @@ export const getBranches = async (
       orderBy: { name: "asc" },
     });
 
-    const serialized = JSON.parse(
-      JSON.stringify(branches, (_key, value) =>
-        typeof value === "bigint" ? value.toString() : value
-      )
-    );
+    const serialized = branches.map((branch) => ({
+      id: branch.id.toString(),
+      name: branch.name,
+      address: branch.address,
+      phone: branch.phone,
+      openTime: branch.openTime,
+      closeTime: branch.closeTime,
+      amenities: branch.amenities,
+      availableDeviceCount: branch._count.roomAndDevices,
+    }));
 
     res.status(200).json({
       success: true,
@@ -65,8 +70,8 @@ export const getAvailableDates = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { branchId, month } = req.query;
-    const branchIdBigInt = BigInt(branchId as string);
+    const branchId = BigInt(req.params.branchId);
+    const { month } = req.query;
 
     // Parse month
     const [year, monthNum] = (month as string).split("-").map(Number);
@@ -75,7 +80,7 @@ export const getAvailableDates = async (
 
     // Get branch with operating hours
     const branch = await prisma.branch.findUnique({
-      where: { id: branchIdBigInt },
+      where: { id: branchId },
       select: {
         id: true,
         openTime: true,
@@ -94,7 +99,7 @@ export const getAvailableDates = async (
     // Get all available devices
     const devices = await prisma.roomAndDevice.findMany({
       where: {
-        branchId: branchIdBigInt,
+        branchId: branchId,
         status: { not: "maintenance" },
       },
       select: { id: true },
@@ -116,11 +121,15 @@ export const getAvailableDates = async (
     // Fetch all orders and exceptions for the month
     const deviceIds = devices.map((d) => d.id);
 
-    const [orders, exceptions] = await fetchMonthlyData(
-      branchIdBigInt,
+    const [orders, exceptions, holidays] = await fetchMonthlyData(
+      branchId,
       deviceIds,
       startDate,
       endDate
+    );
+
+    const holidayDates = new Set(
+      holidays.map((h) => new Date(h.date).toISOString().split("T")[0])
     );
 
     // Get operating hours
@@ -140,19 +149,24 @@ export const getAvailableDates = async (
       d <= endDate;
       d.setDate(d.getDate() + 1)
     ) {
-      
       const currentDate = new Date(d);
-      console.log("currentDate", currentDate);
-      
+
       const dateStr = currentDate.toISOString().split("T")[0];
-      console.log(dateStr);
-      
 
       // Skip past dates
       if (isPastDate(currentDate)) continue;
 
       // Check if branch is closed
-      if (isDateClosed(currentDate, openHour, closeHour, exceptions, devices.length)) {
+      if (
+        isDateClosed(
+          currentDate,
+          openHour,
+          closeHour,
+          exceptions,
+          holidayDates,
+          devices.length
+        )
+      ) {
         closedDates.push(dateStr);
         continue;
       }
@@ -209,18 +223,15 @@ export const getAvailableTimes = async (
 ): Promise<void> => {
   try {
     const branchId = BigInt(req.params.branchId);
-    const { deviceId, bookingDate, durationMinutes } = req.query;
+    const { bookingDate } = req.query;
 
-    if (!deviceId || !bookingDate || !durationMinutes) {
+    if (!bookingDate) {
       res.status(400).json({
         success: false,
         message: "Device ID, booking date, dan duration wajib diisi",
       });
       return;
     }
-
-    const deviceIdBigInt = BigInt(deviceId as string);
-    const duration = parseInt(durationMinutes as string);
 
     // Get branch with open/close time
     const branch = await prisma.branch.findUnique({
@@ -235,15 +246,39 @@ export const getAvailableTimes = async (
       return;
     }
 
-    // Get device with bookings and exceptions
-    const device = await prisma.roomAndDevice.findUnique({
-      where: { id: deviceIdBigInt },
+    // Check if date is holiday
+    const targetDate = new Date(bookingDate as string);
+
+    const holiday = await prisma.branchHoliday.findFirst({
+      where: {
+        branchId,
+        date: targetDate,
+      },
+    });
+
+    if (holiday) {
+      res.status(200).json({
+        success: true,
+        data: [],
+        message: `Branch tutup: ${holiday.name}`,
+      });
+      return;
+    }
+
+    // Get all devices in this branch
+    const devices = await prisma.roomAndDevice.findMany({
+      where: {
+        branchId,
+        status: { not: "maintenance" },
+      },
       include: {
         orderItems: {
           where: {
             order: {
-              status: {
-                in: ["pending", "paid", "checked_in"],
+              status: { in: ["pending", "paid", "checked_in"] },
+              bookingStart: {
+                gte: new Date(targetDate.setHours(0, 0, 0, 0)),
+                lte: new Date(targetDate.setHours(23, 59, 59, 999)),
               },
             },
           },
@@ -256,23 +291,32 @@ export const getAvailableTimes = async (
             },
           },
         },
-        availabilityExceptions: true,
+        availabilityExceptions: {
+          where: {
+            startAt: {
+              lte: new Date(targetDate.setHours(23, 59, 59, 999)),
+            },
+            endAt: {
+              gte: new Date(targetDate.setHours(0, 0, 0, 0)),
+            },
+          },
+        },
       },
     });
 
-    if (!device || device.branchId !== branchId) {
-      res.status(404).json({
-        success: false,
-        message: "Device tidak ditemukan di cabang ini",
+    if (devices.length === 0) {
+      res.status(200).json({
+        success: true,
+        data: [],
+        message: "Tidak ada device tersedia di branch ini",
       });
       return;
     }
 
     // Generate time slots
-    const targetDate = new Date(bookingDate as string);
     const slots = [];
+    const now = new Date();
 
-    // Default: 09:00 - 23:00, atau gunakan branch open/close time
     const startHour = branch.openTime
       ? new Date(branch.openTime).getUTCHours()
       : 9;
@@ -282,45 +326,47 @@ export const getAvailableTimes = async (
 
     for (let hour = startHour; hour < endHour; hour++) {
       for (let minute = 0; minute < 60; minute += 30) {
-        const slotStart = new Date(targetDate);
+        const slotStart = new Date(bookingDate as string);
         slotStart.setHours(hour, minute, 0, 0);
 
-        const slotEnd = new Date(slotStart);
-        slotEnd.setMinutes(slotEnd.getMinutes() + duration);
+        // Skip past times
+        if (slotStart < now) continue;
 
-        // Check if slot end exceeds closing time
-        if (slotEnd.getHours() > endHour) {
-          continue;
+        // Count available devices for this slot
+        let availableDeviceCount = 0;
+
+        for (const device of devices) {
+          let isAvailable = true;
+
+          // Check exceptions
+          const hasException = device.availabilityExceptions.some(
+            (exc) => slotStart >= exc.startAt && slotStart < exc.endAt
+          );
+          if (hasException) {
+            isAvailable = false;
+          }
+
+          // Check bookings (cek apakah slot START ini bentrok dengan booking)
+          const hasBooking = device.orderItems.some((item) => {
+            const bookingStart = item.order.bookingStart;
+            const bookingEnd = item.order.bookingEnd;
+            return slotStart >= bookingStart && slotStart < bookingEnd;
+          });
+          if (hasBooking) {
+            isAvailable = false;
+          }
+
+          if (isAvailable) {
+            availableDeviceCount++;
+          }
         }
-
-        // Check availability
-        let isAvailable = true;
-
-        // Check exceptions
-        const hasException = device.availabilityExceptions.some(
-          (exc) => slotStart >= exc.startAt && slotStart < exc.endAt
-        );
-        if (hasException) isAvailable = false;
-
-        // Check bookings
-        const hasBooking = device.orderItems.some((item) => {
-          const bookingStart = item.order.bookingStart;
-          const bookingEnd = item.order.bookingEnd;
-
-          // Check if slots overlap
-          return slotStart < bookingEnd && slotEnd > bookingStart;
-        });
-        if (hasBooking) isAvailable = false;
-
-        // Check if time has passed (for today)
-        const now = new Date();
-        if (slotStart < now) isAvailable = false;
 
         slots.push({
           time: `${hour.toString().padStart(2, "0")}:${minute
             .toString()
             .padStart(2, "0")}`,
-          isAvailable,
+          availableDeviceCount,
+          isAvailable: availableDeviceCount > 0,
         });
       }
     }
@@ -328,12 +374,144 @@ export const getAvailableTimes = async (
     res.status(200).json({
       success: true,
       data: slots,
+      meta: {
+        totalDevices: devices.length,
+        note: "availableDeviceCount menunjukkan jumlah device yang bebas di waktu ini. Validasi durasi dilakukan di step berikutnya.",
+      },
     });
   } catch (error) {
     console.error("Get available times error:", error);
     res.status(500).json({
       success: false,
       message: "Terjadi kesalahan saat mengambil jam tersedia",
+    });
+  }
+};
+
+/**
+ * GET /booking/branches/:branchId/duration-options
+ * Mendapatkan opsi durasi booking berdasarkan tanggal dan jam mulai
+ */
+export const getDurationOptions = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const branchId = BigInt(req.params.branchId);
+    const { bookingDate, startTime } = req.query;
+
+    if (!bookingDate || !startTime) {
+      res.status(400).json({
+        success: false,
+        message: "Booking date dan start time wajib diisi",
+      });
+      return;
+    }
+
+    // Validate time format (HH:MM)
+    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!timeRegex.test(startTime as string)) {
+      res.status(400).json({
+        success: false,
+        message: "Format start time tidak valid. Gunakan format HH:MM",
+      });
+      return;
+    }
+
+    // Get branch
+    const branch = await prisma.branch.findUnique({
+      where: { id: branchId },
+      select: {
+        id: true,
+        name: true,
+        openTime: true,
+        closeTime: true,
+      },
+    });
+
+    if (!branch) {
+      res.status(404).json({
+        success: false,
+        message: "Cabang tidak ditemukan",
+      });
+      return;
+    }
+
+    // Parse start time
+    const [startHour, startMinute] = (startTime as string)
+      .split(":")
+      .map(Number);
+
+    // Get close hour from branch
+    const closeHour = branch.closeTime
+      ? new Date(branch.closeTime).getUTCHours()
+      : 23;
+
+    // Create date objects for calculation
+    const bookingDateObj = new Date(bookingDate as string);
+    const startDateTime = new Date(bookingDateObj);
+    startDateTime.setHours(startHour, startMinute, 0, 0);
+
+    const closeDateTime = new Date(bookingDateObj);
+    closeDateTime.setHours(closeHour, 0, 0, 0);
+
+    // Calculate maximum duration in minutes
+    const maxDurationMs = closeDateTime.getTime() - startDateTime.getTime();
+    const maxDurationMinutes = Math.floor(maxDurationMs / (1000 * 60));
+
+    if (maxDurationMinutes <= 0) {
+      res.status(400).json({
+        success: false,
+        message: "Start time melebihi atau sama dengan jam tutup branch",
+      });
+      return;
+    }
+
+    // Generate duration options (1 jam = 60 menit, step 30 menit)
+    const durationOptions = [];
+    const minDuration = 60; // Minimum 1 jam
+    const step = 30; // Step 30 menit
+
+    for (
+      let duration = minDuration;
+      duration <= maxDurationMinutes;
+      duration += step
+    ) {
+      const hours = Math.floor(duration / 60);
+      const minutes = duration % 60;
+
+      let label = "";
+      if (hours > 0) {
+        label += `${hours} jam`;
+      }
+      if (minutes > 0) {
+        if (hours > 0) label += " ";
+        label += `${minutes} menit`;
+      }
+
+      durationOptions.push({
+        value: duration,
+        label: label,
+        hours: hours,
+        minutes: minutes,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: durationOptions,
+      meta: {
+        startTime: startTime,
+        closeTime: `${closeHour.toString().padStart(2, "0")}:00`,
+        maxDurationMinutes: maxDurationMinutes,
+        note: "Durasi minimum 1 jam, step 30 menit",
+      },
+    });
+  } catch (error) {
+    console.error("Get duration options error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Terjadi kesalahan saat mengambil opsi durasi",
     });
   }
 };

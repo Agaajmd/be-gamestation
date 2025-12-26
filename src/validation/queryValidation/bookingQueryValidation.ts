@@ -53,10 +53,6 @@ export const getAvailableTimesSchema = Joi.object({
  * Query params: branchId, month
  */
 export const getAvailableDatesSchema = Joi.object({
-  branchId: Joi.string().required().messages({
-    "any.required": "Branch ID wajib diisi",
-    "string.base": "Branch ID harus berupa string",
-  }),
   month: Joi.string()
     .pattern(/^\d{4}-(0[1-9]|1[0-2])$/)
     .required()

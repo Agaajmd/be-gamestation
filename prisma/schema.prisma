@@ -172,6 +172,7 @@ model Branch {
   roomAndDevices       roomAndDevice[]
   orders               Order[]
   advanceBookingPrices AdvanceBookingPrice[]
+  branchHolidays       BranchHoliday[]
 
   @@index([ownerId], name: "idx_branches_owner")
   @@map("branches")
@@ -431,4 +432,19 @@ model Review {
   customer User  @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   @@map("reviews")
+}
+
+model BranchHoliday {
+  id          BigInt   @id @default(autoincrement())
+  branchId    BigInt   @map("branch_id")
+  date        DateTime @db.Date
+  name        String   @db.VarChar(100) // "Hari Raya Idul Fitri", "Tahun Baru", etc
+  description String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, date])
+  @@map("branch_holidays")
 }
