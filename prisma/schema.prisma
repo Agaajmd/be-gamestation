@@ -49,13 +49,6 @@ enum RoomAndDeviceStatus {
   in_use
 }
 
-enum Platform {
-  ps
-  pc
-  pcvr
-  racing
-}
-
 enum OrderStatus {
   pending
   paid
@@ -242,10 +235,10 @@ model AdvanceBookingPrice {
 }
 
 model Game {
-  id        BigInt   @id @default(autoincrement())
-  name      String   @db.VarChar(100)
-  platform  Platform
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  id         BigInt     @id @default(autoincrement())
+  name       String     @db.VarChar(100)
+  deviceType DeviceType?
+  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
 
   // Relations
   orderItems       OrderItem[]

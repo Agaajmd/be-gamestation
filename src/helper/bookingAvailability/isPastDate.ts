@@ -3,6 +3,8 @@
  */
 export const isPastDate = (date: Date): boolean => {
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return date < today;
+  const todayStr = today.toISOString().split('T')[0];
+  const dateStr = date.toISOString().split('T')[0];
+  
+  return dateStr < todayStr;
 };

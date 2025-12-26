@@ -163,3 +163,57 @@ admin123
 
 ### OWNER
 Owner12345!
+
+### ===============================================
+### HOLIDAY API - National Holidays Management
+### ===============================================
+
+### Sync National Holidays for 2025 (from API)
+POST {{baseUrl}}/holidays/national/sync/2025
+Authorization: Bearer {{accessToken}}
+
+### Sync National Holidays for 2026
+POST {{baseUrl}}/holidays/national/sync/2026
+Authorization: Bearer {{accessToken}}
+
+### Get All Holidays
+GET {{baseUrl}}/holidays
+
+### Get Holidays by Branch
+GET {{baseUrl}}/holidays?branchId=1
+
+### Get Holidays by Year
+GET {{baseUrl}}/holidays?year=2025
+
+### Get Holidays by Date Range
+GET {{baseUrl}}/holidays?startDate=2025-01-01&endDate=2025-12-31
+
+### Add Custom Holiday
+POST {{baseUrl}}/holidays/custom
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "branchId": "1",
+  "date": "2025-10-15",
+  "name": "Anniversary Cabang Jakarta",
+  "description": "Ulang tahun ke-5 cabang Jakarta"
+}
+
+### Update Holiday
+PUT {{baseUrl}}/holidays/1
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Libur Lebaran (Updated)",
+  "description": "Idul Fitri 1446 H - Updated"
+}
+
+### Delete Holiday
+DELETE {{baseUrl}}/holidays/1
+Authorization: Bearer {{accessToken}}
+
+### Delete National Holiday (all branches)
+DELETE {{baseUrl}}/holidays/national/2025-12-25?name=Hari Raya Natal
+Authorization: Bearer {{accessToken}}

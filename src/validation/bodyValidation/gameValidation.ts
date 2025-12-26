@@ -6,12 +6,12 @@ export const createGameSchema = Joi.object({
     "string.max": "Nama game maksimal 100 karakter",
     "any.required": "Nama game wajib diisi",
   }),
-  platform: Joi.string()
-    .valid("ps", "pc", "pcvr", "racing")
+  deviceType: Joi.string()
+    .valid("ps", "pc", "vr", "racing", "arcade")
     .required()
     .messages({
-      "any.only": "Platform harus salah satu dari: ps, pc, pcvr, racing",
-      "any.required": "Platform wajib diisi",
+      "any.only": "DeviceType harus salah satu dari: ps, pc, vr, racing, arcade",
+      "any.required": "DeviceType wajib diisi",
     }),
 });
 
@@ -20,10 +20,10 @@ export const updateGameSchema = Joi.object({
     "string.min": "Nama game minimal 1 karakter",
     "string.max": "Nama game maksimal 100 karakter",
   }),
-  platform: Joi.string()
+  deviceType: Joi.string()
     .valid("ps", "pc", "pcvr", "racing")
     .optional()
     .messages({
-      "any.only": "Platform harus salah satu dari: ps, pc, pcvr, racing",
+      "any.only": "DeviceType harus salah satu dari: ps, pc, pcvr, racing",
     }),
 });

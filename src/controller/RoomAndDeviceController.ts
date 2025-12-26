@@ -175,20 +175,51 @@ export const getRoomsAndDevices = async (
             tier: true,
           },
         },
+        games: {
+          select: {
+            game: {
+              select: {
+                id: true,
+                name: true,
+                deviceType: true,
+              },
+            },
+          },
+        },
         _count: {
           select: {
             sessions: true,
           },
         },
       },
-      orderBy: [{ roomNumber: "asc" }],
+      orderBy: { roomNumber: "asc" },
     });
 
-    const serialized = JSON.parse(
-      JSON.stringify(roomsAndDevices, (_key, value) =>
-        typeof value === "bigint" ? value.toString() : value
-      )
-    );
+    const serialized = roomsAndDevices.map((device) => ({
+      id: device.id.toString(),
+      branchId: device.branchId.toString(),
+      categoryId: device.categoryId?.toString() || null,
+      name: device.name,
+      deviceType: device.deviceType,
+      version: device.version,
+      pricePerHour: device.pricePerHour.toString(),
+      roomNumber: device.roomNumber,
+      status: device.status,
+      createdAt: device.createdAt,
+      updatedAt: device.updatedAt,
+      category: device.category
+        ? {
+            id: device.category.id.toString(),
+            name: device.category.name,
+            tier: device.category.tier,
+          }
+        : null,
+      availableGames: device.games.map((ga) => ({
+        id: ga.game.id.toString(),
+        name: ga.game.name,
+      })),
+      _count: device._count,
+    }));
 
     res.status(200).json({
       success: true,

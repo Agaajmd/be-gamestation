@@ -7,10 +7,10 @@ import prisma from "../lib/prisma";
  */
 export const getGames = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { platform } = req.query;
+    const { deviceType } = req.query;
 
     const games = await prisma.game.findMany({
-      where: platform ? { platform: platform as any } : undefined,
+      where: deviceType ? { deviceType: deviceType as any } : undefined,
       orderBy: {
         name: "asc",
       },
@@ -86,23 +86,23 @@ export const createGame = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { name, platform } = req.body;
+    const { name, deviceType } = req.body;
 
-    // Check if game with same name and platform already exists
+    // Check if game with same name and deviceType already exists
     const existingGame = await prisma.game.findFirst({
       where: {
         name: {
           equals: name,
           mode: "insensitive",
         },
-        platform,
+        deviceType,
       },
     });
 
     if (existingGame) {
       res.status(400).json({
         success: false,
-        message: "Game dengan nama dan platform yang sama sudah ada",
+        message: "Game dengan nama dan deviceType yang sama sudah ada",
       });
       return;
     }
@@ -110,7 +110,7 @@ export const createGame = async (
     const game = await prisma.game.create({
       data: {
         name,
-        platform,
+        deviceType,
       },
     });
 
@@ -144,7 +144,7 @@ export const updateGame = async (
 ): Promise<void> => {
   try {
     const gameId = BigInt(req.params.id);
-    const { name, platform } = req.body;
+    const { name, deviceType } = req.body;
 
     const game = await prisma.game.findUnique({
       where: { id: gameId },
@@ -158,15 +158,15 @@ export const updateGame = async (
       return;
     }
 
-    // Check if game with same name and platform already exists (excluding current game)
-    if (name && platform) {
+    // Check if game with same name and deviceType already exists (excluding current game)
+    if (name && deviceType) {
       const existingGame = await prisma.game.findFirst({
         where: {
           name: {
             equals: name,
             mode: "insensitive",
           },
-          platform,
+          deviceType,
           id: { not: gameId },
         },
       });
@@ -174,7 +174,7 @@ export const updateGame = async (
       if (existingGame) {
         res.status(400).json({
           success: false,
-          message: "Game dengan nama dan platform yang sama sudah ada",
+          message: "Game dengan nama dan deviceType yang sama sudah ada",
         });
         return;
       }
@@ -184,7 +184,7 @@ export const updateGame = async (
       where: { id: gameId },
       data: {
         ...(name && { name }),
-        ...(platform && { platform }),
+        ...(deviceType && { deviceType }),
       },
     });
 
