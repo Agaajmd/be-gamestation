@@ -3,12 +3,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.logout = exports.refreshToken = exports.loginOTP = exports.login = exports.register = void 0;
-const prisma_1 = require("../../generated/prisma");
+exports.resetPassword = exports.forgotPassword = exports.logout = exports.refreshToken = exports.loginOTP = exports.login = exports.register = void 0;
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const crypto_1 = __importDefault(require("crypto"));
-const prisma = new prisma_1.PrismaClient();
+// import crypto from "crypto";
+const prisma_1 = __importDefault(require("../lib/prisma"));
+const emailHelper_1 = require("../helper/emailHelper");
 // Konfigurasi JWT
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production";
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "your-refresh-secret-key";
@@ -22,7 +22,7 @@ const otpStore = new Map();
  */
 const register = async (req, res) => {
     try {
-        const { email, password, fullname, phone, role } = req.body;
+        const { email, password, fullname, phone } = req.body;
         // Validasi input
         if (!email || !fullname) {
             res.status(400).json({
@@ -31,17 +31,8 @@ const register = async (req, res) => {
             });
             return;
         }
-        // Validasi role (default customer)
-        const userRole = role || "customer";
-        if (!["customer", "admin", "super_admin"].includes(userRole)) {
-            res.status(400).json({
-                success: false,
-                message: "Role tidak valid",
-            });
-            return;
-        }
         // Cek apakah email sudah terdaftar
-        const existingUser = await prisma.user.findUnique({
+        const existingUser = await prisma_1.default.user.findUnique({
             where: { email },
         });
         if (existingUser) {
@@ -57,13 +48,13 @@ const register = async (req, res) => {
             passwordHash = await bcrypt_1.default.hash(password, 10);
         }
         // Buat user baru
-        const newUser = await prisma.user.create({
+        const newUser = await prisma_1.default.user.create({
             data: {
                 email,
                 passwordHash,
                 fullname,
                 phone,
-                role: userRole,
+                role: "customer",
             },
             select: {
                 id: true,
@@ -122,9 +113,17 @@ const login = async (req, res) => {
             });
             return;
         }
-        // Cari user berdasarkan email
-        const user = await prisma.user.findUnique({
+        // Cari user berdasarkan email dengan relasi owner dan admin
+        const user = await prisma_1.default.user.findUnique({
             where: { email },
+            include: {
+                owner: true,
+                admin: {
+                    include: {
+                        branch: true,
+                    },
+                },
+            },
         });
         if (!user) {
             res.status(401).json({
@@ -162,24 +161,42 @@ const login = async (req, res) => {
             role: user.role,
         }, JWT_REFRESH_SECRET, { expiresIn: JWT_REFRESH_EXPIRES_IN });
         // Update last login timestamp
-        await prisma.user.update({
+        await prisma_1.default.user.update({
             where: { id: user.id },
             data: { updatedAt: new Date() },
         });
+        // Response dengan data tambahan sesuai role
+        const responseData = {
+            user: {
+                id: user.id.toString(),
+                email: user.email,
+                fullname: user.fullname,
+                role: user.role,
+                phone: user.phone,
+            },
+            accessToken,
+            refreshToken,
+        };
+        // Tambahkan data owner jika role owner
+        if (user.owner) {
+            responseData.owner = {
+                id: user.owner.id.toString(),
+                companyName: user.owner.companyName,
+            };
+        }
+        // Tambahkan data admin jika role admin
+        if (user.admin) {
+            responseData.admin = {
+                id: user.admin.id.toString(),
+                branchId: user.admin.branchId.toString(),
+                branchName: user.admin.branch.name,
+                role: user.admin.role,
+            };
+        }
         res.status(200).json({
             success: true,
             message: "Login berhasil",
-            data: {
-                user: {
-                    id: user.id.toString(),
-                    email: user.email,
-                    fullname: user.fullname,
-                    role: user.role,
-                    phone: user.phone,
-                },
-                accessToken,
-                refreshToken,
-            },
+            data: responseData,
         });
     }
     catch (error) {
@@ -210,33 +227,32 @@ const loginOTP = async (req, res) => {
         }
         // Step 1: Request OTP
         if (!otp) {
-            // Cari user
-            const user = await prisma.user.findUnique({
-                where: { email },
-            });
-            if (!user) {
-                res.status(404).json({
-                    success: false,
-                    message: "Email tidak terdaftar",
-                });
-                return;
-            }
-            // Generate OTP (6 digit)
-            const generatedOTP = crypto_1.default.randomInt(100000, 999999).toString();
-            const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 menit
-            // Simpan OTP (gunakan Redis di production)
+            const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
+            const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
             otpStore.set(email, {
-                otp: generatedOTP,
+                otp: newOtp,
                 expiresAt,
-                userId: user.id,
             });
-            // TODO: Kirim OTP via email/SMS
-            console.log(`OTP untuk ${email}: ${generatedOTP}`);
+            // Send OTP via email
+            const emailSent = await (0, emailHelper_1.sendOTPEmail)({
+                to: email,
+                otp: newOtp,
+                expiresInMinutes: 5,
+            });
+            if (!emailSent) {
+                // Fallback: still log to console if email fails
+                console.log(`[OTP] Email: ${email}, OTP: ${newOtp} (expires at ${expiresAt})`);
+                console.log("[WARNING] Email delivery failed, check console for OTP");
+            }
             res.status(200).json({
                 success: true,
-                message: "OTP telah dikirim ke email Anda",
+                message: emailSent
+                    ? "OTP telah dikirim ke email Anda. Berlaku selama 5 menit."
+                    : "OTP berhasil dibuat. Check console server (email delivery failed).",
                 data: {
-                    expiresIn: 300, // seconds
+                    email,
+                    expiresIn: 300,
+                    emailSent, // For debugging
                 },
             });
             return;
@@ -270,7 +286,7 @@ const loginOTP = async (req, res) => {
         // OTP valid, hapus dari storage
         otpStore.delete(email);
         // Get user data
-        const user = await prisma.user.findUnique({
+        const user = await prisma_1.default.user.findUnique({
             where: { email },
         });
         if (!user) {
@@ -292,7 +308,7 @@ const loginOTP = async (req, res) => {
             role: user.role,
         }, JWT_REFRESH_SECRET, { expiresIn: JWT_REFRESH_EXPIRES_IN });
         // Update last login
-        await prisma.user.update({
+        await prisma_1.default.user.update({
             where: { id: user.id },
             data: { updatedAt: new Date() },
         });
@@ -327,6 +343,7 @@ exports.loginOTP = loginOTP;
  */
 const refreshToken = async (req, res) => {
     try {
+        console.log("REFRESH BODY:", req.body);
         const { refreshToken: token } = req.body;
         // Validasi input
         if (!token) {
@@ -349,7 +366,7 @@ const refreshToken = async (req, res) => {
             return;
         }
         // Cek apakah user masih ada
-        const user = await prisma.user.findUnique({
+        const user = await prisma_1.default.user.findUnique({
             where: { id: BigInt(decoded.userId) },
         });
         if (!user) {
@@ -421,7 +438,7 @@ const logout = async (req, res) => {
         // Tambahkan token ke blacklist sampai expired
         // await redisClient.setex(`blacklist:${token}`, JWT_EXPIRES_IN, 'true');
         // Log audit
-        await prisma.auditLog.create({
+        await prisma_1.default.auditLog.create({
             data: {
                 userId: BigInt(decoded.userId),
                 action: "LOGOUT",
@@ -447,4 +464,147 @@ const logout = async (req, res) => {
     }
 };
 exports.logout = logout;
+/**
+ * POST /auth/forgot-password
+ * Request reset password - kirim OTP ke email
+ */
+const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            res.status(400).json({
+                success: false,
+                message: "Email wajib diisi",
+            });
+            return;
+        }
+        // Cek apakah user ada
+        const user = await prisma_1.default.user.findUnique({
+            where: { email },
+        });
+        // Selalu return success untuk security (hindari email enumeration)
+        if (!user) {
+            res.status(200).json({
+                success: true,
+                message: "Jika email terdaftar, OTP akan dikirim ke email Anda",
+            });
+            return;
+        }
+        // Generate OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 menit
+        // Store OTP dengan userId
+        otpStore.set(email, {
+            otp,
+            expiresAt,
+            userId: user.id,
+        });
+        // Send OTP via email
+        const emailSent = await (0, emailHelper_1.sendOTPEmail)({
+            to: email,
+            otp,
+            expiresInMinutes: 10,
+            purpose: "reset password",
+        });
+        if (!emailSent) {
+            console.log(`[RESET PASSWORD OTP] Email: ${email}, OTP: ${otp}`);
+        }
+        res.status(200).json({
+            success: true,
+            message: "Jika email terdaftar, OTP akan dikirim ke email Anda",
+            data: {
+                expiresIn: 600, // 10 menit dalam detik
+            },
+        });
+    }
+    catch (error) {
+        console.error("Forgot password error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Terjadi kesalahan saat memproses permintaan",
+        });
+    }
+};
+exports.forgotPassword = forgotPassword;
+/**
+ * POST /auth/reset-password
+ * Reset password dengan OTP dan password baru
+ */
+const resetPassword = async (req, res) => {
+    try {
+        const { email, otp, newPassword } = req.body;
+        if (!email || !otp || !newPassword) {
+            res.status(400).json({
+                success: false,
+                message: "Email, OTP, dan password baru wajib diisi",
+            });
+            return;
+        }
+        // Validasi OTP
+        const storedOTP = otpStore.get(email);
+        if (!storedOTP) {
+            res.status(400).json({
+                success: false,
+                message: "OTP tidak ditemukan atau sudah expired",
+            });
+            return;
+        }
+        // Cek expired
+        if (new Date() > storedOTP.expiresAt) {
+            otpStore.delete(email);
+            res.status(400).json({
+                success: false,
+                message: "OTP sudah expired. Silakan request OTP baru",
+            });
+            return;
+        }
+        // Verifikasi OTP
+        if (storedOTP.otp !== otp) {
+            res.status(401).json({
+                success: false,
+                message: "OTP tidak valid",
+            });
+            return;
+        }
+        // Hash password baru
+        const passwordHash = await bcrypt_1.default.hash(newPassword, 10);
+        // Update password
+        await prisma_1.default.user.update({
+            where: { email },
+            data: {
+                passwordHash,
+                updatedAt: new Date(),
+            },
+        });
+        // Hapus OTP dari storage
+        otpStore.delete(email);
+        // Log audit
+        if (storedOTP.userId) {
+            await prisma_1.default.auditLog.create({
+                data: {
+                    userId: storedOTP.userId,
+                    action: "RESET_PASSWORD",
+                    entity: "Auth",
+                    entityId: storedOTP.userId,
+                    meta: {
+                        email,
+                        timestamp: new Date().toISOString(),
+                    },
+                },
+            });
+        }
+        res.status(200).json({
+            success: true,
+            message: "Password berhasil direset. Silakan login dengan password baru",
+        });
+    }
+    catch (error) {
+        console.error("Reset password error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Terjadi kesalahan saat reset password",
+        });
+    }
+};
+exports.resetPassword = resetPassword;
 //# sourceMappingURL=AuthController.js.map

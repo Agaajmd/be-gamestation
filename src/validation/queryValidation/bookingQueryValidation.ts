@@ -50,15 +50,18 @@ export const getAvailableTimesSchema = Joi.object({
 
 /**
  * Validation schema untuk query mendapatkan available dates
- * Query params: startDate, endDate
+ * Query params: branchId, month
  */
 export const getAvailableDatesSchema = Joi.object({
-  startDate: Joi.string().isoDate().required().messages({
-    "string.isoDate": "Format tanggal tidak valid (gunakan YYYY-MM-DD)",
-    "any.required": "Start date wajib diisi",
+  branchId: Joi.string().required().messages({
+    "any.required": "Branch ID wajib diisi",
+    "string.base": "Branch ID harus berupa string",
   }),
-  endDate: Joi.string().isoDate().required().messages({
-    "string.isoDate": "Format tanggal tidak valid (gunakan YYYY-MM-DD)",
-    "any.required": "End date wajib diisi",
-  }),
+  month: Joi.string()
+    .pattern(/^\d{4}-(0[1-9]|1[0-2])$/)
+    .required()
+    .messages({
+      "string.pattern.base": "Format bulan tidak valid (gunakan YYYY-MM)",
+      "any.required": "Bulan wajib diisi",
+    }),
 });

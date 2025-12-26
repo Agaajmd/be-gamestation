@@ -2,7 +2,7 @@ import { Router } from "express";
 import * as BookingFlowController from "../controller/BookingFlowController";
 import * as ValidateMiddleware from "../middleware/validateMiddleware";
 import { calculateBookingPriceSchema } from "../validation/bodyValidation/bookingValidation";
-import { getAvailableRoomsAndDevicesSchema } from "../validation/queryValidation/bookingQueryValidation";
+import { getAvailableRoomsAndDevicesSchema, getAvailableDatesSchema } from "../validation/queryValidation/bookingQueryValidation";
 
 const router = Router();
 
@@ -12,14 +12,6 @@ const router = Router();
  */
 router.get("/branches", BookingFlowController.getBranches);
 
-/**
- * GET /booking/branches/:branchId/device-types
- * Mendapatkan tipe device yang tersedia di cabang (public)
- */
-router.get(
-  "/branches/:branchId/device-types",
-  BookingFlowController.getAvailableDeviceTypes
-);
 
 /**
  * GET /booking/branches/:branchId/categories
@@ -48,7 +40,8 @@ router.get(
  * Query: startDate, endDate
  */
 router.get(
-  "/branches/:branchId/available-dates",
+  "/available-dates",
+  ValidateMiddleware.validateQuery(getAvailableDatesSchema),
   BookingFlowController.getAvailableDates
 );
 

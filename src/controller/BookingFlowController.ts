@@ -1,5 +1,10 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
+import { fetchMonthlyData } from "../helper/bookingAvailability/fetchMonthlyData";
+import { getBranchOperatingHours } from "../helper/bookingAvailability/getBranchOperatingHours";
+import { isPastDate } from "../helper/bookingAvailability/isPastDate";
+import { isDateClosed } from "../helper/bookingAvailability/isDateClosed";
+import { calculateDateAvailability } from "../helper/bookingAvailability/calculateDateAvailability";
 
 /**
  * GET /booking/branches
@@ -52,278 +57,6 @@ export const getBranches = async (
 };
 
 /**
- * GET /booking/branches/:branchId/categories
- * Mendapatkan kategori berdasarkan device type dan version
- */
-export const getAvailableCategories = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const branchId = BigInt(req.params.branchId);
-
-    // Get categories untuk device type ini
-    const categories = await prisma.category.findMany({
-      where: {
-        branchId,
-      },
-      include: {
-        _count: {
-          select: {
-            roomAndDevices: {
-              where: {
-                status: "available",
-              },
-            },
-          },
-        },
-        roomAndDevices: {
-          where: {
-            status: "available",
-          },
-          select: {
-            deviceType: true,
-            version: true,
-          },
-          distinct: ["deviceType", "version"],
-        },
-      },
-      orderBy: { tier: "asc" },
-    });
-
-    const categoriesWithAvailability = categories.map((category) => ({
-      id: category.id.toString(),
-      name: category.name,
-      description: category.description,
-      pricePerHour: category.pricePerHour.toString(),
-      amenities: category.amenities,
-      availableDeviceCount: category._count.roomAndDevices,
-      isAvailable: category._count.roomAndDevices > 0,
-      deviceTypes: category.roomAndDevices.map((device) => ({
-        deviceType: device.deviceType,
-        version: device.version,
-      })),
-      createdAt: category.createdAt,
-      updatedAt: category.updatedAt,
-    }));
-
-    res.status(200).json({
-      success: true,
-      data: categoriesWithAvailability,
-    });
-  } catch (error) {
-    console.error("Get categories error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat mengambil kategori",
-    });
-  }
-};
-
-/**
- * GET /booking/branches/:branchId/device-types
- * Mendapatkan tipe device yang tersedia di cabang
- */
-export const getAvailableDeviceTypes = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const branchId = BigInt(req.params.branchId);
-
-    // Cek branch exists
-    const branch = await prisma.branch.findUnique({
-      where: { id: branchId },
-    });
-
-    if (!branch) {
-      res.status(404).json({
-        success: false,
-        message: "Cabang tidak ditemukan",
-      });
-      return;
-    }
-
-    // Get device types yang available (tidak semua maintenance/inused)
-    const devices = await prisma.roomAndDevice.findMany({
-      where: {
-        branchId,
-        status: "available",
-      },
-      select: {
-        deviceType: true,
-        version: true,
-        pricePerHour: true,
-      },
-      distinct: ["deviceType", "version"],
-      orderBy: [{ deviceType: "asc" }, { version: "asc" }],
-    });
-
-    // Group by type
-    const grouped = devices.reduce((acc: any, device) => {
-      const type = device.deviceType;
-      if (!acc[type]) {
-        acc[type] = [];
-      }
-      acc[type].push({
-        version: device.version,
-        pricePerHour: device.pricePerHour.toString(),
-      });
-      return acc;
-    }, {});
-
-    res.status(200).json({
-      success: true,
-      data: grouped,
-    });
-  } catch (error) {
-    console.error("Get device types error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat mengambil tipe device",
-    });
-  }
-};
-
-/**
- * GET /booking/branches/:branchId/rooms-and-devices
- * Mendapatkan room dan device yang tersedia berdasarkan filter
- */
-export const getAvailableRoomsAndDevices = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const branchId = BigInt(req.params.branchId);
-    const { categoryId, bookingDate, startTime, durationMinutes } = req.query;
-
-    const categoryIdBigInt = BigInt(categoryId as string);
-    const duration = parseInt(durationMinutes as string);
-    const BUFFER_MINUTES = 10; // Buffer untuk persiapan sebelum dan sesudah booking
-
-    // Parse waktu yang dipilih user
-    const [hours, minutes] = (startTime as string).split(":").map(Number);
-    const targetStart = new Date(bookingDate as string);
-    targetStart.setHours(hours, minutes, 0, 0);
-
-    const targetEnd = new Date(targetStart);
-    targetEnd.setMinutes(targetEnd.getMinutes() + duration);
-
-    // Get devices
-    const where: any = {
-      branchId,
-      categoryId: categoryIdBigInt,
-      status: "available",
-    };
-
-    const devices = await prisma.roomAndDevice.findMany({
-      where,
-      include: {
-        category: true,
-        orderItems: {
-          where: {
-            order: {
-              status: {
-                in: ["pending", "paid", "checked_in"],
-              },
-            },
-          },
-          include: {
-            order: {
-              select: {
-                bookingStart: true,
-                bookingEnd: true,
-                status: true,
-              },
-            },
-          },
-        },
-        availabilityExceptions: true,
-      },
-      orderBy: { roomNumber: "asc" },
-    });
-
-    // Filter hanya yang available untuk slot waktu ini
-    const availableRooms = devices
-      .map((device) => {
-        let isAvailable = true;
-        let unavailableReason = null;
-
-        // Check exceptions (maintenance terjadwal)
-        const hasException = device.availabilityExceptions.some(
-          (exc) => targetStart >= exc.startAt && targetStart < exc.endAt
-        );
-        if (hasException) {
-          isAvailable = false;
-          unavailableReason = "Under maintenance";
-        }
-
-        // Check existing bookings dengan buffer
-        const conflictingBooking = device.orderItems.find((item) => {
-          const bookingStart = item.order.bookingStart;
-          const bookingEnd = new Date(item.order.bookingEnd);
-
-          // Tambah buffer 10 menit setelah booking selesai
-          bookingEnd.setMinutes(bookingEnd.getMinutes() + BUFFER_MINUTES);
-
-          // Check overlap
-          return targetStart < bookingEnd && targetEnd > bookingStart;
-        });
-
-        if (conflictingBooking) {
-          isAvailable = false;
-          unavailableReason = "Already booked";
-        }
-
-        return {
-          device,
-          isAvailable,
-          unavailableReason,
-        };
-      })
-      .filter((item) => item.isAvailable) // ⭐ HANYA return yang available
-      .map((item) => ({
-        id: item.device.id.toString(),
-        roomNumber: item.device.roomNumber,
-        name: item.device.name,
-        type: item.device.deviceType,
-        version: item.device.version,
-        pricePerHour: item.device.pricePerHour.toString(),
-        categoryName: item.device.category?.name,
-        categoryTier: item.device.category?.tier,
-      }));
-
-    // Jika tidak ada room available
-    if (availableRooms.length === 0) {
-      res.status(200).json({
-        success: true,
-        data: [],
-        message:
-          "Tidak ada room yang tersedia untuk waktu ini. Silakan pilih waktu lain.",
-      });
-      return;
-    }
-
-    res.status(200).json({
-      success: true,
-      data: availableRooms,
-      meta: {
-        bookingDate: bookingDate,
-        startTime: startTime,
-        durationMinutes: duration,
-        availableCount: availableRooms.length,
-      },
-    });
-  } catch (error) {
-    console.error("Get rooms error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat mengambil data ruangan",
-    });
-  }
-};
-
-/**
  * GET /booking/branches/:branchId/available-dates
  * Mendapatkan tanggal yang tersedia untuk booking
  */
@@ -332,24 +65,21 @@ export const getAvailableDates = async (
   res: Response
 ): Promise<void> => {
   try {
-    const branchId = BigInt(req.params.branchId);
-    const { startDate, endDate } = req.query;
+    const { branchId, month } = req.query;
+    const branchIdBigInt = BigInt(branchId as string);
 
-    if (!startDate || !endDate) {
-      res.status(400).json({
-        success: false,
-        message: "Start date dan end date wajib diisi",
-      });
-      return;
-    }
+    // Parse month
+    const [year, monthNum] = (month as string).split("-").map(Number);
+    const startDate = new Date(year, monthNum - 1, 1);
+    const endDate = new Date(year, monthNum, 0);
 
-    // Get branch info
+    // Get branch with operating hours
     const branch = await prisma.branch.findUnique({
-      where: { id: branchId },
-      include: {
-        advanceBookingPrices: {
-          orderBy: { daysInAdvance: "asc" },
-        },
+      where: { id: branchIdBigInt },
+      select: {
+        id: true,
+        openTime: true,
+        closeTime: true,
       },
     });
 
@@ -361,41 +91,104 @@ export const getAvailableDates = async (
       return;
     }
 
-    const start = new Date(startDate as string);
-    const end = new Date(endDate as string);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Get all available devices
+    const devices = await prisma.roomAndDevice.findMany({
+      where: {
+        branchId: branchIdBigInt,
+        status: { not: "maintenance" },
+      },
+      select: { id: true },
+    });
 
-    const dates = [];
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    if (devices.length === 0) {
+      res.status(200).json({
+        success: true,
+        data: {
+          availableDates: [],
+          fullyBookedDates: [],
+          closedDates: [],
+        },
+        message: "Tidak ada device tersedia di branch ini",
+      });
+      return;
+    }
+
+    // Fetch all orders and exceptions for the month
+    const deviceIds = devices.map((d) => d.id);
+
+    const [orders, exceptions] = await fetchMonthlyData(
+      branchIdBigInt,
+      deviceIds,
+      startDate,
+      endDate
+    );
+
+    // Get operating hours
+    const { openHour, closeHour, totalHours } = getBranchOperatingHours(
+      branch.openTime,
+      branch.closeTime
+    );
+
+    // Categorize dates
+    const availableDates: string[] = [];
+    const fullyBookedDates: string[] = [];
+    const closedDates: string[] = [];
+
+    // Loop through each date in the month
+    for (
+      let d = new Date(startDate);
+      d <= endDate;
+      d.setDate(d.getDate() + 1)
+    ) {
+      
       const currentDate = new Date(d);
-      const daysFromToday = Math.floor(
-        (currentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-      );
+      console.log("currentDate", currentDate);
+      
+      const dateStr = currentDate.toISOString().split("T")[0];
+      console.log(dateStr);
+      
 
-      // Find applicable advance booking fee
-      let advanceFee = 0;
-      if (daysFromToday > 0) {
-        const applicableFee = branch.advanceBookingPrices
-          .reverse()
-          .find((price) => daysFromToday >= price.daysInAdvance);
+      // Skip past dates
+      if (isPastDate(currentDate)) continue;
 
-        if (applicableFee) {
-          advanceFee = Number(applicableFee.additionalFee);
-        }
+      // Check if branch is closed
+      if (isDateClosed(currentDate, openHour, closeHour, exceptions, devices.length)) {
+        closedDates.push(dateStr);
+        continue;
       }
 
-      dates.push({
-        date: currentDate.toISOString().split("T")[0],
-        daysFromToday,
-        advanceBookingFee: advanceFee,
-        isToday: daysFromToday === 0,
-      });
+      // Calculate availability
+      const { availableDevices, bookedDevices } = calculateDateAvailability(
+        currentDate,
+        devices,
+        orders,
+        exceptions,
+        totalHours,
+        openHour,
+        closeHour
+      );
+
+      // Categorize
+      if (availableDevices === 0 && bookedDevices > 0) {
+        fullyBookedDates.push(dateStr);
+      } else if (availableDevices > 0) {
+        availableDates.push(dateStr);
+      }
     }
 
     res.status(200).json({
       success: true,
-      data: dates,
+      data: {
+        availableDates,
+        fullyBookedDates,
+        closedDates,
+      },
+      meta: {
+        month,
+        totalDevices: devices.length,
+        branchOpenHour: openHour,
+        branchCloseHour: closeHour,
+      },
     });
   } catch (error) {
     console.error("Get available dates error:", error);
@@ -541,6 +334,213 @@ export const getAvailableTimes = async (
     res.status(500).json({
       success: false,
       message: "Terjadi kesalahan saat mengambil jam tersedia",
+    });
+  }
+};
+
+/**
+ * GET /booking/branches/:branchId/categories
+ * Mendapatkan kategori berdasarkan device type dan version
+ */
+export const getAvailableCategories = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const branchId = BigInt(req.params.branchId);
+
+    // Get categories untuk device type ini
+    const categories = await prisma.category.findMany({
+      where: {
+        branchId,
+      },
+      include: {
+        _count: {
+          select: {
+            roomAndDevices: {
+              where: {
+                status: "available",
+              },
+            },
+          },
+        },
+        roomAndDevices: {
+          where: {
+            status: "available",
+          },
+          select: {
+            deviceType: true,
+            version: true,
+          },
+          distinct: ["deviceType", "version"],
+        },
+      },
+      orderBy: { tier: "asc" },
+    });
+
+    const categoriesWithAvailability = categories.map((category) => ({
+      id: category.id.toString(),
+      name: category.name,
+      description: category.description,
+      pricePerHour: category.pricePerHour.toString(),
+      amenities: category.amenities,
+      availableDeviceCount: category._count.roomAndDevices,
+      isAvailable: category._count.roomAndDevices > 0,
+      deviceTypes: category.roomAndDevices.map((device) => ({
+        deviceType: device.deviceType,
+        version: device.version,
+      })),
+      createdAt: category.createdAt,
+      updatedAt: category.updatedAt,
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: categoriesWithAvailability,
+    });
+  } catch (error) {
+    console.error("Get categories error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Terjadi kesalahan saat mengambil kategori",
+    });
+  }
+};
+
+/**
+ * GET /booking/branches/:branchId/rooms-and-devices
+ * Mendapatkan room dan device yang tersedia berdasarkan filter
+ */
+export const getAvailableRoomsAndDevices = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const branchId = BigInt(req.params.branchId);
+    const { categoryId, bookingDate, startTime, durationMinutes } = req.query;
+
+    const categoryIdBigInt = BigInt(categoryId as string);
+    const duration = parseInt(durationMinutes as string);
+    const BUFFER_MINUTES = 10; // Buffer untuk persiapan sebelum dan sesudah booking
+
+    // Parse waktu yang dipilih user
+    const [hours, minutes] = (startTime as string).split(":").map(Number);
+    const targetStart = new Date(bookingDate as string);
+    targetStart.setHours(hours, minutes, 0, 0);
+
+    const targetEnd = new Date(targetStart);
+    targetEnd.setMinutes(targetEnd.getMinutes() + duration);
+
+    // Get devices
+    const where: any = {
+      branchId,
+      categoryId: categoryIdBigInt,
+      status: "available",
+    };
+
+    const devices = await prisma.roomAndDevice.findMany({
+      where,
+      include: {
+        category: true,
+        orderItems: {
+          where: {
+            order: {
+              status: {
+                in: ["pending", "paid", "checked_in"],
+              },
+            },
+          },
+          include: {
+            order: {
+              select: {
+                bookingStart: true,
+                bookingEnd: true,
+                status: true,
+              },
+            },
+          },
+        },
+        availabilityExceptions: true,
+      },
+      orderBy: { roomNumber: "asc" },
+    });
+
+    // Filter hanya yang available untuk slot waktu ini
+    const availableRooms = devices
+      .map((device) => {
+        let isAvailable = true;
+        let unavailableReason = null;
+
+        // Check exceptions (maintenance terjadwal)
+        const hasException = device.availabilityExceptions.some(
+          (exc) => targetStart >= exc.startAt && targetStart < exc.endAt
+        );
+        if (hasException) {
+          isAvailable = false;
+          unavailableReason = "Under maintenance";
+        }
+
+        // Check existing bookings dengan buffer
+        const conflictingBooking = device.orderItems.find((item) => {
+          const bookingStart = item.order.bookingStart;
+          const bookingEnd = new Date(item.order.bookingEnd);
+
+          // Tambah buffer 10 menit setelah booking selesai
+          bookingEnd.setMinutes(bookingEnd.getMinutes() + BUFFER_MINUTES);
+
+          // Check overlap
+          return targetStart < bookingEnd && targetEnd > bookingStart;
+        });
+
+        if (conflictingBooking) {
+          isAvailable = false;
+          unavailableReason = "Already booked";
+        }
+
+        return {
+          device,
+          isAvailable,
+          unavailableReason,
+        };
+      })
+      .filter((item) => item.isAvailable) // ⭐ HANYA return yang available
+      .map((item) => ({
+        id: item.device.id.toString(),
+        roomNumber: item.device.roomNumber,
+        name: item.device.name,
+        type: item.device.deviceType,
+        version: item.device.version,
+        pricePerHour: item.device.pricePerHour.toString(),
+        categoryName: item.device.category?.name,
+        categoryTier: item.device.category?.tier,
+      }));
+
+    // Jika tidak ada room available
+    if (availableRooms.length === 0) {
+      res.status(200).json({
+        success: true,
+        data: [],
+        message:
+          "Tidak ada room yang tersedia untuk waktu ini. Silakan pilih waktu lain.",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: availableRooms,
+      meta: {
+        bookingDate: bookingDate,
+        startTime: startTime,
+        durationMinutes: duration,
+        availableCount: availableRooms.length,
+      },
+    });
+  } catch (error) {
+    console.error("Get rooms error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Terjadi kesalahan saat mengambil data ruangan",
     });
   }
 };

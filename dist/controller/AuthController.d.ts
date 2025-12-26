@@ -26,4 +26,14 @@ export declare const refreshToken: (req: Request, res: Response) => Promise<void
  * Logout user (invalidate token - implement token blacklist di production)
  */
 export declare const logout: (req: Request, res: Response) => Promise<void>;
+/**
+ * POST /auth/forgot-password
+ * Request reset password - kirim OTP ke email
+ */
+export declare const forgotPassword: (req: Request, res: Response) => Promise<void>;
+/**
+ * POST /auth/reset-password
+ * Reset password dengan OTP dan password baru
+ */
+export declare const resetPassword: (req: Request, res: Response) => Promise<void>;
 //# sourceMappingURL=AuthController.d.ts.map

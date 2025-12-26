@@ -35,8 +35,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const AuthController = __importStar(require("../controller/AuthController"));
-const validateMiddleware_1 = require("../middleware/validateMiddleware");
-const authValidation_1 = require("../validation/authValidation");
+const ValidateMiddleware = __importStar(require("../middleware/validateMiddleware"));
+const authValidation_1 = require("../validation/bodyValidation/authValidation");
 const router = (0, express_1.Router)();
 /**
  * @route   POST /auth/register
@@ -44,14 +44,14 @@ const router = (0, express_1.Router)();
  * @access  Public
  * @body    { email, password?, fullname, phone?, role? }
  */
-router.post("/register", (0, validateMiddleware_1.validate)(authValidation_1.registerSchema), AuthController.register);
+router.post("/register", ValidateMiddleware.validateBody(authValidation_1.registerSchema), AuthController.register);
 /**
  * @route   POST /auth/login
  * @desc    Login dengan email dan password
  * @access  Public
  * @body    { email, password }
  */
-router.post("/login", (0, validateMiddleware_1.validate)(authValidation_1.loginSchema), AuthController.login);
+router.post("/login", ValidateMiddleware.validateBody(authValidation_1.loginSchema), AuthController.login);
 /**
  * @route   POST /auth/login-otp
  * @desc    Login dengan OTP (2 step: request OTP, verify OTP)
@@ -59,14 +59,14 @@ router.post("/login", (0, validateMiddleware_1.validate)(authValidation_1.loginS
  * @body    Step 1: { email }
  *          Step 2: { email, otp }
  */
-router.post("/login-otp", (0, validateMiddleware_1.validate)(authValidation_1.loginOTPSchema), AuthController.loginOTP);
+router.post("/login-otp", ValidateMiddleware.validateBody(authValidation_1.loginOTPSchema), AuthController.loginOTP);
 /**
  * @route   POST /auth/refresh-token
  * @desc    Refresh access token
  * @access  Public
  * @body    { refreshToken }
  */
-router.post("/refresh-token", (0, validateMiddleware_1.validate)(authValidation_1.refreshTokenSchema), AuthController.refreshToken);
+router.post("/refresh-token", ValidateMiddleware.validateBody(authValidation_1.refreshTokenSchema), AuthController.refreshToken);
 /**
  * @route   POST /auth/logout
  * @desc    Logout user
@@ -74,5 +74,19 @@ router.post("/refresh-token", (0, validateMiddleware_1.validate)(authValidation_
  * @header  Authorization: Bearer <token>
  */
 router.post("/logout", AuthController.logout);
+/**
+ * @route   POST /auth/forgot-password
+ * @desc    Request reset password (kirim OTP ke email)
+ * @access  Public
+ * @body    { email }
+ */
+router.post("/forgot-password", ValidateMiddleware.validateBody(authValidation_1.forgotPasswordSchema), AuthController.forgotPassword);
+/**
+ * @route   POST /auth/reset-password
+ * @desc    Reset password dengan OTP dan password baru
+ * @access  Public
+ * @body    { email, otp, newPassword }
+ */
+router.post("/reset-password", ValidateMiddleware.validateBody(authValidation_1.resetPasswordSchema), AuthController.resetPassword);
 exports.default = router;
 //# sourceMappingURL=authRoutes.js.map
