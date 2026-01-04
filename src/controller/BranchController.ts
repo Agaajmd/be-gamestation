@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import prisma from "../lib/prisma";
+import { prisma } from "../database";
 import { formatTime } from "../helper/timeHelper";
 import { updateBranchFacilities } from "../helper/branchAmenitiesHelper";
 

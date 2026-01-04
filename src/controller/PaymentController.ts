@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { checkBranchAccess } from "../helper/checkBranchAccessHelper";
-import prisma from "../lib/prisma";
+import { prisma } from "../database";
 
 /**
  * POST /payments
@@ -276,7 +276,6 @@ export const getPaymentById = async (
             orderItems: {
               include: {
                 roomAndDevice: true,
-                game: true,
               },
             },
           },
@@ -383,7 +382,6 @@ export const updatePayment = async (
             orderItems: {
               include: {
                 roomAndDevice: true,
-                game: true,
               },
             },
           },

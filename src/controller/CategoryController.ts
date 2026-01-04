@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { checkBranchAccess } from "../helper/checkBranchAccessHelper";
-import prisma from "../lib/prisma";
+import { prisma } from "../database";
 import { updateBranchAmenities } from "../helper/branchAmenitiesHelper";
 
 /**

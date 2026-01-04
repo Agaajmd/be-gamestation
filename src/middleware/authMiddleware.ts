@@ -23,7 +23,6 @@ export const authenticateToken = (
   next: NextFunction
 ): void => {
   try {
-    // Get token from Authorization header
     const authHeader = req.headers.authorization;
     const token = extractTokenFromHeader(authHeader);
 
@@ -35,7 +34,6 @@ export const authenticateToken = (
       return;
     }
 
-    // Verify token
     const payload = decodeToken(token);
 
     if (!payload) {
@@ -46,8 +44,7 @@ export const authenticateToken = (
       return;
     }
 
-    // Attach payload to req.user
-    req.user = payload as JWTPayload;
+    req.user = payload;
     next();
   } catch (error) {
     console.error("Auth middleware error:", error);
@@ -56,4 +53,29 @@ export const authenticateToken = (
       message: "Terjadi kesalahan saat verifikasi token",
     });
   }
+};
+
+/**
+ * Middleware untuk verifikasi role
+ */
+export const requireRole = (...allowedRoles: string[]) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+      return;
+    }
+
+    if (!allowedRoles.includes(req.user.role)) {
+      res.status(403).json({
+        success: false,
+        message: "Akses ditolak. Role tidak sesuai",
+      });
+      return;
+    }
+
+    next();
+  };
 };

@@ -5,32 +5,42 @@ export const createOrderSchema = Joi.object({
     "string.empty": "Branch ID tidak boleh kosong",
     "any.required": "Branch ID wajib diisi",
   }),
-  deviceId: Joi.string().required().messages({
-    "string.empty": "Device ID tidak boleh kosong",
-    "any.required": "Device ID wajib diisi",
+  roomAndDeviceId: Joi.string().required().messages({
+    "string.empty": "RoomAndDevice ID tidak boleh kosong",
+    "any.required": "RoomAndDevice ID wajib diisi",
   }),
   categoryId: Joi.string().optional().allow(null),
-  packageId: Joi.string().required().messages({
-    "string.empty": "Package ID tidak boleh kosong",
-    "any.required": "Package ID wajib diisi",
+  durationMinutes: Joi.number().integer().min(30).required().messages({
+    "number.base": "Duration harus berupa angka",
+    "number.integer": "Duration harus berupa bilangan bulat",
+    "number.min": "Duration minimal 30 menit",
+    "any.required": "Duration wajib diisi",
   }),
-  gameId: Joi.string().optional().allow(null),
-  bookingStart: Joi.string().isoDate().required().messages({
-    "string.isoDate": "Format datetime tidak valid",
-    "any.required": "Waktu mulai booking wajib diisi",
-  }),
-  bookingEnd: Joi.string().isoDate().required().messages({
-    "string.isoDate": "Format datetime tidak valid",
-    "any.required": "Waktu selesai booking wajib diisi",
-  }),
-  paymentMethod: Joi.string()
-    .valid("e_wallet", "bank_transfer", "gateway")
-    .optional()
+  bookingDate: Joi.string()
+    .pattern(/^\d{4}-\d{2}-\d{2}$/)
+    .required()
     .messages({
-      "any.only":
-        "Payment method harus salah satu dari: e_wallet, bank_transfer, gateway",
+      "string.pattern.base": "Format tanggal harus YYYY-MM-DD",
+      "any.required": "Tanggal booking wajib diisi",
+    }),
+  startTime: Joi.string()
+    .pattern(/^\d{2}:\d{2}$/)
+    .required()
+    .messages({
+      "string.pattern.base": "Format waktu harus HH:mm",
+      "any.required": "Waktu mulai wajib diisi",
     }),
   notes: Joi.string().optional().allow(""),
+});
+
+export const checkoutOrderSchema = Joi.object({
+  paymentMethod: Joi.string()
+    .valid("credit_card", "debit_card", "cash", "e_wallet")
+    .required()
+    .messages({
+      "any.only": "Metode pembayaran tidak valid",
+      "any.required": "Metode pembayaran wajib diisi",
+    }),
 });
 
 export const updateOrderStatusSchema = Joi.object({

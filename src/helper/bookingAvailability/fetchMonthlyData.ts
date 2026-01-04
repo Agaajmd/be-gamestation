@@ -1,4 +1,4 @@
-import prisma from "../../lib/prisma";
+import { prisma } from "../../database";
 
 /**
  * Fetch all bookings and exceptions for a month
@@ -16,13 +16,17 @@ export const fetchMonthlyData = async (
       where: {
         branchId,
         status: { in: ["pending", "paid", "checked_in"] },
-        bookingStart: { gte: startDate, lte: endDatePlusOne },
+        orderItems: {
+          some: {
+            bookingStart: { gte: startDate, lte: endDatePlusOne },
+          },
+        },
       },
       select: {
-        bookingStart: true,
-        bookingEnd: true,
         orderItems: {
           select: {
+            bookingStart: true,
+            bookingEnd: true,
             roomAndDeviceId: true,
           },
         },

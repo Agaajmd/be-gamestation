@@ -8,13 +8,13 @@ import deviceRoutes from "./route/roomAndDeviceRoutes";
 import gameRoutes from "./route/gameRoutes";
 import orderRoutes from "./route/orderRoutes";
 import paymentRoutes from "./route/paymentRoutes";
-import sessionRoutes from "./route/sessionRoutes";
 import reviewRoutes from "./route/reviewRoutes";
 import notificationRoutes from "./route/notificationRoutes";
 import subscriptionRoutes from "./route/subscriptionRoutes";
 import bookingRoutes from "./route/bookingRoutes";
 import holidayRoutes from "./route/holidayRoutes";
 import gameAvailabilityRoutes from "./route/gameAvailabilityRoutes";
+import advanceBookingPriceRoutes from "./route/advanceBookingPriceRoutes";
 import { testEmailConnection } from "./helper/emailHelper";
 
 const app: Application = express();
@@ -34,12 +34,12 @@ app.use("/branches", gameAvailabilityRoutes);
 app.use("/games", gameRoutes);
 app.use("/orders", orderRoutes);
 app.use("/payments", paymentRoutes);
-app.use("/sessions", sessionRoutes);
 app.use("/reviews", reviewRoutes);
 app.use("/notifications", notificationRoutes);
 app.use("/subscriptions", subscriptionRoutes);
 app.use("/booking", bookingRoutes);
 app.use("/holidays", holidayRoutes);
+app.use("/advance-booking-price", advanceBookingPriceRoutes);
 
 // Health check
 app.get("/health", (_req: Request, res: Response) => {

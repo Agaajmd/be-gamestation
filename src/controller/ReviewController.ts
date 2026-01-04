@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { checkBranchAccess } from "../helper/checkBranchAccessHelper";
-import prisma from "../lib/prisma";
+import { prisma } from "../database";
 
 /**
  * POST /reviews
@@ -133,7 +133,6 @@ export const getReviews = async (
             select: {
               id: true,
               orderCode: true,
-              bookingStart: true,
               branch: {
                 select: {
                   id: true,
@@ -180,7 +179,6 @@ export const getReviews = async (
             select: {
               id: true,
               orderCode: true,
-              bookingStart: true,
             },
           },
         },
@@ -227,7 +225,6 @@ export const getReviews = async (
             select: {
               id: true,
               orderCode: true,
-              bookingStart: true,
               branch: {
                 select: {
                   id: true,

@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import prisma from "../lib/prisma";
+import { prisma } from "../database";
 import { fetchMonthlyData } from "../helper/bookingAvailability/fetchMonthlyData";
 import { getBranchOperatingHours } from "../helper/bookingAvailability/getBranchOperatingHours";
 import { isPastDate } from "../helper/bookingAvailability/isPastDate";
@@ -175,7 +175,7 @@ export const getAvailableDates = async (
       const { availableDevices, bookedDevices } = calculateDateAvailability(
         currentDate,
         devices,
-        orders,
+        orders, 
         exceptions,
         totalHours,
         openHour,
@@ -276,18 +276,10 @@ export const getAvailableTimes = async (
           where: {
             order: {
               status: { in: ["pending", "paid", "checked_in"] },
-              bookingStart: {
-                gte: new Date(targetDate.setHours(0, 0, 0, 0)),
-                lte: new Date(targetDate.setHours(23, 59, 59, 999)),
-              },
             },
-          },
-          include: {
-            order: {
-              select: {
-                bookingStart: true,
-                bookingEnd: true,
-              },
+            bookingStart: {
+              gte: new Date(targetDate.setHours(0, 0, 0, 0)),
+              lte: new Date(targetDate.setHours(23, 59, 59, 999)),
             },
           },
         },
@@ -348,8 +340,8 @@ export const getAvailableTimes = async (
 
           // Check bookings (cek apakah slot START ini bentrok dengan booking)
           const hasBooking = device.orderItems.some((item) => {
-            const bookingStart = item.order.bookingStart;
-            const bookingEnd = item.order.bookingEnd;
+            const bookingStart = item.bookingStart;
+            const bookingEnd = item.bookingEnd;
             return slotStart >= bookingStart && slotStart < bookingEnd;
           });
           if (hasBooking) {
@@ -631,8 +623,6 @@ export const getAvailableRoomsAndDevices = async (
           include: {
             order: {
               select: {
-                bookingStart: true,
-                bookingEnd: true,
                 status: true,
               },
             },
@@ -660,8 +650,8 @@ export const getAvailableRoomsAndDevices = async (
 
         // Check existing bookings dengan buffer
         const conflictingBooking = device.orderItems.find((item) => {
-          const bookingStart = item.order.bookingStart;
-          const bookingEnd = new Date(item.order.bookingEnd);
+          const bookingStart = item.bookingStart;
+          const bookingEnd = new Date(item.bookingEnd);
 
           // Tambah buffer 10 menit setelah booking selesai
           bookingEnd.setMinutes(bookingEnd.getMinutes() + BUFFER_MINUTES);
@@ -719,6 +709,85 @@ export const getAvailableRoomsAndDevices = async (
     res.status(500).json({
       success: false,
       message: "Terjadi kesalahan saat mengambil data ruangan",
+    });
+  }
+};
+
+/**
+ * GET /booking/cart
+ * Mengambil data cart booking yang sudah diorder tapi belum checkout
+ */
+export const getBookingCart = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = BigInt(req.user!.userId);
+    const cartOrder = await prisma.order.findFirst({
+      where: {
+        customerId: userId,
+        status: "pending",
+      },
+      include: {
+        customer: {
+          select: {
+            fullname: true,
+            email: true,
+            phone: true,
+          },
+        },
+        branch: {
+          select: {
+            name: true,
+          },
+        },
+        orderItems: {
+          include: {
+            roomAndDevice: {
+              select: {
+                roomNumber: true,
+                deviceType: true,
+                version: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Total cart items and amount
+    const totalItems = cartOrder ? cartOrder.orderItems.length : 0;
+    const totalAmount = Number(cartOrder?.totalAmount);
+
+    // Serialize order items
+    const orderDto = cartOrder
+      ? {
+          ...cartOrder,
+          id: cartOrder.id.toString(),
+          branchId: cartOrder.branchId.toString(),
+          customerId: cartOrder.customerId.toString(),
+          orderItems: cartOrder.orderItems.map((item) => ({
+            ...item,
+            id: item.id.toString(),
+            orderId: item.orderId.toString(),
+            roomAndDeviceId: item.roomAndDeviceId.toString(),
+          })),
+        }
+      : null;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalItems,
+        totalAmount,
+        order: orderDto,
+      },
+    });
+  } catch (error) {
+    console.error("Get booking cart error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Terjadi kesalahan saat mengambil data cart booking",
     });
   }
 };

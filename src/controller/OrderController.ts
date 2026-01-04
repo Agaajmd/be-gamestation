@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { checkBranchAccess } from "../helper/checkBranchAccessHelper";
-import prisma from "../lib/prisma";
+import { isPastDate } from "../helper/bookingAvailability/isPastDate";
+import { prisma } from "../database";
 
 /**
  * Generate unique order code
@@ -13,29 +14,24 @@ const generateOrderCode = (): string => {
 
 /**
  * POST /orders
- * Create new order (customer only)
+ * Create new order (customer only) - Add to cart
  */
-export const createOrder = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const addToCart = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = BigInt(req.user!.userId);
     const {
       branchId,
-      deviceId,
+      bookingDate: bookingDateStr,
+      startTime,
+      durationMinutes,
       categoryId,
-      gameId,
-      bookingStart,
-      bookingEnd,
-      paymentMethod,
+      roomAndDeviceId,
       notes,
     } = req.body;
 
     const branchIdBigInt = BigInt(branchId);
-    const deviceIdBigInt = BigInt(deviceId);
+    const roomAndDeviceIdBigInt = BigInt(roomAndDeviceId);
     const categoryIdBigInt = categoryId ? BigInt(categoryId) : null;
-    const gameIdBigInt = gameId ? BigInt(gameId) : null;
 
     // Verify branch exists
     const branch = await prisma.branch.findUnique({
@@ -53,7 +49,7 @@ export const createOrder = async (
     // Verify device
     const device = await prisma.roomAndDevice.findFirst({
       where: {
-        id: deviceIdBigInt,
+        id: roomAndDeviceIdBigInt,
         branchId: branchIdBigInt,
         status: "available",
       },
@@ -65,7 +61,7 @@ export const createOrder = async (
     if (!device) {
       res.status(400).json({
         success: false,
-        message: "Device tidak ditemukan atau tidak aktif",
+        message: "Device tidak ditemukan atau tidak tersedia",
       });
       return;
     }
@@ -83,92 +79,129 @@ export const createOrder = async (
       if (!category) {
         res.status(400).json({
           success: false,
-          message: "Kategori tidak ditemukan atau tidak aktif",
+          message: "Kategori tidak ditemukan",
         });
         return;
       }
     }
 
-    // Check device availability (no overlapping bookings)
-    const overlappingOrder = await prisma.orderItem.findFirst({
+    // Check if booking date is in the past
+    const bookingDate = new Date(bookingDateStr);
+    if (isPastDate(bookingDate)) {
+      res.status(400).json({
+        success: false,
+        message: "Tanggal booking tidak boleh di masa lalu",
+      });
+      return;
+    }
+
+    // Parse booking date and time
+    const [startHours, startMinutes] = startTime.split(":").map(Number);
+    const bookingStart = new Date(bookingDate);
+    bookingStart.setHours(startHours, startMinutes, 0, 0);
+
+    const bookingEnd = new Date(bookingStart);
+    bookingEnd.setMinutes(bookingEnd.getMinutes() + parseInt(durationMinutes));
+
+    // Check duplicate booking in cart
+    const duplicateOrder = await prisma.orderItem.findFirst({
       where: {
-        roomAndDeviceId: deviceIdBigInt,
+        roomAndDeviceId: roomAndDeviceIdBigInt,
+        order: {
+          branchId: branchIdBigInt,
+          customerId: userId,
+          status: {
+            in: ["pending", "paid", "checked_in", "cart"],
+          },
+        },
+        OR: [
+          {
+            AND: [
+              { bookingStart: { lte: bookingStart } },
+              { bookingEnd: { gt: bookingStart } },
+            ],
+          },
+          {
+            AND: [
+              { bookingStart: { lt: bookingEnd } },
+              { bookingEnd: { gte: bookingEnd } },
+            ],
+          },
+          {
+            AND: [
+              { bookingStart: { gte: bookingStart } },
+              { bookingEnd: { lte: bookingEnd } },
+            ],
+          },
+        ],
+      },
+    });
+
+    if (duplicateOrder) {
+      res.status(400).json({
+        success: false,
+        message: "Device sudah ada di keranjang untuk jadwal yang sama",
+      });
+      return;
+    }
+
+    // Check conflicting bookings
+    const conflictingOrder = await prisma.orderItem.findFirst({
+      where: {
+        roomAndDeviceId: roomAndDeviceIdBigInt,
         order: {
           branchId: branchIdBigInt,
           status: {
             in: ["pending", "paid", "checked_in"],
           },
-          OR: [
-            {
-              AND: [
-                { bookingStart: { lte: new Date(bookingStart) } },
-                { bookingEnd: { gt: new Date(bookingStart) } },
-              ],
-            },
-            {
-              AND: [
-                { bookingStart: { lt: new Date(bookingEnd) } },
-                { bookingEnd: { gte: new Date(bookingEnd) } },
-              ],
-            },
-            {
-              AND: [
-                { bookingStart: { gte: new Date(bookingStart) } },
-                { bookingEnd: { lte: new Date(bookingEnd) } },
-              ],
-            },
-          ],
         },
+        OR: [
+          {
+            AND: [
+              { bookingStart: { lte: bookingStart } },
+              { bookingEnd: { gt: bookingStart } },
+            ],
+          },
+          {
+            AND: [
+              { bookingStart: { lt: bookingEnd } },
+              { bookingEnd: { gte: bookingEnd } },
+            ],
+          },
+          {
+            AND: [
+              { bookingStart: { gte: bookingStart } },
+              { bookingEnd: { lte: bookingEnd } },
+            ],
+          },
+        ],
       },
     });
 
-    if (overlappingOrder) {
+    if (conflictingOrder) {
       res.status(400).json({
         success: false,
-        message: "Device sudah dibooking pada waktu tersebut",
+        message: "Device sudah dibooking untuk jadwal yang dipilih",
       });
       return;
     }
 
-    // Verify game if provided
-    if (gameIdBigInt) {
-      const game = await prisma.game.findUnique({
-        where: { id: gameIdBigInt },
-      });
-
-      if (!game) {
-        res.status(400).json({
-          success: false,
-          message: "Game tidak ditemukan",
-        });
-        return;
-      }
-    }
-
     // Calculate duration and pricing
-    const startTime = new Date(bookingStart);
-    const endTime = new Date(bookingEnd);
-    const durationMs = endTime.getTime() - startTime.getTime();
-    const durationMinutes = Math.floor(durationMs / (1000 * 60));
-    const hours = durationMinutes / 60;
+    const hours = parseInt(durationMinutes) / 60;
 
     // Base amount from device price
-    const pricePerHour = Number(device.pricePerHour);
-    const baseAmount = pricePerHour * hours;
+    const baseAmount = Number(device.pricePerHour) * hours;
 
-    // Category fee (if category has different price than device)
-    let categoryFee = 0;
-    if (category && Number(category.pricePerHour) > pricePerHour) {
-      categoryFee = (Number(category.pricePerHour) - pricePerHour) * hours;
-    }
+    // Category fee (handle if category is null)
+    const categoryFee = category ? Number(category.pricePerHour) * hours : 0;
 
     // Advance booking fee
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const bookingDate = new Date(bookingStart);
-    bookingDate.setHours(0, 0, 0, 0);
+    const bookingDateOnly = new Date(bookingDate);
+    bookingDateOnly.setHours(0, 0, 0, 0);
     const daysFromToday = Math.floor(
-      (bookingDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+      (bookingDateOnly.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
     );
 
     let advanceBookingFee = 0;
@@ -192,7 +225,52 @@ export const createOrder = async (
 
     const totalAmount = baseAmount + categoryFee + advanceBookingFee;
 
-    // Create order with order items
+    // Check if user already has a cart order, if so, append to it
+    const existingCartOrder = await prisma.order.findFirst({
+      where: {
+        customerId: userId,
+        status: "cart",
+      },
+    });
+    if (existingCartOrder) {
+      // Add new order item to existing cart
+      await prisma.orderItem.create({
+        data: {
+          orderId: existingCartOrder.id,
+          roomAndDeviceId: roomAndDeviceIdBigInt,
+          durationMinutes: parseInt(durationMinutes),
+          baseAmount,
+          categoryFee,
+          advanceBookingFee,
+          price: totalAmount,
+          bookingStart,
+          bookingEnd,
+        },
+      });
+
+      // Update total amount in order
+      const updatedTotal = Number(existingCartOrder.totalAmount) + totalAmount;
+      await prisma.order.update({
+        where: { id: existingCartOrder.id },
+        data: { totalAmount: updatedTotal },
+      });
+
+      // Serialize existing cart order
+      const serializedOrder = JSON.parse(
+        JSON.stringify(existingCartOrder, (_key, value) =>
+          typeof value === "bigint" ? value.toString() : value
+        )
+      );
+
+      res.status(201).json({
+        success: true,
+        message: "Order berhasil ditambahkan ke keranjang",
+        data: serializedOrder,
+      });
+      return;
+    }
+
+    // Create order with order items (add to cart)
     const orderCode = generateOrderCode();
 
     const order = await prisma.order.create({
@@ -200,22 +278,21 @@ export const createOrder = async (
         orderCode,
         customerId: userId,
         branchId: branchIdBigInt,
-        status: "pending",
-        baseAmount,
-        categoryFee,
-        advanceBookingFee,
+        status: "cart",
         totalAmount,
-        bookingStart: new Date(bookingStart),
-        bookingEnd: new Date(bookingEnd),
-        paymentMethod,
+        paymentMethod: null, // Will be set during checkout
         paymentStatus: "unpaid",
         notes,
         orderItems: {
           create: {
-            roomAndDeviceId: deviceIdBigInt,
-            gameId: gameIdBigInt,
-            durationMinutes,
+            roomAndDeviceId: roomAndDeviceIdBigInt,
+            durationMinutes: parseInt(durationMinutes),
+            baseAmount,
+            categoryFee,
+            advanceBookingFee,
             price: totalAmount,
+            bookingStart,
+            bookingEnd,
           },
         },
       },
@@ -227,7 +304,6 @@ export const createOrder = async (
                 category: true,
               },
             },
-            game: true,
           },
         },
         branch: {
@@ -249,7 +325,7 @@ export const createOrder = async (
 
     res.status(201).json({
       success: true,
-      message: "Order berhasil dibuat",
+      message: "Order berhasil ditambahkan ke keranjang",
       data: serializedOrder,
     });
   } catch (error) {
@@ -257,6 +333,102 @@ export const createOrder = async (
     res.status(500).json({
       success: false,
       message: "Terjadi kesalahan saat membuat order",
+    });
+  }
+};
+
+/**
+ * PUT /orders/:id/checkout
+ * Checkout order (customer only) - from cart to pending
+ */
+export const checkoutOrder = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = BigInt(req.user!.userId);
+    const orderId = BigInt(req.params.id);
+    const { paymentMethod } = req.body;
+
+    // Ambil order dengan status cart milik user
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!order || order.customerId !== userId || order.status !== "cart") {
+      res.status(400).json({
+        success: false,
+        message: "Order tidak valid untuk checkout",
+      });
+      return;
+    }
+
+    // Update status order menjadi pending dan set paymentMethod
+    const updatedOrder = await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        status: "pending",
+        paymentMethod: paymentMethod || null,
+        paymentStatus: "paid",
+      },
+      include: {
+        orderItems: {
+          include: {
+            roomAndDevice: {
+              include: {
+                category: true,
+              },
+            },
+          },
+        },
+        branch: {
+          select: {
+            id: true,
+            name: true,
+            address: true,
+            phone: true,
+          },
+        },
+      },
+    });
+
+    // Buat notifikasi untuk admin branch terkait (jika ada tabel notifikasi)
+    try {
+      await prisma.notification.create({
+        data: {
+          userId: BigInt(req.user!.userId),
+          type: "new_order",
+          channel: "email",
+          payload: {
+            subject: "New Order",
+            message: "Your order has been successfully checked out. Please wait for confirmation.",
+            orderCode: updatedOrder.orderCode,
+          },
+          status: "pending",
+          sentAt: new Date(),
+        },
+      });
+    } catch (notifErr) {
+      // Lewati error notifikasi jika tabel tidak ada
+      console.warn("Notification creation skipped:", notifErr);
+    }
+
+    const serializedOrder = JSON.parse(
+      JSON.stringify(updatedOrder, (_key, value) =>
+        typeof value === "bigint" ? value.toString() : value
+      )
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Order berhasil di-checkout",
+      data: serializedOrder,
+    });
+  } catch (error) {
+    console.error("Checkout order error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Terjadi kesalahan saat checkout order",
     });
   }
 };
@@ -295,8 +467,11 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
           },
           orderItems: {
             include: {
-              roomAndDevice: true,
-              game: true,
+              roomAndDevice: {
+                include: {
+                  category: true,
+                },
+              },
             },
           },
           payment: true,
@@ -343,8 +518,11 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
           },
           orderItems: {
             include: {
-              roomAndDevice: true,
-              game: true,
+              roomAndDevice: {
+                include: {
+                  category: true,
+                },
+              },
             },
           },
           payment: true,
@@ -396,8 +574,11 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
           },
           orderItems: {
             include: {
-              roomAndDevice: true,
-              game: true,
+              roomAndDevice: {
+                include: {
+                  category: true,
+                },
+              },
             },
           },
           payment: true,
@@ -465,8 +646,11 @@ export const getOrderById = async (
         },
         orderItems: {
           include: {
-            roomAndDevice: true,
-            game: true,
+            roomAndDevice: {
+              include: {
+                category: true,
+              },
+            },
           },
         },
         payment: true,
@@ -594,8 +778,11 @@ export const updateOrderStatus = async (
       include: {
         orderItems: {
           include: {
-            roomAndDevice: true,
-            game: true,
+            roomAndDevice: {
+              include: {
+                category: true,
+              },
+            },
           },
         },
       },

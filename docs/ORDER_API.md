@@ -23,10 +23,10 @@ Authorization: Bearer <token>
   "branchId": "1",
   "deviceId": "1",
   "categoryId": "2",
-  "packageId": "1",
+  "durationMinutes": 120,
   "gameId": "5",
-  "bookingStart": "2025-12-15T14:00:00.000Z",
-  "bookingEnd": "2025-12-15T16:00:00.000Z",
+  "bookingDate": "2025-12-15",
+  "startTime": "14:00",
   "paymentMethod": "e_wallet",
   "notes": "Request good controller"
 }
@@ -37,10 +37,10 @@ Authorization: Bearer <token>
 - `branchId` (required): ID cabang
 - `deviceId` (required): ID device/ruangan yang dipilih
 - `categoryId` (optional): ID kategori device (Regular/VIP/VVIP)
-- `packageId` (required): ID paket durasi
+- `durationMinutes` (required): Durasi bermain dalam menit (minimal 30)
 - `gameId` (optional): ID game yang ingin dimainkan
-- `bookingStart` (required): Waktu mulai booking (ISO 8601)
-- `bookingEnd` (required): Waktu selesai booking (ISO 8601)
+- `bookingDate` (required): Tanggal booking (YYYY-MM-DD)
+- `startTime` (required): Waktu mulai (HH:mm)
 - `paymentMethod` (optional): Metode pembayaran
 - `notes` (optional): Catatan tambahan
 
@@ -67,16 +67,15 @@ Authorization: Bearer <token>
       {
         "id": "1",
         "orderId": "1",
-        "deviceId": "1",
-        "packageId": "1",
+        "roomAndDeviceId": "1",
         "gameId": "5",
         "durationMinutes": 120,
         "price": "220000.00",
-        "device": {
+        "roomAndDevice": {
           "id": "1",
-          "code": "PS5-VIP-001",
+          "name": "VIP Room 01",
           "roomNumber": "VIP-01",
-          "type": "ps",
+          "deviceType": "ps",
           "version": "ps5",
           "pricePerHour": "75000.00",
           "category": {
@@ -86,15 +85,10 @@ Authorization: Bearer <token>
             "pricePerHour": "25000.00"
           }
         },
-        "package": {
-          "id": "1",
-          "name": "2 Hours Package",
-          "durationMinutes": 120
-        },
         "game": {
           "id": "5",
           "name": "God of War Ragnarok",
-          "platform": "ps"
+          "deviceType": "ps"
         }
       }
     ],
@@ -119,7 +113,7 @@ Authorization: Bearer <token>
 
 - `400`: Validation error
 - `400`: Device sudah dibooking pada waktu tersebut
-- `404`: Branch/Device/Package/Game tidak ditemukan
+- `404`: Branch/Device/Category/Game tidak ditemukan
 
 ---
 

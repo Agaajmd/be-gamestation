@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
-  createOrder,
+  addToCart,
+  checkoutOrder,
   getOrders,
   getOrderById,
   updateOrderStatus,
@@ -15,6 +16,7 @@ import {
 import * as ValidateMiddleware from "../middleware/validateMiddleware";
 import {
   createOrderSchema,
+  checkoutOrderSchema,
   updateOrderStatusSchema,
   updatePaymentStatusSchema,
 } from "../validation/bodyValidation/orderValidation";
@@ -27,8 +29,16 @@ router.post(
   authenticateToken,
   requireCustomer,
   ValidateMiddleware.validateBody(createOrderSchema),
-  createOrder
+  addToCart
 );
+
+router.post(
+  "/:id/checkout",
+  authenticateToken,
+  requireCustomer,
+  ValidateMiddleware.validateBody(checkoutOrderSchema),
+  checkoutOrder
+)
 
 router.delete("/:id", authenticateToken, cancelOrder);
 

@@ -1,4 +1,4 @@
-import prisma from "../lib/prisma";
+import { prisma } from "../database";
 
 /**
  * Helper function untuk cek akses ke branch

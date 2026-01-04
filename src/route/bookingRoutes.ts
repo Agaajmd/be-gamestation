@@ -6,6 +6,7 @@ import {
   getAvailableRoomsAndDevicesSchema,
   getAvailableDatesSchema,
 } from "../validation/queryValidation/bookingQueryValidation";
+import { authenticateToken } from "../middleware/authMiddleware";
 
 const router = Router();
 
@@ -66,6 +67,12 @@ router.get(
   ValidateMiddleware.validateQuery(getAvailableRoomsAndDevicesSchema),
   BookingFlowController.getAvailableRoomsAndDevices
 );
+
+/**
+ * GET /booking/cart
+ * Mendapatkan data cart booking untuk user yang sudah login (authenticated)
+ */
+router.get("/cart", authenticateToken, BookingFlowController.getBookingCart);
 
 /**
  * POST /booking/calculate-price

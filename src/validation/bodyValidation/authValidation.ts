@@ -8,8 +8,9 @@ export const registerSchema = Joi.object({
     "string.email": "Format email tidak valid",
     "any.required": "Email wajib diisi",
   }),
-  password: Joi.string().min(6).optional().messages({
-    "string.min": "Password minimal 6 karakter",
+  password: Joi.string().min(8).required().messages({
+    "string.min": "Password minimal 8 karakter",
+    "any.required": "Password wajib diisi",
   }),
   fullname: Joi.string().min(3).max(100).required().messages({
     "string.min": "Nama lengkap minimal 3 karakter",
@@ -21,6 +22,7 @@ export const registerSchema = Joi.object({
     .required()
     .messages({
       "string.pattern.base": "Format nomor telepon tidak valid",
+      "any.required": "Nomor telepon wajib diisi",
     }),
 });
 
