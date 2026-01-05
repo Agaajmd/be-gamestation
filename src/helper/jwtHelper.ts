@@ -24,6 +24,7 @@ export interface TokenPayload {
   userId: string;
   email: string;
   role: string;
+  adminRole?: string;
 }
 
 // Alias untuk dipakai di middleware
@@ -31,11 +32,12 @@ export type JWTPayload = TokenPayload;
 
 // Generate tokens
 export const generateToken = {
-  accessToken(userId: bigint, email: string, role: string): string {
+  accessToken(userId: bigint, email: string, role: string, adminRole?: string): string {
     const payload: TokenPayload = {
       userId: userId.toString(),
       email,
       role,
+      ...(adminRole && { adminRole }),
     };
 
     return jwt.sign(payload, JWT_SECRET, {
@@ -45,11 +47,12 @@ export const generateToken = {
     } as any);
   },
 
-  refreshToken(userId: bigint, email: string, role: string): string {
+  refreshToken(userId: bigint, email: string, role: string, adminRole?: string): string {
     const payload: TokenPayload = {
       userId: userId.toString(),
       email,
       role,
+      ...(adminRole && { adminRole }),
     };
 
     return jwt.sign(payload, JWT_REFRESH_SECRET, {
@@ -73,6 +76,7 @@ export const verifyToken = {
         userId: decoded.userId,
         email: decoded.email,
         role: decoded.role,
+        ...(decoded.adminRole && { adminRole: decoded.adminRole }),
       };
     } catch (error) {
       if (error instanceof jwt.TokenExpiredError) {
@@ -96,6 +100,7 @@ export const verifyToken = {
         userId: decoded.userId,
         email: decoded.email,
         role: decoded.role,
+        ...(decoded.adminRole && { adminRole: decoded.adminRole }),
       };
     } catch (error) {
       if (error instanceof jwt.TokenExpiredError) {

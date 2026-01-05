@@ -17,11 +17,15 @@ import gameAvailabilityRoutes from "./route/gameAvailabilityRoutes";
 import advanceBookingPriceRoutes from "./route/advanceBookingPriceRoutes";
 import { testEmailConnection } from "./helper/emailHelper";
 
+// Middleware
+import { bigIntSerializer } from "./middleware/bigIntSerializer";
+
 const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(express.json());
+app.use(bigIntSerializer);
 app.use(express.urlencoded({ extended: true }));
 
 // Routes

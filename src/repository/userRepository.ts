@@ -1,3 +1,4 @@
+import { UserRole } from "@prisma/client";
 import { prisma } from "../database";
 import {
   UserWithOwnerAndAdmin,
@@ -13,8 +14,16 @@ export const UserRepository = {
     });
   },
 
-  // Find user by email
+  // find user by email without relations
   findByEmail(email: string): Promise<UserWithOwnerAndAdmin | null> {
+    return prisma.user.findUnique({
+      where: { email },
+      ...UserWithOwnerAndAdminConfig,
+    });
+  },
+
+  // Find user by email with owner and admin relations
+  findByEmailWithOwnerAndAdmin(email: string): Promise<UserWithOwnerAndAdmin | null> {
     return prisma.user.findUnique({
       where: { email },
       ...UserWithOwnerAndAdminConfig,
@@ -47,6 +56,13 @@ export const UserRepository = {
     return prisma.user.update({
       where: { email },
       data: { passwordHash, updatedAt: new Date() },
+    });
+  },
+
+  updateUserRole(userId: bigint, role: UserRole) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: { role },
     });
   },
 };

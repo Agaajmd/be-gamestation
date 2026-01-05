@@ -72,7 +72,10 @@ export const requireOwnerOrAdmin = (
     return;
   }
 
-  if (req.user.role !== "owner" && req.user.role !== "admin") {
+  const isOwner = req.user.role === "owner";
+  const isAdminManager = req.user.role === "admin" && req.user.adminRole === "manager";
+
+  if (!isOwner && !isAdminManager) {
     res.status(403).json({
       success: false,
       message: "Akses ditolak. Hanya owner atau admin yang dapat mengakses",

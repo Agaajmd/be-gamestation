@@ -68,7 +68,7 @@ export async function loginUser(payload: {
 }): Promise<LoginResult> {
   const { email, password } = payload;
 
-  const user = await UserRepository.findByEmail(email);
+  const user = await UserRepository.findByEmailWithOwnerAndAdmin(email);
 
   if (!user) {
     throw new EmailNotFoundError();
@@ -84,11 +84,12 @@ export async function loginUser(payload: {
     throw new PasswordError();
   }
 
-  const accessToken = generateToken.accessToken(user.id, user.email, user.role);
+  const accessToken = generateToken.accessToken(user.id, user.email, user.role, user.admin?.role);
   const refreshToken = generateToken.refreshToken(
     user.id,
     user.email,
-    user.role
+    user.role,
+    user.admin?.role
   );
 
   await UserRepository.updateLastLogin(user.id);
@@ -137,11 +138,12 @@ export async function loginUserOTP(payload: {
     throw new EmailNotFoundError();
   }
 
-  const accessToken = generateToken.accessToken(user.id, user.email, user.role);
+  const accessToken = generateToken.accessToken(user.id, user.email, user.role, user.admin?.role);
   const refreshToken = generateToken.refreshToken(
     user.id,
     user.email,
-    user.role
+    user.role,
+    user.admin?.role
   );
 
   await UserRepository.updateLastLogin(user.id);
@@ -166,12 +168,14 @@ export async function refreshAccessToken(payload: {
   const newAccessToken = generateToken.accessToken(
     user.id,
     user.email,
-    user.role
+    user.role,
+    user.admin?.role
   );
   const newRefreshToken = generateToken.refreshToken(
     user.id,
     user.email,
-    user.role
+    user.role,
+    user.admin?.role
   );
 
   await UserRepository.updateLastLogin(user.id);
