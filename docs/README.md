@@ -1,186 +1,316 @@
-# Game Station API - Complete Documentation
+# Game Station API - Documentation Index
 
-Complete REST API documentation for Game Station management system.
+Dokumentasi lengkap untuk Game Station API - Platform manajemen game station dengan fitur booking, payment, dan session tracking.
 
-## Base URL
+**Version:** 1.0.0  
+**Last Updated:** January 19, 2026
 
-```
-http://localhost:3000
-```
+---
 
-## Authentication
+## 📚 Daftar Lengkap Dokumentasi
 
-Most endpoints require authentication using JWT Bearer token:
+### 🚀 Getting Started (Mulai dari sini!)
 
-```
-Authorization: Bearer <your_jwt_token>
-```
+| Dokumen                                    | Deskripsi                                                                                |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| [GETTING_STARTED.md](./GETTING_STARTED.md) | Setup project, instalasi dependencies, konfigurasi environment, dan menjalankan aplikasi |
+| [API_STANDARD.md](./API_STANDARD.md)       | Standard dan template untuk semua API documentation                                      |
 
-## 🆕 New Booking Flow (December 2025)
+### 📖 User Guides
 
-The system now supports a complete customer booking flow with:
+| Dokumen                                    | Deskripsi                                                                                         |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| [USAGE_GUIDE.md](./USAGE_GUIDE.md)         | Panduan penggunaan fitur-fitur utama dengan contoh flow lengkap (Auth, Booking, Payment, Session) |
+| [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) | Dokumentasi struktur database, relasi, tipe data, dan entity relationship diagram                 |
+| [ERROR_HANDLING.md](./ERROR_HANDLING.md)   | Panduan error handling, error codes, troubleshooting, dan best practices                          |
 
-- Device categories (Regular, VIP, VVIP) with different pricing
-- Device versions (PS4/PS5, Racing Standard/Pro, etc.)
-- Room number system for each device
-- Real-time availability checking
-- Advance booking with additional fees
-- Detailed pricing breakdown (base price + category fee + advance booking fee)
+### 🔐 Authentication
 
-See [Booking Flow API](BOOKING_FLOW_API.md) for complete guide.
+| Dokumen                      | Deskripsi                                                            |
+| ---------------------------- | -------------------------------------------------------------------- |
+| [AUTH_API.md](./AUTH_API.md) | Register, Login (Email & Password), Login OTP, Refresh Token, Logout |
 
-## Available API Modules
+### 📅 Booking & Orders
 
-### 1. [Authentication API](AUTH_API.md)
+| Dokumen                                      | Deskripsi                                                                    |
+| -------------------------------------------- | ---------------------------------------------------------------------------- |
+| [BOOKING_FLOW_API.md](./BOOKING_FLOW_API.md) | Get branches, device types, availability check, device details               |
+| [ORDER_API.md](./ORDER_API.md)               | Create order, view orders, update order, checkout, order management          |
+| [SESSION_API.md](./SESSION_API.md)           | Check-in, check-out, view active session, extend session, session management |
 
-User registration, login, and profile management
+### 💳 Payment
 
-- Register new user
-- Login
-- Get current user profile
-- Update profile
-- Change password
+| Dokumen                            | Deskripsi                                                              |
+| ---------------------------------- | ---------------------------------------------------------------------- |
+| [PAYMENT_API.md](./PAYMENT_API.md) | Create payment, check payment methods, payment status, refund handling |
 
-### 2. [Branch API](BRANCH_API.md)
+### ⭐ Reviews & Ratings
 
-Branch management for owners and admins
+| Dokumen                          | Deskripsi                                                   |
+| -------------------------------- | ----------------------------------------------------------- |
+| [REVIEW_API.md](./REVIEW_API.md) | Submit review, view reviews, rating and feedback management |
 
-- Create branch
-- Get branches
-- Get branch by ID
-- Update branch
-- Delete branch
+### 🏢 Management
 
-### 3. [Device API](DEVICE_API.md) ⚡ Updated
+| Dokumen                                                  | Deskripsi                                                                 |
+| -------------------------------------------------------- | ------------------------------------------------------------------------- |
+| [BRANCH_API.md](./BRANCH_API.md)                         | Create/update branch, view branches, branch information, admin management |
+| [DEVICE_API.md](./DEVICE_API.md)                         | Manage devices/rooms, device status, device availability, maintenance     |
+| [DEVICE_CATEGORY_API.md](./DEVICE_CATEGORY_API.md)       | Create/update categories (Regular/VIP/VVIP), category pricing             |
+| [GAME_API.md](./GAME_API.md)                             | Game management, game availability per device                             |
+| [HOLIDAY_API.md](./HOLIDAY_API.md)                       | Manage branch holidays, closed dates, special days                        |
+| [BRANCH_AMENITIES_GUIDE.md](./BRANCH_AMENITIES_GUIDE.md) | Available amenities, amenities configuration                              |
 
-Device management within branches (now with categories, versions, and room numbers)
+### 📢 Notifications & Subscriptions
 
-- Create device (with category, version, room number, price per hour)
-- Get devices
-- Get device by ID
-- Update device
-- Delete device
+| Dokumen                                      | Deskripsi                                                           |
+| -------------------------------------------- | ------------------------------------------------------------------- |
+| [NOTIFICATION_API.md](./NOTIFICATION_API.md) | Send notifications, notification channels, notification preferences |
+| [SUBSCRIPTION_API.md](./SUBSCRIPTION_API.md) | Subscription plans, subscription management, billing                |
 
-### 3.1 [Device Category API](DEVICE_CATEGORY_API.md) 🆕 New
+### 🌱 Database & Development
 
-Manage device categories (Regular, VIP, VVIP) per branch
+| Dokumen                  | Deskripsi                                          |
+| ------------------------ | -------------------------------------------------- |
+| [SEEDER.md](./SEEDER.md) | Database seeding, initial data setup, seed scripts |
 
-- Create device category
-- Get categories by branch
-- Update category
-- Delete category
+---
 
-### 4. [Booking Flow API](BOOKING_FLOW_API.md) 🆕 New
+## 🎯 Quick Navigation
 
-Complete customer booking flow from branch selection to checkout
+### Saya ingin...
 
-- Get all branches
-- Get available device types
-- Get available categories
-- Get available rooms (with real-time status)
-- Get available dates (with advance booking fees)
-- Get available times (real-time slots)
-- Calculate booking price (with breakdown)
+**Setup aplikasi baru:**
 
-### 5. [Package API](PACKAGE_API.md)
+1. Baca [GETTING_STARTED.md](./GETTING_STARTED.md)
+2. Follow langkah demi langkah di file tersebut
+3. Jalankan aplikasi: `npm run dev`
 
-Package/pricing management
+**Memahami flow booking:**
 
-- Create package
-- Get packages
-- Get package by ID
-- Update package
-- Delete package
+1. Baca [USAGE_GUIDE.md](./USAGE_GUIDE.md#booking-flow) - Section Booking Flow
+2. Follow contoh dari mulai cek branch hingga checkout
+3. Lihat [BOOKING_FLOW_API.md](./BOOKING_FLOW_API.md) untuk detail endpoint
 
-### 6. [Game API](GAME_API.md)
+**Integrate authentication:**
 
-Game catalog management
+1. Baca [AUTH_API.md](./AUTH_API.md)
+2. Lihat [USAGE_GUIDE.md](./USAGE_GUIDE.md#authentication-flow) untuk scenario lengkap
+3. Lihat [ERROR_HANDLING.md](./ERROR_HANDLING.md#1-authentication-errors-401) untuk handle error
 
-- Create game
-- Get games (public)
-- Get game by ID
-- Update game
-- Delete game
+**Memahami struktur database:**
 
-### 7. [Order API](ORDER_API.md) ⚡ Updated
+1. Baca [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md)
+2. Lihat Entity Relationship Diagram
+3. Explore model details untuk table yang relevan
 
-Customer order and booking management (now with pricing breakdown)
+**Handle error dengan benar:**
 
-- Create order (single device with category selection)
-- Get orders
-- Get order by ID
-- Update order status
-- Update payment status
-- Cancel order
+1. Baca [ERROR_HANDLING.md](./ERROR_HANDLING.md)
+2. Lihat error codes yang relevan dengan endpoint
+3. Lihat contoh client-side error handling
 
-### 8. [Payment API](PAYMENT_API.md)
+**Develop fitur baru:**
 
-Payment processing and tracking
+1. Lihat [API_STANDARD.md](./API_STANDARD.md) untuk format standard
+2. Follow template untuk dokumentasi
+3. Pastikan semua field dan error cases ter-document
 
-- Create payment
-- Get payments
-- Get payment by ID
-- Update payment status
+---
 
-### 8. [Session API](SESSION_API.md)
+## 📋 Tech Stack
 
-Gaming session management
+- **Runtime:** Node.js v18+
+- **Language:** TypeScript
+- **Framework:** Express.js
+- **Database:** PostgreSQL
+- **ORM:** Prisma
+- **Authentication:** JWT (JSON Web Tokens)
+- **Password Hashing:** bcrypt
+- **Validation:** Joi, Zod
+- **Email:** Nodemailer
 
-- Start session
-- Get sessions
-- Get session by ID
-- Stop session
+---
 
-### 9. [Review API](REVIEW_API.md)
+## 🔑 Key Features
 
-Customer review and rating system
+### Authentication
 
-- Create review
-- Get reviews
-- Get review by ID
-- Update review
-- Delete review
+- ✅ Register dengan email & password
+- ✅ Login dengan email & password
+- ✅ Login OTP (tanpa password)
+- ✅ Token refresh mechanism
+- ✅ Role-based access control (Customer, Admin, Owner)
 
-### 10. [Notification API](NOTIFICATION_API.md)
+### Booking System
 
-Notification management system
+- ✅ Cek ketersediaan device real-time
+- ✅ Multiple device types (PS, Racing, VR, PC, Arcade)
+- ✅ Category tiers (Regular, VIP, VVIP)
+- ✅ Dynamic pricing
+- ✅ Advance booking discounts
+- ✅ Time slot management
 
-- Create notification
-- Get notifications
-- Get notification by ID
-- Update notification status
-- Delete notification
+### Payment
 
-### 11. [Subscription API](SUBSCRIPTION_API.md)
+- ✅ Multiple payment methods (E-wallet, Bank Transfer, Credit Card)
+- ✅ Payment gateway integration
+- ✅ Refund handling
+- ✅ Transaction tracking
 
-Owner subscription management
+### Session Management
 
-- Create subscription
-- Get subscriptions
-- Get active subscription
-- Get subscription by ID
-- Update subscription
-- Delete subscription
+- ✅ Check-in/Check-out
+- ✅ Session tracking
+- ✅ Session extension
+- ✅ Duration monitoring
 
-### 12. Admin Management
+### Management Features
 
-Admin/staff management within branches
+- ✅ Multi-branch support
+- ✅ Device management
+- ✅ Staff management
+- ✅ Holiday & closed date management
+- ✅ Amenities management
+- ✅ Review & rating system
 
-- Create admin
-- Get admins
-- Get admin by ID
-- Update admin
-- Delete admin
+---
 
-## User Roles
+## 🚀 Getting Started Steps
 
-### Customer (`customer`)
+### 1. Setup Awal
 
-- Can create orders
-- Can view own orders, payments, sessions
-- Can create and manage reviews
-- Can view own notifications
-- Can view available branches, devices, packages, games
+\`\`\`bash
+git clone <repo>
+cd game-station
+npm install
+cp .env.example .env
+\`\`\`
+
+### 2. Database Setup
+
+\`\`\`bash
+
+# Update .env dengan database config Anda
+
+# Kemudian:
+
+npx prisma generate
+npx prisma migrate dev
+npm run prisma:seed # Optional
+\`\`\`
+
+### 3. Run Development
+
+\`\`\`bash
+npm run dev
+
+# Server akan berjalan di http://localhost:3000
+
+\`\`\`
+
+### 4. Test API
+
+Gunakan REST Client extension di VS Code, atau Postman untuk test endpoint.
+Lihat [test.http](../test.http) untuk contoh request.
+
+---
+
+## 💡 Common Tasks
+
+### Test Authentication
+
+Lihat [AUTH_API.md](./AUTH_API.md) dan [USAGE_GUIDE.md#authentication-flow](./USAGE_GUIDE.md#authentication-flow)
+
+### Test Booking Flow
+
+1. Get branches: `GET /booking/branches`
+2. Check device types: `GET /booking/branches/:id/device-types`
+3. Check availability: `POST /booking/check-availability`
+4. Create order: `POST /orders`
+
+### Handle Errors Properly
+
+Lihat [ERROR_HANDLING.md](./ERROR_HANDLING.md) untuk error codes dan client-side handling
+
+### Database Queries
+
+Gunakan Prisma Studio: `npm run prisma:studio`
+
+---
+
+## 📝 Documentation Standards
+
+Semua dokumentasi harus:
+
+- ✅ Mengikuti format di [API_STANDARD.md](./API_STANDARD.md)
+- ✅ Include success dan error response examples
+- ✅ Include field descriptions
+- ✅ Include curl/code examples
+- ✅ Link ke related documentation
+- ✅ Explain error codes yang mungkin terjadi
+
+---
+
+## 📌 Important Notes
+
+- **Semua timestamps** dalam format ISO 8601: `2026-01-19T10:30:00.000Z`
+- **Semua IDs** adalah BigInt (dikirim sebagai string dalam JSON)
+- **Semua currency** dalam IDR dengan 2 decimal places
+- **Rate limit:** 100 requests per minute per IP
+- **Token expiry:** Access token 15 menit, Refresh token 7 hari
+
+---
+
+## 🎓 Learning Path
+
+### Pemula
+
+1. GETTING_STARTED.md
+2. USAGE_GUIDE.md
+3. AUTH_API.md
+4. BOOKING_FLOW_API.md
+
+### Intermediate
+
+1. DATABASE_SCHEMA.md
+
+---
+
+## 📞 Support & Contribution
+
+### Report Issues
+
+Jika menemukan error atau dokumentasi tidak akurat:
+
+1. Create issue di repository
+2. Sertakan detail (endpoint, request, response)
+3. Sertakan langkah untuk reproduce
+
+### Contribute
+
+Untuk menambah/improve dokumentasi:
+
+1. Follow format di [API_STANDARD.md](./API_STANDARD.md)
+2. Test endpoint yang di-document
+3. Include examples
+4. Submit pull request
+
+---
+
+## 📅 Version & Updates
+
+| Version | Release Date | Changes                                       |
+| ------- | ------------ | --------------------------------------------- |
+| 1.0.0   | 2026-01-19   | Initial release dengan complete documentation |
+
+---
+
+**Last Updated:** January 19, 2026
+
+---
+
+**Questions?** Baca dokumentasi yang relevan atau hubungi tim development.
 
 ### Admin (`admin`)
 
@@ -304,35 +434,29 @@ Admin/staff management within branches
 ## Typical Order Flow
 
 1. **Customer browses**
-
    - `GET /branches` - View available branches
    - `GET /branches/:id/packages` - View packages
    - `GET /branches/:id/devices` - View available devices
    - `GET /games` - View game catalog
 
 2. **Customer creates order**
-
    - `POST /orders` - Create order with items
    - Order status: `pending`, Payment status: `unpaid`
 
 3. **Customer makes payment**
-
    - `POST /payments` - Create payment record
    - Payment status: `pending`
 
 4. **Admin confirms payment**
-
    - `PUT /payments/:id` - Update payment to `paid`
    - Order automatically updated to `paid` status
 
 5. **Customer arrives (Check-in)**
-
    - `POST /sessions` - Admin starts session
    - Order status: `checked_in`
    - Session status: `running`
 
 6. **Session ends**
-
    - `PUT /sessions/:id` - Admin stops session
    - Order status: `completed`
    - Session status: `stopped`

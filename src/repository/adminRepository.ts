@@ -2,14 +2,11 @@ import { AdminRole } from "@prisma/client";
 import { prisma } from "../database";
 
 // Type
-import {
-  adminWithUserConfig,
-  AdminWithUser,
-} from "../service/type/admin/adminWithUser";
+import { adminWithUserConfig, AdminWithUser } from "./type/admin/adminWithUser";
 import {
   adminWithUserAndBranchConfig,
   AdminWithUserAndBranch,
-} from "../service/type/admin/adminWithUserAndBranch";
+} from "./type/admin/adminWithUserAndBranch";
 
 export const AdminRepository = {
   // Find admin by ID

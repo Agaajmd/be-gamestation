@@ -3,7 +3,7 @@ import { prisma } from "../database";
 import {
   UserWithOwnerAndAdmin,
   UserWithOwnerAndAdminConfig,
-} from "../service/AuthService/type/LoginResult";
+} from "./type/user/userWithOwnerAndAdmin";
 
 export const UserRepository = {
   // Find user by ID
@@ -23,7 +23,9 @@ export const UserRepository = {
   },
 
   // Find user by email with owner and admin relations
-  findByEmailWithOwnerAndAdmin(email: string): Promise<UserWithOwnerAndAdmin | null> {
+  findByEmailWithOwnerAndAdmin(
+    email: string
+  ): Promise<UserWithOwnerAndAdmin | null> {
     return prisma.user.findUnique({
       where: { email },
       ...UserWithOwnerAndAdminConfig,

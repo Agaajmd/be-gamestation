@@ -1,5 +1,17 @@
 import { Request, Response } from "express";
-import { prisma } from "../database";
+
+// Service
+import {
+  addAdvanceBookingPriceService,
+  updateAdvanceBookingPriceService,
+  deleteAdvanceBookingPriceService,
+} from "../service/AdvanceBookingPriceService/advanceBookingPriceService";
+
+// Repository
+import { AdvanceBookingPriceRepository } from "../repository/advanceBookingPriceRepository";
+
+// Error
+import { handleError } from "../helper/responseHelper";
 
 /**
  * POST /advance-booking-price
@@ -9,39 +21,10 @@ export const addAdvanceBookingPrice = async (req: Request, res: Response) => {
   try {
     const { branchId, daysInAdvance, additionalFee } = req.body;
 
-    const branchIdBigInt = BigInt(branchId);
-    const branch = await prisma.branch.findUnique({
-      where: { id: branchIdBigInt },
-    });
-
-    if (!branch) {
-      res.status(404).json({
-        success: false,
-        message: "Branch tidak ditemukan",
-      });
-      return;
-    }
-
-    const existing = await prisma.advanceBookingPrice.findFirst({
-      where: {
-        branchId: branchIdBigInt,
-        daysInAdvance,
-      },
-    });
-
-    if (existing) {
-      res.status(400).json({
-        message: "Harga untuk branch & days_in_advance ini sudah ada",
-      });
-      return
-    }
-
-    const newAdvanceBookingPrice = await prisma.advanceBookingPrice.create({
-      data: {
-        branchId: branchIdBigInt,
-        daysInAdvance,
-        additionalFee,
-      },
+    const newAdvanceBookingPrice = await addAdvanceBookingPriceService({
+      branchId: BigInt(branchId),
+      daysInAdvance,
+      additionalFee,
     });
 
     res.status(200).json({
@@ -49,12 +32,7 @@ export const addAdvanceBookingPrice = async (req: Request, res: Response) => {
       data: newAdvanceBookingPrice,
     });
   } catch (error) {
-    console.error("Add AdvanceBookingPrice error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan pada server",
-    });
+    handleError(error, res);
   }
 };
 
@@ -63,20 +41,13 @@ export const addAdvanceBookingPrice = async (req: Request, res: Response) => {
  */
 export const getAdvanceBookingPrices = async (_req: Request, res: Response) => {
   try {
-    const advanceBookingPrices = await prisma.advanceBookingPrice.findMany({
-      include: {
-        branch: true,
-      },
-    });
+    const advanceBookingPrices = await AdvanceBookingPriceRepository.findAll();
     res.status(200).json({
       success: true,
       data: advanceBookingPrices,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan pada server",
-    });
+    handleError(error, res);
   }
 };
 
@@ -93,20 +64,10 @@ export const updateAdvanceBookingPrice = async (
     const { daysInAdvance, additionalFee } = req.body;
     const idBigInt = BigInt(id);
 
-    const advanceBookingPrice = await prisma.advanceBookingPrice.findUnique({
-      where: { id: idBigInt },
-    });
-    if (!advanceBookingPrice) {
-      res.status(404).json({
-        success: false,
-        message: "Advance booking price tidak ditemukan",
-      });
-      return;
-    }
-
-    const updatedAdvanceBookingPrice = await prisma.advanceBookingPrice.update({
-      where: { id: idBigInt },
-      data: { daysInAdvance, additionalFee },
+    const updatedAdvanceBookingPrice = await updateAdvanceBookingPriceService({
+      id: idBigInt,
+      daysInAdvance,
+      additionalFee,
     });
 
     res.status(200).json({
@@ -114,10 +75,7 @@ export const updateAdvanceBookingPrice = async (
       data: updatedAdvanceBookingPrice,
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan pada server",
-    });
+    handleError(error, res);
   }
 };
 
@@ -131,19 +89,14 @@ export const deleteAdvanceBookingPrice = async (
   try {
     const { id } = req.params;
     const idBigInt = BigInt(id);
-    const advanceBookingPrice = await prisma.advanceBookingPrice.findUnique({
-      where: { id: idBigInt },
+
+    await deleteAdvanceBookingPriceService(idBigInt);
+
+    res.status(200).json({
+      success: true,
+      message: "Advance booking price berhasil dihapus",
     });
-    if (!advanceBookingPrice) {
-      res.status(404).json({
-        success: false,
-        message: "Advance booking price tidak ditemukan",
-      });
-    }
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan pada server",
-    });
+    handleError(error, res);
   }
 };

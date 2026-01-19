@@ -103,6 +103,23 @@ export const addToCart = async (req: Request, res: Response): Promise<void> => {
     const bookingEnd = new Date(bookingStart);
     bookingEnd.setMinutes(bookingEnd.getMinutes() + parseInt(durationMinutes));
 
+    // Check if booking time is within branch operating hours and not in the past
+    const now = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const bookingDateOnly = new Date(bookingDate);
+    bookingDateOnly.setHours(0, 0, 0, 0);
+
+    const isToday = bookingDateOnly.getTime() === today.getTime();
+
+    if (isToday && bookingStart <= now) {
+      res.status(400).json({
+        success: false,
+        message: "Waktu booking tidak boleh di masa lalu",
+      });
+      return;
+    }
+
     // Check duplicate booking in cart
     const duplicateOrder = await prisma.orderItem.findFirst({
       where: {
@@ -196,12 +213,10 @@ export const addToCart = async (req: Request, res: Response): Promise<void> => {
     const categoryFee = category ? Number(category.pricePerHour) * hours : 0;
 
     // Advance booking fee
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const bookingDateOnly = new Date(bookingDate);
-    bookingDateOnly.setHours(0, 0, 0, 0);
+    const bookingDateOnly2 = new Date(bookingDate);
+    bookingDateOnly2.setHours(0, 0, 0, 0);
     const daysFromToday = Math.floor(
-      (bookingDateOnly.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+      (bookingDateOnly.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
     );
 
     let advanceBookingFee = 0;
@@ -258,8 +273,8 @@ export const addToCart = async (req: Request, res: Response): Promise<void> => {
       // Serialize existing cart order
       const serializedOrder = JSON.parse(
         JSON.stringify(existingCartOrder, (_key, value) =>
-          typeof value === "bigint" ? value.toString() : value
-        )
+          typeof value === "bigint" ? value.toString() : value,
+        ),
       );
 
       res.status(201).json({
@@ -319,8 +334,8 @@ export const addToCart = async (req: Request, res: Response): Promise<void> => {
 
     const serializedOrder = JSON.parse(
       JSON.stringify(order, (_key, value) =>
-        typeof value === "bigint" ? value.toString() : value
-      )
+        typeof value === "bigint" ? value.toString() : value,
+      ),
     );
 
     res.status(201).json({
@@ -343,7 +358,7 @@ export const addToCart = async (req: Request, res: Response): Promise<void> => {
  */
 export const checkoutOrder = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const userId = BigInt(req.user!.userId);
@@ -401,7 +416,8 @@ export const checkoutOrder = async (
           channel: "email",
           payload: {
             subject: "New Order",
-            message: "Your order has been successfully checked out. Please wait for confirmation.",
+            message:
+              "Your order has been successfully checked out. Please wait for confirmation.",
             orderCode: updatedOrder.orderCode,
           },
           status: "pending",
@@ -415,8 +431,8 @@ export const checkoutOrder = async (
 
     const serializedOrder = JSON.parse(
       JSON.stringify(updatedOrder, (_key, value) =>
-        typeof value === "bigint" ? value.toString() : value
-      )
+        typeof value === "bigint" ? value.toString() : value,
+      ),
     );
 
     res.status(200).json({
@@ -593,8 +609,8 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
 
     const serializedOrders = JSON.parse(
       JSON.stringify(orders, (_key, value) =>
-        typeof value === "bigint" ? value.toString() : value
-      )
+        typeof value === "bigint" ? value.toString() : value,
+      ),
     );
 
     res.status(200).json({
@@ -616,7 +632,7 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
  */
 export const getOrderById = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const userId = BigInt(req.user!.userId);
@@ -703,8 +719,8 @@ export const getOrderById = async (
 
     const serializedOrder = JSON.parse(
       JSON.stringify(order, (_key, value) =>
-        typeof value === "bigint" ? value.toString() : value
-      )
+        typeof value === "bigint" ? value.toString() : value,
+      ),
     );
 
     res.status(200).json({
@@ -726,7 +742,7 @@ export const getOrderById = async (
  */
 export const updateOrderStatus = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const userId = BigInt(req.user!.userId);
@@ -790,8 +806,8 @@ export const updateOrderStatus = async (
 
     const serializedOrder = JSON.parse(
       JSON.stringify(updatedOrder, (_key, value) =>
-        typeof value === "bigint" ? value.toString() : value
-      )
+        typeof value === "bigint" ? value.toString() : value,
+      ),
     );
 
     res.status(200).json({
@@ -814,7 +830,7 @@ export const updateOrderStatus = async (
  */
 export const updatePaymentStatus = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const userId = BigInt(req.user!.userId);
@@ -876,8 +892,8 @@ export const updatePaymentStatus = async (
 
     const serializedOrder = JSON.parse(
       JSON.stringify(updatedOrder, (_key, value) =>
-        typeof value === "bigint" ? value.toString() : value
-      )
+        typeof value === "bigint" ? value.toString() : value,
+      ),
     );
 
     res.status(200).json({
@@ -900,7 +916,7 @@ export const updatePaymentStatus = async (
  */
 export const cancelOrder = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const userId = BigInt(req.user!.userId);

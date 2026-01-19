@@ -1,10 +1,19 @@
 import { Request, Response } from "express";
 import { prisma } from "../database";
-import { fetchMonthlyData } from "../helper/bookingAvailability/fetchMonthlyData";
-import { getBranchOperatingHours } from "../helper/bookingAvailability/getBranchOperatingHours";
-import { isPastDate } from "../helper/bookingAvailability/isPastDate";
-import { isDateClosed } from "../helper/bookingAvailability/isDateClosed";
-import { calculateDateAvailability } from "../helper/bookingAvailability/calculateDateAvailability";
+
+// Service
+import {
+  getBranchesService,
+  getAvailableDatesService,
+  getAvailableTimesService,
+  getDurationOptionsService,
+  getAvailableCategoriesService,
+  getAvailableRoomAndDeviceService,
+  getBookingCartService,
+} from "../service/BookingService/bookingService";
+
+// Error
+import { handleError } from "../helper/responseHelper";
 
 /**
  * GET /booking/branches
@@ -12,52 +21,17 @@ import { calculateDateAvailability } from "../helper/bookingAvailability/calcula
  */
 export const getBranches = async (
   _req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
-    const branches = await prisma.branch.findMany({
-      select: {
-        id: true,
-        name: true,
-        address: true,
-        phone: true,
-        openTime: true,
-        closeTime: true,
-        amenities: true,
-        _count: {
-          select: {
-            roomAndDevices: {
-              where: {
-                status: "available",
-              },
-            },
-          },
-        },
-      },
-      orderBy: { name: "asc" },
-    });
-
-    const serialized = branches.map((branch) => ({
-      id: branch.id.toString(),
-      name: branch.name,
-      address: branch.address,
-      phone: branch.phone,
-      openTime: branch.openTime,
-      closeTime: branch.closeTime,
-      amenities: branch.amenities,
-      availableDeviceCount: branch._count.roomAndDevices,
-    }));
+    const branches = await getBranchesService();
 
     res.status(200).json({
       success: true,
-      data: serialized,
+      data: branches,
     });
   } catch (error) {
-    console.error("Get branches error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat mengambil data cabang",
-    });
+    handleError(error, res);
   }
 };
 
@@ -67,7 +41,7 @@ export const getBranches = async (
  */
 export const getAvailableDates = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const branchId = BigInt(req.params.branchId);
@@ -78,117 +52,14 @@ export const getAvailableDates = async (
     const startDate = new Date(year, monthNum - 1, 1);
     const endDate = new Date(year, monthNum, 0);
 
-    // Get branch with operating hours
-    const branch = await prisma.branch.findUnique({
-      where: { id: branchId },
-      select: {
-        id: true,
-        openTime: true,
-        closeTime: true,
-      },
-    });
-
-    if (!branch) {
-      res.status(404).json({
-        success: false,
-        message: "Cabang tidak ditemukan",
-      });
-      return;
-    }
-
-    // Get all available devices
-    const devices = await prisma.roomAndDevice.findMany({
-      where: {
-        branchId: branchId,
-        status: { not: "maintenance" },
-      },
-      select: { id: true },
-    });
-
-    if (devices.length === 0) {
-      res.status(200).json({
-        success: true,
-        data: {
-          availableDates: [],
-          fullyBookedDates: [],
-          closedDates: [],
-        },
-        message: "Tidak ada device tersedia di branch ini",
-      });
-      return;
-    }
-
-    // Fetch all orders and exceptions for the month
-    const deviceIds = devices.map((d) => d.id);
-
-    const [orders, exceptions, holidays] = await fetchMonthlyData(
-      branchId,
-      deviceIds,
-      startDate,
-      endDate
-    );
-
-    const holidayDates = new Set(
-      holidays.map((h) => new Date(h.date).toISOString().split("T")[0])
-    );
-
-    // Get operating hours
-    const { openHour, closeHour, totalHours } = getBranchOperatingHours(
-      branch.openTime,
-      branch.closeTime
-    );
-
-    // Categorize dates
-    const availableDates: string[] = [];
-    const fullyBookedDates: string[] = [];
-    const closedDates: string[] = [];
-
-    // Loop through each date in the month
-    for (
-      let d = new Date(startDate);
-      d <= endDate;
-      d.setDate(d.getDate() + 1)
-    ) {
-      const currentDate = new Date(d);
-
-      const dateStr = currentDate.toISOString().split("T")[0];
-
-      // Skip past dates
-      if (isPastDate(currentDate)) continue;
-
-      // Check if branch is closed
-      if (
-        isDateClosed(
-          currentDate,
-          openHour,
-          closeHour,
-          exceptions,
-          holidayDates,
-          devices.length
-        )
-      ) {
-        closedDates.push(dateStr);
-        continue;
-      }
-
-      // Calculate availability
-      const { availableDevices, bookedDevices } = calculateDateAvailability(
-        currentDate,
-        devices,
-        orders, 
-        exceptions,
-        totalHours,
-        openHour,
-        closeHour
-      );
-
-      // Categorize
-      if (availableDevices === 0 && bookedDevices > 0) {
-        fullyBookedDates.push(dateStr);
-      } else if (availableDevices > 0) {
-        availableDates.push(dateStr);
-      }
-    }
+    const {
+      availableDates,
+      fullyBookedDates,
+      closedDates,
+      openHour,
+      closeHour,
+      totalDevices,
+    } = await getAvailableDatesService(branchId, startDate, endDate);
 
     res.status(200).json({
       success: true,
@@ -199,17 +70,13 @@ export const getAvailableDates = async (
       },
       meta: {
         month,
-        totalDevices: devices.length,
+        totalDevices,
         branchOpenHour: openHour,
         branchCloseHour: closeHour,
       },
     });
   } catch (error) {
-    console.error("Get available dates error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat mengambil tanggal tersedia",
-    });
+    handleError(error, res);
   }
 };
 
@@ -219,164 +86,26 @@ export const getAvailableDates = async (
  */
 export const getAvailableTimes = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const branchId = BigInt(req.params.branchId);
     const { bookingDate } = req.query;
 
-    if (!bookingDate) {
-      res.status(400).json({
-        success: false,
-        message: "Device ID, booking date, dan duration wajib diisi",
-      });
-      return;
-    }
+    const date = new Date(bookingDate as string);
 
-    // Get branch with open/close time
-    const branch = await prisma.branch.findUnique({
-      where: { id: branchId },
-    });
-
-    if (!branch) {
-      res.status(404).json({
-        success: false,
-        message: "Cabang tidak ditemukan",
-      });
-      return;
-    }
-
-    // Check if date is holiday
-    const targetDate = new Date(bookingDate as string);
-
-    const holiday = await prisma.branchHoliday.findFirst({
-      where: {
-        branchId,
-        date: targetDate,
-      },
-    });
-
-    if (holiday) {
-      res.status(200).json({
-        success: true,
-        data: [],
-        message: `Branch tutup: ${holiday.name}`,
-      });
-      return;
-    }
-
-    // Get all devices in this branch
-    const devices = await prisma.roomAndDevice.findMany({
-      where: {
-        branchId,
-        status: { not: "maintenance" },
-      },
-      include: {
-        orderItems: {
-          where: {
-            order: {
-              status: { in: ["pending", "paid", "checked_in"] },
-            },
-            bookingStart: {
-              gte: new Date(targetDate.setHours(0, 0, 0, 0)),
-              lte: new Date(targetDate.setHours(23, 59, 59, 999)),
-            },
-          },
-        },
-        availabilityExceptions: {
-          where: {
-            startAt: {
-              lte: new Date(targetDate.setHours(23, 59, 59, 999)),
-            },
-            endAt: {
-              gte: new Date(targetDate.setHours(0, 0, 0, 0)),
-            },
-          },
-        },
-      },
-    });
-
-    if (devices.length === 0) {
-      res.status(200).json({
-        success: true,
-        data: [],
-        message: "Tidak ada device tersedia di branch ini",
-      });
-      return;
-    }
-
-    // Generate time slots
-    const slots = [];
-    const now = new Date();
-
-    const startHour = branch.openTime
-      ? new Date(branch.openTime).getUTCHours()
-      : 9;
-    const endHour = branch.closeTime
-      ? new Date(branch.closeTime).getUTCHours()
-      : 23;
-
-    for (let hour = startHour; hour < endHour; hour++) {
-      for (let minute = 0; minute < 60; minute += 30) {
-        const slotStart = new Date(bookingDate as string);
-        slotStart.setHours(hour, minute, 0, 0);
-
-        // Skip past times
-        if (slotStart < now) continue;
-
-        // Count available devices for this slot
-        let availableDeviceCount = 0;
-
-        for (const device of devices) {
-          let isAvailable = true;
-
-          // Check exceptions
-          const hasException = device.availabilityExceptions.some(
-            (exc) => slotStart >= exc.startAt && slotStart < exc.endAt
-          );
-          if (hasException) {
-            isAvailable = false;
-          }
-
-          // Check bookings (cek apakah slot START ini bentrok dengan booking)
-          const hasBooking = device.orderItems.some((item) => {
-            const bookingStart = item.bookingStart;
-            const bookingEnd = item.bookingEnd;
-            return slotStart >= bookingStart && slotStart < bookingEnd;
-          });
-          if (hasBooking) {
-            isAvailable = false;
-          }
-
-          if (isAvailable) {
-            availableDeviceCount++;
-          }
-        }
-
-        slots.push({
-          time: `${hour.toString().padStart(2, "0")}:${minute
-            .toString()
-            .padStart(2, "0")}`,
-          availableDeviceCount,
-          isAvailable: availableDeviceCount > 0,
-        });
-      }
-    }
+    const slots = await getAvailableTimesService(branchId, date);
 
     res.status(200).json({
       success: true,
-      data: slots,
+      data: slots.timeSlots,
       meta: {
-        totalDevices: devices.length,
+        totalDevices: slots.totalDevices,
         note: "availableDeviceCount menunjukkan jumlah device yang bebas di waktu ini. Validasi durasi dilakukan di step berikutnya.",
       },
     });
   } catch (error) {
-    console.error("Get available times error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat mengambil jam tersedia",
-    });
+    handleError(error, res);
   }
 };
 
@@ -386,108 +115,24 @@ export const getAvailableTimes = async (
  */
 export const getDurationOptions = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const branchId = BigInt(req.params.branchId);
     const { bookingDate, startTime } = req.query;
-
-    if (!bookingDate || !startTime) {
-      res.status(400).json({
-        success: false,
-        message: "Booking date dan start time wajib diisi",
-      });
-      return;
-    }
-
-    // Validate time format (HH:MM)
-    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-    if (!timeRegex.test(startTime as string)) {
-      res.status(400).json({
-        success: false,
-        message: "Format start time tidak valid. Gunakan format HH:MM",
-      });
-      return;
-    }
-
-    // Get branch
-    const branch = await prisma.branch.findUnique({
-      where: { id: branchId },
-      select: {
-        id: true,
-        name: true,
-        openTime: true,
-        closeTime: true,
-      },
-    });
-
-    if (!branch) {
-      res.status(404).json({
-        success: false,
-        message: "Cabang tidak ditemukan",
-      });
-      return;
-    }
 
     // Parse start time
     const [startHour, startMinute] = (startTime as string)
       .split(":")
       .map(Number);
 
-    // Get close hour from branch
-    const closeHour = branch.closeTime
-      ? new Date(branch.closeTime).getUTCHours()
-      : 23;
-
-    // Create date objects for calculation
-    const bookingDateObj = new Date(bookingDate as string);
-    const startDateTime = new Date(bookingDateObj);
-    startDateTime.setHours(startHour, startMinute, 0, 0);
-
-    const closeDateTime = new Date(bookingDateObj);
-    closeDateTime.setHours(closeHour, 0, 0, 0);
-
-    // Calculate maximum duration in minutes
-    const maxDurationMs = closeDateTime.getTime() - startDateTime.getTime();
-    const maxDurationMinutes = Math.floor(maxDurationMs / (1000 * 60));
-
-    if (maxDurationMinutes <= 0) {
-      res.status(400).json({
-        success: false,
-        message: "Start time melebihi atau sama dengan jam tutup branch",
-      });
-      return;
-    }
-
-    // Generate duration options (1 jam = 60 menit, step 30 menit)
-    const durationOptions = [];
-    const minDuration = 60; // Minimum 1 jam
-    const step = 30; // Step 30 menit
-
-    for (
-      let duration = minDuration;
-      duration <= maxDurationMinutes;
-      duration += step
-    ) {
-      const hours = Math.floor(duration / 60);
-      const minutes = duration % 60;
-
-      let label = "";
-      if (hours > 0) {
-        label += `${hours} jam`;
-      }
-      if (minutes > 0) {
-        if (hours > 0) label += " ";
-        label += `${minutes} menit`;
-      }
-
-      durationOptions.push({
-        value: duration,
-        label: label,
-        hours: hours,
-        minutes: minutes,
-      });
-    }
+    const { durationOptions, closeHour, maxDurationMinutes } =
+      await getDurationOptionsService(
+        branchId,
+        bookingDate as string,
+        startHour,
+        startMinute,
+      );
 
     res.status(200).json({
       success: true,
@@ -514,59 +159,39 @@ export const getDurationOptions = async (
  */
 export const getAvailableCategories = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const branchId = BigInt(req.params.branchId);
 
-    // Get categories untuk device type ini
-    const categories = await prisma.category.findMany({
-      where: {
-        branchId,
-      },
-      include: {
-        _count: {
-          select: {
-            roomAndDevices: {
-              where: {
-                status: "available",
-              },
-            },
-          },
-        },
-        roomAndDevices: {
-          where: {
-            status: "available",
-          },
-          select: {
-            deviceType: true,
-            version: true,
-          },
-          distinct: ["deviceType", "version"],
-        },
-      },
-      orderBy: { tier: "asc" },
-    });
+    const categoriesWithAvailability =
+      await getAvailableCategoriesService(branchId);
 
-    const categoriesWithAvailability = categories.map((category) => ({
-      id: category.id.toString(),
-      name: category.name,
-      description: category.description,
-      pricePerHour: category.pricePerHour.toString(),
-      amenities: category.amenities,
-      availableDeviceCount: category._count.roomAndDevices,
-      isAvailable: category._count.roomAndDevices > 0,
-      deviceTypes: category.roomAndDevices.map((device) => ({
-        deviceType: device.deviceType,
-        version: device.version,
-      })),
-      createdAt: category.createdAt,
-      updatedAt: category.updatedAt,
-    }));
+    const result = categoriesWithAvailability.map((category) => {
+      const uniqueDeviceTypes = Array.from(
+        new Map(
+          category.roomAndDevices.map((d) => [
+            `${d.deviceType}-${d.version}`,
+            { deviceType: d.deviceType, version: d.version },
+          ]),
+        ).values(),
+      );
+
+      return {
+        id: category.id,
+        name: category.name,
+        description: category.description,
+        pricePerHour: category.pricePerHour,
+        amenities: category.amenities,
+        deviceTypes: uniqueDeviceTypes, // Distinct, tanpa ID
+        availableDeviceCount: category.roomAndDevices.length, // Total count (karena setiap row punya id unik)
+        isAvailable: category.roomAndDevices.length > 0,
+      };
+    });
 
     res.status(200).json({
       success: true,
-      data: categoriesWithAvailability,
+      data: result,
     });
   } catch (error) {
     console.error("Get categories error:", error);
@@ -583,7 +208,7 @@ export const getAvailableCategories = async (
  */
 export const getAvailableRoomsAndDevices = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const branchId = BigInt(req.params.branchId);
@@ -591,125 +216,31 @@ export const getAvailableRoomsAndDevices = async (
 
     const categoryIdBigInt = BigInt(categoryId as string);
     const duration = parseInt(durationMinutes as string);
-    const BUFFER_MINUTES = 10; // Buffer untuk persiapan sebelum dan sesudah booking
 
     // Parse waktu yang dipilih user
     const [hours, minutes] = (startTime as string).split(":").map(Number);
-    const targetStart = new Date(bookingDate as string);
-    targetStart.setHours(hours, minutes, 0, 0);
 
-    const targetEnd = new Date(targetStart);
-    targetEnd.setMinutes(targetEnd.getMinutes() + duration);
-
-    // Get devices
-    const where: any = {
+    const availableRoomsAndDevices = await getAvailableRoomAndDeviceService(
       branchId,
-      categoryId: categoryIdBigInt,
-      status: "available",
-    };
-
-    const devices = await prisma.roomAndDevice.findMany({
-      where,
-      include: {
-        category: true,
-        orderItems: {
-          where: {
-            order: {
-              status: {
-                in: ["pending", "paid", "checked_in"],
-              },
-            },
-          },
-          include: {
-            order: {
-              select: {
-                status: true,
-              },
-            },
-          },
-        },
-        availabilityExceptions: true,
-      },
-      orderBy: { roomNumber: "asc" },
-    });
-
-    // Filter hanya yang available untuk slot waktu ini
-    const availableRooms = devices
-      .map((device) => {
-        let isAvailable = true;
-        let unavailableReason = null;
-
-        // Check exceptions (maintenance terjadwal)
-        const hasException = device.availabilityExceptions.some(
-          (exc) => targetStart >= exc.startAt && targetStart < exc.endAt
-        );
-        if (hasException) {
-          isAvailable = false;
-          unavailableReason = "Under maintenance";
-        }
-
-        // Check existing bookings dengan buffer
-        const conflictingBooking = device.orderItems.find((item) => {
-          const bookingStart = item.bookingStart;
-          const bookingEnd = new Date(item.bookingEnd);
-
-          // Tambah buffer 10 menit setelah booking selesai
-          bookingEnd.setMinutes(bookingEnd.getMinutes() + BUFFER_MINUTES);
-
-          // Check overlap
-          return targetStart < bookingEnd && targetEnd > bookingStart;
-        });
-
-        if (conflictingBooking) {
-          isAvailable = false;
-          unavailableReason = "Already booked";
-        }
-
-        return {
-          device,
-          isAvailable,
-          unavailableReason,
-        };
-      })
-      .filter((item) => item.isAvailable) // ⭐ HANYA return yang available
-      .map((item) => ({
-        id: item.device.id.toString(),
-        roomNumber: item.device.roomNumber,
-        name: item.device.name,
-        type: item.device.deviceType,
-        version: item.device.version,
-        pricePerHour: item.device.pricePerHour.toString(),
-        categoryName: item.device.category?.name,
-        categoryTier: item.device.category?.tier,
-      }));
-
-    // Jika tidak ada room available
-    if (availableRooms.length === 0) {
-      res.status(200).json({
-        success: true,
-        data: [],
-        message:
-          "Tidak ada room yang tersedia untuk waktu ini. Silakan pilih waktu lain.",
-      });
-      return;
-    }
+      categoryIdBigInt,
+      bookingDate as string,
+      hours,
+      minutes,
+      duration,
+    );
 
     res.status(200).json({
       success: true,
-      data: availableRooms,
+      data: availableRoomsAndDevices,
       meta: {
         bookingDate: bookingDate,
         startTime: startTime,
         durationMinutes: duration,
-        availableCount: availableRooms.length,
+        availableCount: availableRoomsAndDevices.length,
       },
     });
   } catch (error) {
-    console.error("Get rooms error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat mengambil data ruangan",
-    });
+    handleError(error, res);
   }
 };
 
@@ -719,76 +250,23 @@ export const getAvailableRoomsAndDevices = async (
  */
 export const getBookingCart = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const userId = BigInt(req.user!.userId);
-    const cartOrder = await prisma.order.findFirst({
-      where: {
-        customerId: userId,
-        status: "pending",
-      },
-      include: {
-        customer: {
-          select: {
-            fullname: true,
-            email: true,
-            phone: true,
-          },
-        },
-        branch: {
-          select: {
-            name: true,
-          },
-        },
-        orderItems: {
-          include: {
-            roomAndDevice: {
-              select: {
-                roomNumber: true,
-                deviceType: true,
-                version: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    // Total cart items and amount
-    const totalItems = cartOrder ? cartOrder.orderItems.length : 0;
-    const totalAmount = Number(cartOrder?.totalAmount);
-
-    // Serialize order items
-    const orderDto = cartOrder
-      ? {
-          ...cartOrder,
-          id: cartOrder.id.toString(),
-          branchId: cartOrder.branchId.toString(),
-          customerId: cartOrder.customerId.toString(),
-          orderItems: cartOrder.orderItems.map((item) => ({
-            ...item,
-            id: item.id.toString(),
-            orderId: item.orderId.toString(),
-            roomAndDeviceId: item.roomAndDeviceId.toString(),
-          })),
-        }
-      : null;
+    
+    const {order, totalItems, totalAmount} = await getBookingCartService(userId);
 
     res.status(200).json({
       success: true,
       data: {
         totalItems,
         totalAmount,
-        order: orderDto,
+        order,
       },
     });
   } catch (error) {
-    console.error("Get booking cart error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat mengambil data cart booking",
-    });
+    handleError(error, res);
   }
 };
 
@@ -798,7 +276,7 @@ export const getBookingCart = async (
  */
 export const calculateBookingPrice = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const {
@@ -870,7 +348,7 @@ export const calculateBookingPrice = async (
     today.setHours(0, 0, 0, 0);
     const bookingDateObj = new Date(bookingDate);
     const daysFromToday = Math.floor(
-      (bookingDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+      (bookingDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
     );
 
     let advanceBookingFee = 0;
