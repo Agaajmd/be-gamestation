@@ -6,6 +6,7 @@ import {
   createBranchSchema,
   updateBranchSchema,
 } from "../validation/bodyValidation/branchValidation";
+import { requireOwner, requireOwnerOrAdminStaff } from "../middleware/roleMiddleware";
 
 const router = Router();
 
@@ -26,14 +27,14 @@ router.post(
  * @desc    Get list cabang (owner/admin/super_admin)
  * @access  Private
  */
-router.get("/", authenticateToken, BranchController.getBranches);
+router.get("/", authenticateToken, requireOwnerOrAdminStaff, BranchController.getBranches);
 
 /**
  * @route   GET /branches/:id
  * @desc    Get detail cabang
  * @access  Private
  */
-router.get("/:id", authenticateToken, BranchController.getBranchById);
+router.get("/:id", authenticateToken, requireOwner, BranchController.getBranchById);
 
 /**
  * @route   PUT /branches/:id
@@ -43,6 +44,7 @@ router.get("/:id", authenticateToken, BranchController.getBranchById);
 router.put(
   "/:id",
   authenticateToken,
+  requireOwner,
   ValidateMiddleware.validateBody(updateBranchSchema),
   BranchController.updateBranch
 );
@@ -52,6 +54,6 @@ router.put(
  * @desc    Delete cabang (owner only)
  * @access  Private (Owner)
  */
-router.delete("/:id", authenticateToken, BranchController.deleteBranch);
+router.delete("/:id", authenticateToken, requireOwner, BranchController.deleteBranch);
 
 export default router;

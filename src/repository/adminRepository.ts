@@ -1,4 +1,4 @@
-import { AdminRole } from "@prisma/client";
+import { AdminRole, Prisma } from "@prisma/client";
 import { prisma } from "../database";
 
 // Type
@@ -9,6 +9,13 @@ import {
 } from "./type/admin/adminWithUserAndBranch";
 
 export const AdminRepository = {
+  findUnique(where: Prisma.AdminWhereUniqueInput, options?: object) {
+    return prisma.admin.findUnique({
+      where,
+      ...options,
+    });
+  },
+
   // Find admin by ID
   findById(adminId: bigint): Promise<AdminWithUser | null> {
     return prisma.admin.findUnique({
@@ -18,9 +25,10 @@ export const AdminRepository = {
   },
 
   // Find admin by user ID
-  findByUserId(userId: bigint) {
+  findByUserId(userId: bigint, options?: object) {
     return prisma.admin.findUnique({
       where: { userId },
+      ...options,
     });
   },
 
@@ -53,7 +61,7 @@ export const AdminRepository = {
     data: {
       branchId?: bigint;
       role?: AdminRole;
-    }
+    },
   ): Promise<AdminWithUserAndBranch> {
     return prisma.admin.update({
       where: { id: adminId },

@@ -6,6 +6,15 @@ import {
 } from "./type/user/userWithOwnerAndAdmin";
 
 export const UserRepository = {
+  // Find by ID User only
+  findByIdUserOnly(userId: string | bigint) {
+    return prisma.user.findUnique({
+      where: {
+        id: BigInt(userId),
+      }
+    })
+  },
+
   // Find user by ID
   findById(userId: string | bigint): Promise<UserWithOwnerAndAdmin | null> {
     return prisma.user.findUnique({

@@ -86,6 +86,33 @@ export const requireOwnerOrAdmin = (
   next();
 };
 
+export const requireOwnerOrAdminStaff = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  if (!req.user) {
+    res.status(401).json({
+      success: false,
+      message: "Unauthorized",
+    });
+    return;
+  }
+
+    const isOwner = req.user.role === "owner";
+    const isAdmin = req.user.role === "admin";
+
+  if (!isOwner && !isAdmin) {
+    res.status(403).json({
+      success: false,
+      message: "Akses ditolak. Hanya owner atau admin yang dapat mengakses",
+    });
+    return;
+  }
+
+  next();
+};
+
 /**
  * Middleware untuk memastikan user adalah Customer
  * Mengharapkan req.user sudah di-set oleh authenticateToken middleware

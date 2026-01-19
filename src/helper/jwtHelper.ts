@@ -1,3 +1,4 @@
+import { UserRole } from "@prisma/client";
 import jwt, { JwtPayload } from "jsonwebtoken";
 
 // Validasi environment variables saat startup
@@ -23,7 +24,7 @@ const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "7d";
 export interface TokenPayload {
   userId: string;
   email: string;
-  role: string;
+  role: UserRole;
   adminRole?: string;
 }
 
@@ -32,7 +33,7 @@ export type JWTPayload = TokenPayload;
 
 // Generate tokens
 export const generateToken = {
-  accessToken(userId: bigint, email: string, role: string, adminRole?: string): string {
+  accessToken(userId: bigint, email: string, role: UserRole, adminRole?: string): string {
     const payload: TokenPayload = {
       userId: userId.toString(),
       email,
@@ -47,7 +48,7 @@ export const generateToken = {
     } as any);
   },
 
-  refreshToken(userId: bigint, email: string, role: string, adminRole?: string): string {
+  refreshToken(userId: bigint, email: string, role: UserRole, adminRole?: string): string {
     const payload: TokenPayload = {
       userId: userId.toString(),
       email,

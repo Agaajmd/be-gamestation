@@ -12,6 +12,11 @@ export const BranchRepository = {
     return prisma.branch.findUnique({ where: { id: branchId } });
   },
 
+  // Find Branch
+  findBranch() {
+    return prisma.branch.findMany();
+  },
+
   // Find all branches
   findAll(): Promise<BranchWithCountRoomAndDevice[]> {
     return prisma.branch.findMany({
@@ -40,7 +45,109 @@ export const BranchRepository = {
             status: "available",
           },
         },
-      }
-    })
+      },
+    });
+  },
+
+  // Create new branch
+  createBranch(data: {
+    ownerId: bigint;
+    name: string;
+    address: string;
+    phone: string;
+    timezone: string;
+    openTime: Date;
+    closeTime: Date;
+    amenities?: any;
+  }) {
+    return prisma.branch.create({
+      data,
+    });
+  },
+
+  // Find branch with details (owner, devices, admins, counts)
+  findBranchWithDetails(branchId: bigint) {
+    return prisma.branch.findUnique({
+      where: { id: branchId },
+      include: {
+        owner: {
+          include: {
+            user: {
+              select: {
+                fullname: true,
+                email: true,
+                phone: true,
+              },
+            },
+          },
+        },
+        roomAndDevices: {
+          orderBy: { roomNumber: "asc" },
+        },
+        admins: {
+          include: {
+            user: {
+              select: {
+                fullname: true,
+                email: true,
+                phone: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            orders: true,
+          },
+        },
+      },
+    });
+  },
+
+  // Find branch by ID for update/delete operations
+  findBranchById(branchId: bigint) {
+    return prisma.branch.findUnique({
+      where: { id: branchId },
+    });
+  },
+
+  // Find branch with counts for delete validation
+  findBranchWithCounts(branchId: bigint) {
+    return prisma.branch.findUnique({
+      where: { id: branchId },
+      include: {
+        _count: {
+          select: {
+            roomAndDevices: true,
+            orders: true,
+          },
+        },
+      },
+    });
+  },
+
+  // Update branch
+  updateBranch(
+    branchId: bigint,
+    data: {
+      name?: string;
+      address?: string;
+      phone?: string;
+      timezone?: string;
+      openTime?: Date;
+      closeTime?: Date;
+    },
+  ) {
+    return prisma.branch.update({
+      where: { id: branchId },
+      data,
+    });
+  },
+
+  // Delete branch
+  deleteBranch(branchId: bigint) {
+    return prisma.branch.delete({
+      where: { id: branchId },
+    });
   },
 };

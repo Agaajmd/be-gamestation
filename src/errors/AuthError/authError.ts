@@ -6,6 +6,12 @@ export class UserNotFoundError extends AppError {
   }
 }
 
+export class UserNotAllowedError extends AppError {
+  constructor() {
+    super("User tidak memiliki izin untuk melakukan aksi ini", 403, "USER_NOT_ALLOWED");
+  }
+}
+
 export class EmailExistingError extends AppError {
   constructor() {
     super("Email sudah terdaftar", 400, "EMAIL_ALREADY_EXISTS");
