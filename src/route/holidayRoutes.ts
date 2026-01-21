@@ -2,10 +2,9 @@ import { Router } from "express";
 import {
   syncNationalHolidays,
   addCustomHoliday,
-  getHolidays,
-  updateHoliday,
-  deleteHoliday,
-  deleteNationalHoliday,
+  getBranchHolidays,
+  deleteBranchHoliday,
+  addCustomHolidaysBulk,
 } from "../controller/HolidayController";
 import { authenticateToken } from "../middleware/authMiddleware";
 import { requireOwnerOrAdmin } from "../middleware/roleMiddleware";
@@ -13,9 +12,9 @@ import { requireOwnerOrAdmin } from "../middleware/roleMiddleware";
 const router = Router();
 
 // Public - Get holidays
-router.get("/holidays", getHolidays);
+router.get("/branches/:branchId/holidays", getBranchHolidays);
 
-// Protected - Admin/Owner only
+// Protected - Admin/Owner only`
 router.post(
   "/national/sync/:year",
   authenticateToken,
@@ -24,31 +23,25 @@ router.post(
 );
 
 router.post(
-  "/holidays/custom",
+  "/custom",
   authenticateToken,
   requireOwnerOrAdmin,
   addCustomHoliday
 );
 
-router.put(
-  "/holidays/:id",
+router.post(
+  "/custom/bulk",
   authenticateToken,
   requireOwnerOrAdmin,
-  updateHoliday
+  addCustomHolidaysBulk
 );
 
 router.delete(
-  "/holidays/:id",
+  "/:holidayId",
   authenticateToken,
   requireOwnerOrAdmin,
-  deleteHoliday
+  deleteBranchHoliday
 );
 
-router.delete(
-  "/holidays/national/:date",
-  authenticateToken,
-  requireOwnerOrAdmin,
-  deleteNationalHoliday
-);
 
 export default router;

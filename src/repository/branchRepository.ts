@@ -7,6 +7,8 @@ import {
 } from "../repository/type/branch/branchWithCountRoomAndDevice";
 
 export const BranchRepository = {
+  
+
   // Find branch by ID
   findById(branchId: bigint) {
     return prisma.branch.findUnique({ where: { id: branchId } });

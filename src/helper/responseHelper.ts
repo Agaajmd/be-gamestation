@@ -8,6 +8,7 @@ export const handleError = (error: unknown, res: Response): void => {
       success: false,
       message: error.message,
       code: error.code,
+      ...(error.details && { details: error.details }),
     });
     return;
   }

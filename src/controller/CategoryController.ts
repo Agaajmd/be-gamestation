@@ -1,7 +1,18 @@
 import { Request, Response } from "express";
-import { checkBranchAccess } from "../helper/checkBranchAccessHelper";
-import { prisma } from "../database";
-import { updateBranchAmenities } from "../helper/branchAmenitiesHelper";
+
+// Services
+import {
+  addCategoryService,
+  getCategoriesService,
+  updateCategoryService,
+  deleteCategoryService,
+} from "../service/CategoryService/categoryService";
+
+// Error
+import { handleError } from "../helper/responseHelper";
+
+// Types
+import { CategoryTier } from "@prisma/client";
 
 /**
  * POST /branches/:id/category
@@ -9,91 +20,30 @@ import { updateBranchAmenities } from "../helper/branchAmenitiesHelper";
  */
 export const addCategory = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const branchId = BigInt(req.params.branchId);
     const userId = BigInt(req.user!.userId);
     const { name, description, tier, pricePerHour, amenities } = req.body;
 
-    // Cek authorization
-    const hasAccess = await checkBranchAccess(userId, branchId);
-    if (!hasAccess) {
-      res.status(403).json({
-        success: false,
-        message: "Anda tidak memiliki akses ke cabang ini",
-      });
-      return;
-    }
-
-    // Cek duplicate
-    const existing = await prisma.category.findFirst({
-      where: {
-        branchId,
-        name,
-        tier,
-      },
+    const category = await addCategoryService({
+      branchId,
+      userId,
+      name,
+      description,
+      tier,
+      pricePerHour,
+      amenities,
     });
-
-    if (existing) {
-      res.status(400).json({
-        success: false,
-        message: "Kategori dengan nama dan tier yang sama sudah ada",
-      });
-      return;
-    }
-
-    // Buat kategori
-    const category = await prisma.category.create({
-      data: {
-        branchId,
-        name,
-        description,
-        tier,
-        pricePerHour,
-        amenities,
-      },
-    });
-
-    // Log audit
-    await prisma.auditLog.create({
-      data: {
-        userId,
-        action: "ADD_CATEGORY",
-        entity: "Category",
-        entityId: category.id,
-        meta: {
-          branchId: branchId.toString(),
-          name,
-          tier,
-        },
-      },
-    });
-
-    // Auto-update branch amenities
-    try {
-      await updateBranchAmenities(branchId);
-    } catch (error) {
-      console.error("Failed to update branch amenities:", error);
-    }
-
-    const serialized = JSON.parse(
-      JSON.stringify(category, (_key, value) =>
-        typeof value === "bigint" ? value.toString() : value
-      )
-    );
 
     res.status(201).json({
       success: true,
       message: "Kategori berhasil ditambahkan",
-      data: serialized,
+      data: category,
     });
   } catch (error) {
-    console.error("Add category error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat menambahkan kategori",
-    });
+    handleError(error, res);
   }
 };
 
@@ -103,54 +53,25 @@ export const addCategory = async (
  */
 export const getCategories = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const branchId = BigInt(req.params.branchId);
     const { deviceType, tier, isActive } = req.query;
 
-    const where: any = { branchId };
-
-    if (deviceType) {
-      where.deviceType = deviceType;
-    }
-
-    if (tier) {
-      where.tier = tier;
-    }
-
-    if (isActive !== undefined) {
-      where.isActive = isActive === "true";
-    }
-
-    const categories = await prisma.category.findMany({
-      where,
-      include: {
-        _count: {
-          select: {
-            roomAndDevices: true,
-          },
-        },
-      },
-      orderBy: [{ tier: "asc" }, { name: "asc" }],
+    const categories = await getCategoriesService({
+      branchId,
+      deviceType: deviceType as string | undefined,
+      tier: tier as CategoryTier | undefined,
+      isActive: isActive ? isActive === "true" : undefined,
     });
-
-    const serialized = JSON.parse(
-      JSON.stringify(categories, (_key, value) =>
-        typeof value === "bigint" ? value.toString() : value
-      )
-    );
 
     res.status(200).json({
       success: true,
-      data: serialized,
+      data: categories,
     });
   } catch (error) {
-    console.error("Get device categories error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat mengambil kategori device",
-    });
+    handleError(error, res);
   }
 };
 
@@ -160,80 +81,27 @@ export const getCategories = async (
  */
 export const updateCategory = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const branchId = BigInt(req.params.branchId);
     const categoryId = BigInt(req.params.categoryId);
     const userId = BigInt(req.user!.userId);
 
-    // Cek authorization
-    const hasAccess = await checkBranchAccess(userId, branchId);
-    if (!hasAccess) {
-      res.status(403).json({
-        success: false,
-        message: "Anda tidak memiliki akses ke cabang ini",
-      });
-      return;
-    }
-
-    // Cek kategori exist
-    const category = await prisma.category.findUnique({
-      where: { id: categoryId },
-    });
-
-    if (!category || category.branchId !== branchId) {
-      res.status(404).json({
-        success: false,
-        message: "Kategori tidak ditemukan di cabang ini",
-      });
-      return;
-    }
-
-    // Update
-    const updated = await prisma.category.update({
-      where: { id: categoryId },
+    const updated = await updateCategoryService({
+      branchId,
+      categoryId,
+      userId,
       data: req.body,
     });
-
-    // Log audit
-    await prisma.auditLog.create({
-      data: {
-        userId,
-        action: "UPDATE_DEVICE_CATEGORY",
-        entity: "DeviceCategory",
-        entityId: categoryId,
-        meta: {
-          branchId: branchId.toString(),
-          changes: req.body,
-        },
-      },
-    });
-
-    // Auto-update branch amenities
-    try {
-      await updateBranchAmenities(branchId);
-    } catch (error) {
-      console.error("Failed to update branch amenities:", error);
-    }
-
-    const serialized = JSON.parse(
-      JSON.stringify(updated, (_key, value) =>
-        typeof value === "bigint" ? value.toString() : value
-      )
-    );
 
     res.status(200).json({
       success: true,
       message: "Kategori device berhasil diupdate",
-      data: serialized,
+      data: updated,
     });
   } catch (error) {
-    console.error("Update device category error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat mengupdate kategori device",
-    });
+    handleError(error, res);
   }
 };
 
@@ -243,88 +111,24 @@ export const updateCategory = async (
  */
 export const deleteDeviceCategory = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const branchId = BigInt(req.params.branchId);
     const categoryId = BigInt(req.params.categoryId);
     const userId = BigInt(req.user!.userId);
 
-    // Cek authorization
-    const hasAccess = await checkBranchAccess(userId, branchId);
-    if (!hasAccess) {
-      res.status(403).json({
-        success: false,
-        message: "Anda tidak memiliki akses ke cabang ini",
-      });
-      return;
-    }
-
-    // Cek kategori exist
-    const category = await prisma.category.findUnique({
-      where: { id: categoryId },
-      include: {
-        _count: {
-          select: {
-            roomAndDevices: true,
-          },
-        },
-      },
+    await deleteCategoryService({
+      branchId,
+      categoryId,
+      userId,
     });
-
-    if (!category || category.branchId !== branchId) {
-      res.status(404).json({
-        success: false,
-        message: "Kategori tidak ditemukan di cabang ini",
-      });
-      return;
-    }
-
-    // Cek apakah ada device yang menggunakan kategori ini
-    if (category._count.roomAndDevices > 0) {
-      res.status(400).json({
-        success: false,
-        message:
-          "Tidak dapat menghapus kategori yang masih digunakan oleh device",
-      });
-      return;
-    }
-
-    // Delete
-    await prisma.category.delete({
-      where: { id: categoryId },
-    });
-
-    // Log audit
-    await prisma.auditLog.create({
-      data: {
-        userId,
-        action: "DELETE_DEVICE_CATEGORY",
-        entity: "DeviceCategory",
-        entityId: categoryId,
-        meta: {
-          branchId: branchId.toString(),
-          categoryName: category.name,
-        },
-      },
-    });
-
-    // Auto-update branch amenities
-    try {
-      await updateBranchAmenities(branchId);
-    } catch (error) {
-      console.error("Failed to update branch amenities:", error);
-    }
 
     res.status(200).json({
       success: true,
       message: "Kategori device berhasil dihapus",
     });
   } catch (error) {
-    console.error("Delete device category error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat menghapus kategori device",
-    });
+    handleError(error, res);
   }
 };

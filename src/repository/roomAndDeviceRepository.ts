@@ -2,6 +2,13 @@
 import { prisma } from "../database";
 
 export const RoomAndDeviceRepository = {
+  // Find Room And Device by ID and Branch ID
+  findById(id: bigint, branchId: bigint) {
+    return prisma.roomAndDevice.findUnique({
+      where: { id, branchId },
+    });
+  },
+
   // Find Available Rooms And Devices by Branch ID
   findAvailableByBranchId(branchId: bigint) {
     return prisma.roomAndDevice.findMany({

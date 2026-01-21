@@ -1,6 +1,17 @@
 import Joi from "joi";
 
 /**
+ * Facilities schema for branch amenities
+ */
+const facilitiesSchema = Joi.object({
+  general: Joi.array().items(Joi.string()).optional().default([]),
+  foodAndBeverage: Joi.array().items(Joi.string()).optional().default([]),
+  parking: Joi.array().items(Joi.string()).optional().default([]),
+  entertainment: Joi.array().items(Joi.string()).optional().default([]),
+  accessibility: Joi.array().items(Joi.string()).optional().default([]),
+});
+
+/**
  * Validation schema untuk add category
  */
 export const addCategorySchema = Joi.object({
@@ -19,7 +30,9 @@ export const addCategorySchema = Joi.object({
     "number.positive": "Harga per jam harus positif",
     "any.required": "Harga per jam wajib diisi",
   }),
-  amenities: Joi.array().optional().allow(null),
+  amenities: facilitiesSchema.optional().messages({
+    "object.base": "Facilities harus berupa object",
+  }),
 });
 
 /**

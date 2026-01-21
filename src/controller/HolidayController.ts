@@ -1,487 +1,243 @@
 import { Request, Response } from "express";
-import { prisma } from "../database";
+
+// Services
+import {
+  syncNationalHolidaysService,
+  addCustomHolidayService,
+  addCustomHolidaysService,
+  getBranchHolidaysService,
+  deleteBranchHolidayService,
+} from "../service/HolidayService/holidayService";
+
+// Error
+import { handleError } from "../helper/responseHelper";
+
+/**
+ * Helper function to serialize holiday data
+ */
+const serializeHoliday = (holiday: any) => {
+  return {
+    ...holiday,
+    id: holiday.id?.toString(),
+    branchId: holiday.branchId?.toString(),
+  };
+};
 
 /**
  * POST /holidays/national/sync/:year
  * Sync libur nasional Indonesia dari API eksternal (api-harilibur.vercel.app)
+ * Query params: branchIds (comma-separated), overwrite (boolean), deleteExisting (boolean)
  */
 export const syncNationalHolidays = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const { year } = req.params;
+    const { branchIds, overwrite, deleteExisting } = req.query;
     const yearNum = parseInt(year);
 
-    if (isNaN(yearNum) || yearNum < 2020 || yearNum > 2030) {
-      res.status(400).json({
-        success: false,
-        message: "Tahun harus antara 2020-2030",
-      });
-      return;
+    // Parse branchIds if provided
+    let branchIdArray: string[] | undefined;
+    if (branchIds && typeof branchIds === "string") {
+      branchIdArray = branchIds.split(",").map((id) => id.trim());
     }
 
-    // Get all branches
-    const branches = await prisma.branch.findMany({
-      select: { id: true, name: true },
+    // Parse boolean flags
+    const overwriteFlag = overwrite === "true";
+    const deleteExistingFlag = deleteExisting === "true";
+
+    const result = await syncNationalHolidaysService({
+      year: yearNum,
+      branchIds: branchIdArray,
+      overwrite: overwriteFlag,
+      deleteExisting: deleteExistingFlag,
     });
-
-    if (branches.length === 0) {
-      res.status(404).json({
-        success: false,
-        message: "Tidak ada branch ditemukan",
-      });
-      return;
-    }
-
-    // Fetch from external API
-    const response = await fetch(
-      `https://api-harilibur.vercel.app/api?year=${yearNum}`
-    );
-
-    if (!response.ok) {
-      res.status(502).json({
-        success: false,
-        message: "Gagal mengambil data dari API eksternal",
-      });
-      return;
-    }
-
-    const apiData = await response.json();
-
-    // Validate response format
-    if (!Array.isArray(apiData)) {
-      res.status(502).json({
-        success: false,
-        message: "Format response dari API tidak valid",
-      });
-      return;
-    }
-
-    // Filter hanya libur nasional (is_national_holiday: true)
-    const nationalHolidays = apiData.filter(
-      (holiday: any) => holiday.is_national_holiday === true
-    );
-
-    if (nationalHolidays.length === 0) {
-      res.status(404).json({
-        success: false,
-        message: `Tidak ada data libur nasional untuk tahun ${yearNum}`,
-      });
-      return;
-    }
-
-    const createdHolidays = [];
-    const skippedHolidays = [];
-    const errors = [];
-
-    // Create holidays for all branches
-    for (const holiday of nationalHolidays) {
-      try {
-        const holidayDate = new Date(holiday.holiday_date);
-        const holidayName = holiday.holiday_name;
-        const description = `${holiday.holiday_name} - Libur Nasional`;
-
-        // Create for all branches
-        await Promise.all(
-          branches.map((branch) =>
-            prisma.branchHoliday.create({
-              data: {
-                branchId: branch.id,
-                date: holidayDate,
-                name: holidayName,
-                description: description,
-              },
-            })
-          )
-        );
-
-        createdHolidays.push({
-          date: holiday.holiday_date,
-          name: holidayName,
-        });
-      } catch (error: any) {
-        if (error.code === "P2002") {
-          // Unique constraint violation - already exists
-          skippedHolidays.push({
-            date: holiday.holiday_date,
-            name: holiday.holiday_name,
-            reason: "Already exists",
-          });
-        } else {
-          errors.push({
-            date: holiday.holiday_date,
-            name: holiday.holiday_name,
-            error: error.message,
-          });
-        }
-      }
-    }
 
     res.status(201).json({
       success: true,
-      message: `Berhasil sync ${createdHolidays.length} libur nasional tahun ${yearNum}`,
-      data: {
-        year: yearNum,
-        affectedBranches: branches.length,
-        totalFromAPI: nationalHolidays.length,
-        created: createdHolidays.length,
-        skipped: skippedHolidays.length,
-        failed: errors.length,
-        createdList: createdHolidays,
-        skippedList: skippedHolidays.length > 0 ? skippedHolidays : undefined,
-        errorList: errors.length > 0 ? errors : undefined,
-      },
+      message: `Berhasil sync ${result.created} libur nasional tahun ${yearNum}`,
+      data: result,
     });
-  } catch (error: any) {
-    console.error("Sync national holidays error:", error);
-
-    if (error.name === "FetchError" || error.code === "ENOTFOUND") {
-      res.status(502).json({
-        success: false,
-        message:
-          "Tidak dapat terhubung ke API eksternal. Cek koneksi internet.",
-      });
-      return;
+  } catch (error) {
+    if (error instanceof Error && error.name === "FetchError") {
+      return handleError(
+        {
+          message:
+            "Tidak dapat terhubung ke API eksternal. Cek koneksi internet.",
+        },
+        res,
+      );
     }
-
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat sync libur nasional",
-    });
+    handleError(error, res);
   }
 };
 
 /**
  * POST /holidays/custom
- * Menambahkan hari libur custom untuk branch tertentu
+ * Menambahkan hari libur custom untuk branch tertentu atau semua branch
+ * Body: branchIds (optional, comma-separated in query), date, name, description (optional), overwrite (boolean)
  */
 export const addCustomHoliday = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
-    const { branchId, date, name, description } = req.body;
+    const { branchIds, overwrite } = req.query;
+    const { date, name, description } = req.body;
 
-    if (!branchId || !date || !name) {
-      res.status(400).json({
-        success: false,
-        message: "Branch ID, date, dan name wajib diisi",
-      });
-      return;
+    // Parse branchIds if provided
+    let branchIdArray: string[] | undefined;
+    if (branchIds && typeof branchIds === "string") {
+      branchIdArray = branchIds.split(",").map((id) => id.trim());
     }
 
-    const branchIdBigInt = BigInt(branchId);
-    const holidayDate = new Date(date);
+    const overwriteFlag = overwrite === "true";
 
-    // Check if branch exists
-    const branch = await prisma.branch.findUnique({
-      where: { id: branchIdBigInt },
-      select: { id: true, name: true },
-    });
-
-    if (!branch) {
-      res.status(404).json({
-        success: false,
-        message: "Branch tidak ditemukan",
-      });
-      return;
-    }
-
-    // Create holiday
-    const holiday = await prisma.branchHoliday.create({
-      data: {
-        branchId: branchIdBigInt,
-        date: holidayDate,
-        name,
-        description: description || null,
-      },
+    const result = await addCustomHolidayService({
+      branchIds: branchIdArray,
+      date,
+      name,
+      description,
+      overwrite: overwriteFlag,
     });
 
     res.status(201).json({
       success: true,
-      message: "Hari libur berhasil ditambahkan",
-      data: {
-        id: holiday.id.toString(),
-        branchId: holiday.branchId.toString(),
-        branchName: branch.name,
-        date: holiday.date,
-        name: holiday.name,
-        description: holiday.description,
-      },
+      message: `Hari libur '${name}' berhasil ditambahkan ke ${result.created} branch`,
+      data: result,
     });
-  } catch (error: any) {
-    console.error("Add custom holiday error:", error);
-
-    // Handle unique constraint violation
-    if (error.code === "P2002") {
-      res.status(409).json({
-        success: false,
-        message: "Hari libur sudah ada untuk branch ini pada tanggal tersebut",
-      });
-      return;
-    }
-
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat menambahkan hari libur",
-    });
+  } catch (error) {
+    handleError(error, res);
   }
 };
 
 /**
- * GET /holidays
- * Mendapatkan daftar hari libur (dengan filter optional)
+ * POST /holidays/custom/bulk
+ * Menambahkan multiple hari libur custom
+ * Body: branchIds (optional), holidays (array of {date, name, description}), overwrite (boolean)
  */
-export const getHolidays = async (
+export const addCustomHolidaysBulk = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
-    const { branchId, startDate, endDate, year } = req.query;
+    const { branchIds, overwrite } = req.query;
+    const { holidays } = req.body;
 
-    // Build filter
-    const where: any = {};
-
-    if (branchId) {
-      where.branchId = BigInt(branchId as string);
+    // Parse branchIds if provided
+    let branchIdArray: string[] | undefined;
+    if (branchIds && typeof branchIds === "string") {
+      branchIdArray = branchIds.split(",").map((id) => id.trim());
     }
 
-    if (startDate && endDate) {
-      where.date = {
-        gte: new Date(startDate as string),
-        lte: new Date(endDate as string),
-      };
-    } else if (year) {
-      const yearNum = parseInt(year as string);
-      where.date = {
-        gte: new Date(yearNum, 0, 1),
-        lte: new Date(yearNum, 11, 31),
-      };
-    }
+    const overwriteFlag = overwrite === "true";
 
-    const holidays = await prisma.branchHoliday.findMany({
-      where,
-      include: {
-        branch: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-      orderBy: [{ date: "asc" }, { name: "asc" }],
+    const result = await addCustomHolidaysService({
+      branchIds: branchIdArray,
+      holidays,
+      overwrite: overwriteFlag,
     });
 
-    const serialized = holidays.map((holiday) => ({
-      id: holiday.id.toString(),
-      branchId: holiday.branchId.toString(),
-      branchName: holiday.branch.name,
-      date: holiday.date,
-      name: holiday.name,
-      description: holiday.description,
-    }));
+    res.status(201).json({
+      success: true,
+      message: `Berhasil menambahkan ${result.created} hari libur baru`,
+      data: result,
+    });
+  } catch (error) {
+    handleError(error, res);
+  }
+};
+
+/**
+ * GET /branches/:branchId/holidays
+ * Mendapatkan semua hari libur untuk branch
+ */
+export const getBranchHolidays = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const branchId = BigInt(req.params.branchId);
+    const { startDate, endDate } = req.query;
+
+    const holidays = await getBranchHolidaysService({
+      branchId,
+      startDate: startDate as string | undefined,
+      endDate: endDate as string | undefined,
+    });
+
+    const serialized = holidays.map(serializeHoliday);
 
     res.status(200).json({
       success: true,
       data: serialized,
-      meta: {
-        total: serialized.length,
-        filters: {
-          branchId: branchId || null,
-          startDate: startDate || null,
-          endDate: endDate || null,
-          year: year || null,
-        },
-      },
     });
   } catch (error) {
-    console.error("Get holidays error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat mengambil data hari libur",
-    });
+    handleError(error, res);
   }
 };
 
 /**
- * PUT /holidays/:id
- * Update hari libur
+ * DELETE /holidays/:holidayId
+ * Menghapus hari libur spesifik
+ * Jika :holidayId adalah "delete-range", gunakan query params untuk delete by date range
  */
-export const updateHoliday = async (
+export const deleteBranchHoliday = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
-    const { id } = req.params;
-    const { date, name, description } = req.body;
+    const { holidayId } = req.params;
+    const { branchIds, startDate, endDate } = req.query;
 
-    const holidayId = BigInt(id);
+    // Check if this is a delete-range request
+    if (holidayId === "delete-range") {
+      if (!startDate || !endDate) {
+        return handleError(
+          { message: "startDate dan endDate harus diisi" },
+          res,
+        );
+      }
 
-    // Check if holiday exists
-    const existingHoliday = await prisma.branchHoliday.findUnique({
-      where: { id: holidayId },
-      include: {
-        branch: {
-          select: { name: true },
-        },
-      },
-    });
+      // Parse branchIds if provided
+      let branchIdArray: string[] | undefined;
+      if (branchIds && typeof branchIds === "string") {
+        branchIdArray = branchIds.split(",").map((id) => id.trim());
+      }
 
-    if (!existingHoliday) {
-      res.status(404).json({
-        success: false,
-        message: "Hari libur tidak ditemukan",
+      const result = await deleteBranchHolidayService({
+        branchIds: branchIdArray,
+        startDate: startDate as string,
+        endDate: endDate as string,
       });
-      return;
-    }
 
-    // Build update data
-    const updateData: any = {};
-    if (date) updateData.date = new Date(date);
-    if (name) updateData.name = name;
-    if (description !== undefined) updateData.description = description || null;
-
-    // Update holiday
-    const updatedHoliday = await prisma.branchHoliday.update({
-      where: { id: holidayId },
-      data: updateData,
-    });
-
-    res.status(200).json({
-      success: true,
-      message: "Hari libur berhasil diupdate",
-      data: {
-        id: updatedHoliday.id.toString(),
-        branchId: updatedHoliday.branchId.toString(),
-        branchName: existingHoliday.branch.name,
-        date: updatedHoliday.date,
-        name: updatedHoliday.name,
-        description: updatedHoliday.description,
-      },
-    });
-  } catch (error: any) {
-    console.error("Update holiday error:", error);
-
-    // Handle unique constraint violation
-    if (error.code === "P2002") {
-      res.status(409).json({
-        success: false,
-        message: "Hari libur sudah ada untuk branch ini pada tanggal tersebut",
+      res.status(200).json({
+        success: true,
+        message: `Berhasil menghapus ${result.deletedCount} hari libur`,
+        data: result,
       });
-      return;
-    }
+    } else {
+      // Delete specific holiday by ID
+      const holidayIdBigInt = BigInt(holidayId);
 
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat mengupdate hari libur",
-    });
+      const result = await deleteBranchHolidayService({
+        holidayId: holidayIdBigInt,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "Hari libur berhasil dihapus",
+        data: result,
+      });
+    }
+  } catch (error) {
+    handleError(error, res);
   }
 };
 
 /**
- * DELETE /holidays/:id
- * Hapus hari libur
+ * Endpoint ini dihapus karena sudah dihandle di deleteBranchHoliday dengan conditional
  */
-export const deleteHoliday = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const holidayId = BigInt(id);
-
-    // Check if holiday exists
-    const existingHoliday = await prisma.branchHoliday.findUnique({
-      where: { id: holidayId },
-      include: {
-        branch: {
-          select: { name: true },
-        },
-      },
-    });
-
-    if (!existingHoliday) {
-      res.status(404).json({
-        success: false,
-        message: "Hari libur tidak ditemukan",
-      });
-      return;
-    }
-
-    // Delete holiday
-    await prisma.branchHoliday.delete({
-      where: { id: holidayId },
-    });
-
-    res.status(200).json({
-      success: true,
-      message: "Hari libur berhasil dihapus",
-      data: {
-        id: existingHoliday.id.toString(),
-        branchName: existingHoliday.branch.name,
-        date: existingHoliday.date,
-        name: existingHoliday.name,
-      },
-    });
-  } catch (error) {
-    console.error("Delete holiday error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat menghapus hari libur",
-    });
-  }
-};
-
-/**
- * DELETE /holidays/national/:date
- * Hapus hari libur nasional (semua branch pada tanggal tertentu)
- */
-export const deleteNationalHoliday = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const { date } = req.params;
-    const { name } = req.query; // Optional: filter by name
-
-    const holidayDate = new Date(date);
-
-    // Build filter
-    const where: any = {
-      date: holidayDate,
-    };
-
-    if (name) {
-      where.name = name as string;
-    }
-
-    // Delete holidays
-    const result = await prisma.branchHoliday.deleteMany({
-      where,
-    });
-
-    if (result.count === 0) {
-      res.status(404).json({
-        success: false,
-        message: "Tidak ada hari libur ditemukan untuk tanggal tersebut",
-      });
-      return;
-    }
-
-    res.status(200).json({
-      success: true,
-      message: `${result.count} hari libur berhasil dihapus`,
-      data: {
-        date: holidayDate,
-        deletedCount: result.count,
-      },
-    });
-  } catch (error) {
-    console.error("Delete national holiday error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat menghapus hari libur nasional",
-    });
-  }
-};
+// Sebelumnya: DELETE /holidays/delete-range
+// Sekarang: DELETE /holidays/delete-range (via deleteBranchHoliday)

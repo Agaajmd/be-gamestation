@@ -185,7 +185,7 @@ model Category {
   branch         Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
   roomAndDevices roomAndDevice[]
 
-  @@unique([name, tier])
+  @@unique([branchId, name, tier])
   @@map("categories")
 }
 

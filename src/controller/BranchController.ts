@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import { formatTime } from "../helper/timeHelper";
 
 // Services
 import {
@@ -12,19 +11,6 @@ import {
 
 // Error
 import { handleError } from "../helper/responseHelper";
-
-/**
- * Helper function to serialize branch data with formatted times
- */
-const serializeBranch = (branch: any) => {
-  return {
-    ...branch,
-    id: branch.id?.toString(),
-    ownerId: branch.ownerId?.toString(),
-    openTime: formatTime(branch.openTime),
-    closeTime: formatTime(branch.closeTime),
-  };
-};
 
 /**
  * POST /branches
@@ -54,7 +40,7 @@ export const createBranch = async (
     res.status(201).json({
       success: true,
       message: "Cabang berhasil dibuat",
-      data: serializeBranch(branch),
+      data: branch,
     });
   } catch (error) {
     handleError(error, res);
@@ -96,35 +82,13 @@ export const getBranchById = async (
     const userId = BigInt(req.user!.userId);
 
     const branch = await getBranchByIdService({
-      branchId, userId
+      branchId,
+      userId,
     });
-
-    // Serialize branch with proper formatting
-    const serializedBranch = {
-      ...serializeBranch(branch),
-      owner: branch.owner
-        ? {
-            ...branch.owner,
-            id: branch.owner.id?.toString(),
-            userId: branch.owner.userId?.toString(),
-          }
-        : undefined,
-      roomAndDevices: branch.roomAndDevices?.map((device: any) => ({
-        ...device,
-        id: device.id?.toString(),
-        branchId: device.branchId?.toString(),
-      })),
-      admins: branch.admins?.map((admin: any) => ({
-        ...admin,
-        id: admin.id?.toString(),
-        userId: admin.userId?.toString(),
-        branchId: admin.branchId?.toString(),
-      })),
-    };
 
     res.status(200).json({
       success: true,
-      data: serializedBranch,
+      data: branch,
     });
   } catch (error) {
     handleError(error, res);
@@ -160,7 +124,7 @@ export const updateBranch = async (
     res.status(200).json({
       success: true,
       message: "Cabang berhasil diupdate",
-      data: serializeBranch(updatedBranch),
+      data: updatedBranch,
     });
   } catch (error) {
     handleError(error, res);

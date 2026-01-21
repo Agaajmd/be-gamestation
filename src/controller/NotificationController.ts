@@ -1,5 +1,27 @@
 import { Request, Response } from "express";
-import { prisma } from "../database";
+
+// Services
+import {
+  createNotificationService,
+  getNotificationsService,
+  getNotificationByIdService,
+  updateNotificationStatusService,
+  deleteNotificationService,
+} from "../service/NotificationService/notificationService";
+
+// Error
+import { handleError } from "../helper/responseHelper";
+
+/**
+ * Helper function to serialize notification data
+ */
+const serializeNotification = (notification: any) => {
+  return {
+    ...notification,
+    id: notification.id?.toString(),
+    userId: notification.userId?.toString(),
+  };
+};
 
 /**
  * POST /notifications
@@ -7,54 +29,27 @@ import { prisma } from "../database";
  */
 export const createNotification = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const { userId, type, channel, payload } = req.body;
 
-    const userIdBigInt = BigInt(userId);
-
-    // Verify user exists
-    const user = await prisma.user.findUnique({
-      where: { id: userIdBigInt },
+    const notification = await createNotificationService({
+      userId: BigInt(userId),
+      type,
+      channel,
+      payload,
     });
 
-    if (!user) {
-      res.status(404).json({
-        success: false,
-        message: "User tidak ditemukan",
-      });
-      return;
-    }
-
-    // Create notification
-    const notification = await prisma.notification.create({
-      data: {
-        userId: userIdBigInt,
-        type,
-        channel,
-        payload,
-        status: "pending",
-      },
-    });
-
-    const serializedNotification = JSON.parse(
-      JSON.stringify(notification, (_key, value) =>
-        typeof value === "bigint" ? value.toString() : value
-      )
-    );
+    const serialized = serializeNotification(notification);
 
     res.status(201).json({
       success: true,
       message: "Notification berhasil dibuat",
-      data: serializedNotification,
+      data: serialized,
     });
   } catch (error) {
-    console.error("Create notification error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat membuat notification",
-    });
+    handleError(error, res);
   }
 };
 
@@ -66,65 +61,28 @@ export const createNotification = async (
  */
 export const getNotifications = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const userId = BigInt(req.user!.userId);
     const userRole = req.user!.role;
     const { status, type } = req.query;
 
-    let notifications;
+    const notifications = await getNotificationsService({
+      userId,
+      userRole,
+      status: status as string | undefined,
+      type: type as string | undefined,
+    });
 
-    if (userRole === "customer") {
-      // Customer sees their own notifications
-      notifications = await prisma.notification.findMany({
-        where: {
-          userId: userId,
-          ...(status && { status: status as any }),
-          ...(type && { type: type as string }),
-        },
-        orderBy: {
-          id: "desc",
-        },
-      });
-    } else {
-      // Admin/Owner sees all notifications
-      notifications = await prisma.notification.findMany({
-        where: {
-          ...(status && { status: status as any }),
-          ...(type && { type: type as string }),
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              fullname: true,
-              email: true,
-            },
-          },
-        },
-        orderBy: {
-          id: "desc",
-        },
-      });
-    }
-
-    const serializedNotifications = JSON.parse(
-      JSON.stringify(notifications, (_key, value) =>
-        typeof value === "bigint" ? value.toString() : value
-      )
-    );
+    const serialized = notifications.map(serializeNotification);
 
     res.status(200).json({
       success: true,
-      data: serializedNotifications,
+      data: serialized,
     });
   } catch (error) {
-    console.error("Get notifications error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat mengambil data notification",
-    });
+    handleError(error, res);
   }
 };
 
@@ -134,59 +92,27 @@ export const getNotifications = async (
  */
 export const getNotificationById = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const userId = BigInt(req.user!.userId);
     const userRole = req.user!.role;
     const notificationId = BigInt(req.params.id);
 
-    const notification = await prisma.notification.findUnique({
-      where: { id: notificationId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            fullname: true,
-            email: true,
-          },
-        },
-      },
+    const notification = await getNotificationByIdService({
+      notificationId,
+      userId,
+      userRole,
     });
 
-    if (!notification) {
-      res.status(404).json({
-        success: false,
-        message: "Notification tidak ditemukan",
-      });
-      return;
-    }
-
-    // Check access rights - customer can only see their own notifications
-    if (userRole === "customer" && notification.userId !== userId) {
-      res.status(403).json({
-        success: false,
-        message: "Anda tidak memiliki akses ke notification ini",
-      });
-      return;
-    }
-
-    const serializedNotification = JSON.parse(
-      JSON.stringify(notification, (_key, value) =>
-        typeof value === "bigint" ? value.toString() : value
-      )
-    );
+    const serialized = serializeNotification(notification);
 
     res.status(200).json({
       success: true,
-      data: serializedNotification,
+      data: serialized,
     });
   } catch (error) {
-    console.error("Get notification by ID error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat mengambil data notification",
-    });
+    handleError(error, res);
   }
 };
 
@@ -196,78 +122,46 @@ export const getNotificationById = async (
  */
 export const updateNotificationStatus = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const notificationId = BigInt(req.params.id);
+    const userId = BigInt(req.user!.userId);
     const { status } = req.body;
 
-    const notification = await prisma.notification.findUnique({
-      where: { id: notificationId },
+    const updated = await updateNotificationStatusService({
+      notificationId,
+      userId,
+      status,
     });
 
-    if (!notification) {
-      res.status(404).json({
-        success: false,
-        message: "Notification tidak ditemukan",
-      });
-      return;
-    }
-
-    // Update notification
-    const updatedNotification = await prisma.notification.update({
-      where: { id: notificationId },
-      data: {
-        status,
-        ...(status === "sent" && { sentAt: new Date() }),
-      },
-    });
-
-    const serializedNotification = JSON.parse(
-      JSON.stringify(updatedNotification, (_key, value) =>
-        typeof value === "bigint" ? value.toString() : value
-      )
-    );
+    const serialized = serializeNotification(updated);
 
     res.status(200).json({
       success: true,
-      message: "Notification status berhasil diupdate",
-      data: serializedNotification,
+      message: "Status notification berhasil diubah",
+      data: serialized,
     });
   } catch (error) {
-    console.error("Update notification status error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat mengupdate notification status",
-    });
+    handleError(error, res);
   }
 };
 
 /**
  * DELETE /notifications/:id
- * Delete notification (admin/owner only)
+ * Delete notification
  */
 export const deleteNotification = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const notificationId = BigInt(req.params.id);
+    const userId = BigInt(req.user!.userId);
 
-    const notification = await prisma.notification.findUnique({
-      where: { id: notificationId },
-    });
-
-    if (!notification) {
-      res.status(404).json({
-        success: false,
-        message: "Notification tidak ditemukan",
-      });
-      return;
-    }
-
-    await prisma.notification.delete({
-      where: { id: notificationId },
+    await deleteNotificationService({
+      notificationId,
+      userId,
     });
 
     res.status(200).json({
@@ -275,10 +169,6 @@ export const deleteNotification = async (
       message: "Notification berhasil dihapus",
     });
   } catch (error) {
-    console.error("Delete notification error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat menghapus notification",
-    });
+    handleError(error, res);
   }
 };

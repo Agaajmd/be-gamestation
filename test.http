@@ -217,3 +217,129 @@ Authorization: Bearer {{accessToken}}
 ### Delete National Holiday (all branches)
 DELETE {{baseUrl}}/holidays/national/2025-12-25?name=Hari Raya Natal
 Authorization: Bearer {{accessToken}}
+
+### ===============================================
+### HOLIDAY API - UPDATED (Refactored Version)
+### ===============================================
+
+### 1. Sync National Holidays - All Branches (Default)
+POST {{baseUrl}}/holidays/national/sync/2026
+Authorization: Bearer {{accessToken}}
+
+### 2. Sync National Holidays - Specific Branches
+POST {{baseUrl}}/holidays/national/sync/2026?branchIds=1,2,3
+Authorization: Bearer {{accessToken}}
+
+### 3. Sync National Holidays - All Branches with Overwrite
+POST {{baseUrl}}/holidays/national/sync/2026?overwrite=true
+Authorization: Bearer {{accessToken}}
+
+### 4. Sync National Holidays - Delete Existing then Sync
+POST {{baseUrl}}/holidays/national/sync/2026?deleteExisting=true
+Authorization: Bearer {{accessToken}}
+
+### 5. Sync National Holidays - Multiple Options
+POST {{baseUrl}}/holidays/national/sync/2026?branchIds=1,2&overwrite=true&deleteExisting=true
+Authorization: Bearer {{accessToken}}
+
+### 6. Add Custom Holiday - To All Branches
+POST {{baseUrl}}/holidays/custom
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "date": "2026-03-15",
+  "name": "Company Anniversary",
+  "description": "Celebrating 10 years"
+}
+
+### 7. Add Custom Holiday - To Specific Branches
+POST {{baseUrl}}/holidays/custom?branchIds=1,2,3
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "date": "2026-06-01",
+  "name": "Mid Year Celebration",
+  "description": "Team celebration event"
+}
+
+### 8. Add Custom Holiday - With Overwrite (Update if exists)
+POST {{baseUrl}}/holidays/custom?branchIds=1&overwrite=true
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "date": "2026-03-15",
+  "name": "Company Anniversary",
+  "description": "Updated description"
+}
+
+### 9. Add Multiple Custom Holidays - To All Branches
+POST {{baseUrl}}/holidays/custom/bulk
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "holidays": [
+    {
+      "date": "2026-03-15",
+      "name": "Company Anniversary"
+    },
+    {
+      "date": "2026-12-25",
+      "name": "Christmas Holiday"
+    },
+    {
+      "date": "2026-01-01",
+      "name": "New Year Celebration"
+    }
+  ]
+}
+
+### 10. Add Multiple Custom Holidays - To Specific Branches with Overwrite
+POST {{baseUrl}}/holidays/custom/bulk?branchIds=1,2&overwrite=true
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "holidays": [
+    {
+      "date": "2026-03-15",
+      "name": "Company Anniversary",
+      "description": "10 year celebration"
+    },
+    {
+      "date": "2026-12-25",
+      "name": "Christmas Holiday"
+    }
+  ]
+}
+
+### 11. Get Branch Holidays - All
+GET {{baseUrl}}/branches/1/holidays
+Authorization: Bearer {{accessToken}}
+
+### 12. Get Branch Holidays - With Date Range
+GET {{baseUrl}}/branches/1/holidays?startDate=2026-01-01&endDate=2026-12-31
+Authorization: Bearer {{accessToken}}
+
+### 13. Get Branch Holidays - Specific Month
+GET {{baseUrl}}/branches/1/holidays?startDate=2026-03-01&endDate=2026-03-31
+Authorization: Bearer {{accessToken}}
+
+### 14. Delete Holiday by ID
+DELETE {{baseUrl}}/holidays/1
+Authorization: Bearer {{accessToken}}
+
+### 15. Delete Holidays by Date Range - All Branches
+DELETE {{baseUrl}}/holidays/delete-range?startDate=2026-01-01&endDate=2026-01-31
+Authorization: Bearer {{accessToken}}
+
+### 16. Delete Holidays by Date Range - Specific Branches
+DELETE {{baseUrl}}/holidays/delete-range?branchIds=1,2&startDate=2026-01-01&endDate=2026-01-31
+Authorization: Bearer {{accessToken}}
+
+### 17. Delete Holidays by Date Range - Single Branch
+DELETE {{baseUrl}}/holidays/delete-range?branchIds=1&startDate=2026-02-01&endDate=2026-02-28
+Authorization: Bearer {{accessToken}}

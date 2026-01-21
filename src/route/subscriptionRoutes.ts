@@ -4,8 +4,7 @@ import {
   getSubscriptions,
   getSubscriptionById,
   updateSubscription,
-  deleteSubscription,
-  getActiveSubscription,
+  cancelSubscription,
 } from "../controller/SubscriptionController";
 import { authenticateToken } from "../middleware/authMiddleware";
 import { requireOwner } from "../middleware/roleMiddleware";
@@ -27,7 +26,6 @@ router.post(
 );
 
 router.get("/", authenticateToken, requireOwner, getSubscriptions);
-router.get("/active", authenticateToken, requireOwner, getActiveSubscription);
 router.get("/:id", authenticateToken, requireOwner, getSubscriptionById);
 
 router.put(
@@ -38,6 +36,6 @@ router.put(
   updateSubscription
 );
 
-router.delete("/:id", authenticateToken, requireOwner, deleteSubscription);
+router.delete("/:id", authenticateToken, requireOwner, cancelSubscription);
 
 export default router;

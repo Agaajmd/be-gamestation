@@ -1,6 +1,13 @@
 import { Request, Response } from "express";
-import { prisma } from "../database";
-import { checkBranchAccess } from "../helper/checkBranchAccessHelper";
+
+// Services
+import {
+  addGamesToDeviceService,
+  removeGamesFromDeviceService,
+} from "../service/GameAvailabilityService/gameAvailabilityService";
+
+// Error
+import { handleError } from "../helper/responseHelper";
 
 /**
  * POST /branches/:branchId/rooms-and-devices/:roomAndDeviceId/games
@@ -8,7 +15,7 @@ import { checkBranchAccess } from "../helper/checkBranchAccessHelper";
  */
 export const addGamesToDevice = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const branchId = BigInt(req.params.branchId);
@@ -19,128 +26,20 @@ export const addGamesToDevice = async (
     // Convert to array if single gameId
     const gameIdsArray = Array.isArray(gameIds) ? gameIds : [gameIds];
 
-    // Cek authorization
-    const hasAccess = await checkBranchAccess(userId, branchId);
-    if (!hasAccess) {
-      res.status(403).json({
-        success: false,
-        message: "Anda tidak memiliki akses ke cabang ini",
-      });
-      return;
-    }
-
-    // Verify device exists and belongs to branch
-    const device = await prisma.roomAndDevice.findUnique({
-      where: { id: roomAndDeviceId },
-      select: {
-        id: true,
-        branchId: true,
-        name: true,
-        roomNumber: true,
-        deviceType: true,
-      },
-    });
-
-    if (!device || device.branchId !== branchId) {
-      res.status(404).json({
-        success: false,
-        message: "Device tidak ditemukan di cabang ini",
-      });
-      return;
-    }
-
-    // Verify all games exist
-    const games = await prisma.game.findMany({
-      where: {
-        id: {
-          in: gameIdsArray.map((id) => BigInt(id)),
-        },
-      },
-    });
-
-    if (games.length !== gameIdsArray.length) {
-      res.status(404).json({
-        success: false,
-        message: "Beberapa game tidak ditemukan",
-      });
-      return;
-    }
-
-    // Validate DeviceType compatibility
-    const incompatibleGames = games.filter(
-      (game) => game.deviceType !== device.deviceType
-    );
-
-    if (incompatibleGames.length > 0) {
-      res.status(400).json({
-        success: false,
-        message: `DeviceType tidak kompatibel dengan device type ${device.deviceType}`,
-        data: {
-          deviceType: device.deviceType,
-          incompatibleGames: incompatibleGames.map((g) => ({
-            id: g.id.toString(),
-            name: g.name,
-            deviceType: g.deviceType,
-          })),
-        },
-      });
-      return;
-    }
-
-    // Create game availabilities (skip duplicates)
-    const data = gameIdsArray.map((gameId) => ({
-      gameId: BigInt(gameId),
-      roomAndDeviceId: roomAndDeviceId,
-    }));
-
-    const result = await prisma.gameAvailability.createMany({
-      data,
-      skipDuplicates: true,
-    });
-
-    // Get created games for response
-    const createdGames = await prisma.gameAvailability.findMany({
-      where: {
-        roomAndDeviceId: roomAndDeviceId,
-        gameId: {
-          in: gameIdsArray.map((id) => BigInt(id)),
-        },
-      },
-      include: {
-        game: {
-          select: {
-            id: true,
-            name: true,
-            deviceType: true,
-          },
-        },
-      },
+    const result = await addGamesToDeviceService({
+      branchId,
+      roomAndDeviceId,
+      userId,
+      gameIds: gameIdsArray.map((id: string | number) => BigInt(id)),
     });
 
     res.status(201).json({
       success: true,
-      message: `${result.count} game berhasil ditambahkan ke device`,
-      data: {
-        deviceId: device.id.toString(),
-        deviceName: device.name,
-        roomNumber: device.roomNumber,
-        addedCount: result.count,
-        totalRequested: gameIdsArray.length,
-        skippedCount: gameIdsArray.length - result.count,
-        games: createdGames.map((ga) => ({
-          id: ga.id.toString(),
-          gameId: ga.game.id.toString(),
-          name: ga.game.name,
-          deviceType: ga.game.deviceType,
-        })),
-      },
+      message: `${result.addedCount} game berhasil ditambahkan ke device`,
+      data: result,
     });
-  } catch (error) {
-    console.error("Add games to device error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat menambahkan game ke device",
-    });
+  } catch (error: any) {
+    handleError(error, res);
   }
 };
 
@@ -150,7 +49,7 @@ export const addGamesToDevice = async (
  */
 export const removeGamesFromDevice = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const branchId = BigInt(req.params.branchId);
@@ -161,61 +60,19 @@ export const removeGamesFromDevice = async (
     // Convert to array if single gameId
     const gameIdsArray = Array.isArray(gameIds) ? gameIds : [gameIds];
 
-    // Cek authorization
-    const hasAccess = await checkBranchAccess(userId, branchId);
-    if (!hasAccess) {
-      res.status(403).json({
-        success: false,
-        message: "Anda tidak memiliki akses ke cabang ini",
-      });
-      return;
-    }
-
-    // Verify device exists and belongs to branch
-    const device = await prisma.roomAndDevice.findUnique({
-      where: { id: roomAndDeviceId },
-      select: {
-        id: true,
-        branchId: true,
-        name: true,
-        roomNumber: true,
-      },
-    });
-
-    if (!device || device.branchId !== branchId) {
-      res.status(404).json({
-        success: false,
-        message: "Device tidak ditemukan di cabang ini",
-      });
-      return;
-    }
-
-    // Delete game availabilities
-    const result = await prisma.gameAvailability.deleteMany({
-      where: {
-        roomAndDeviceId: roomAndDeviceId,
-        gameId: {
-          in: gameIdsArray.map((id) => BigInt(id)),
-        },
-      },
+    const result = await removeGamesFromDeviceService({
+      branchId,
+      roomAndDeviceId,
+      userId,
+      gameIds: gameIdsArray.map((id: string | number) => BigInt(id)),
     });
 
     res.status(200).json({
       success: true,
-      message: `${result.count} game berhasil dihapus dari device`,
-      data: {
-        deviceId: device.id.toString(),
-        deviceName: device.name,
-        roomNumber: device.roomNumber,
-        deletedCount: result.count,
-        totalRequested: gameIdsArray.length,
-      },
+      message: `${result.deletedCount} game berhasil dihapus dari device`,
+      data: result,
     });
   } catch (error) {
-    console.error("Remove games from device error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat menghapus game dari device",
-    });
+    handleError(error, res);
   }
 };
