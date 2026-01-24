@@ -19,11 +19,12 @@ import { handleError } from "../helper/responseHelper";
  */
 export const addAdvanceBookingPrice = async (req: Request, res: Response) => {
   try {
-    const { branchId, daysInAdvance, additionalFee } = req.body;
+    const { branchId, minDays, maxDays, additionalFee } = req.body;
 
     const newAdvanceBookingPrice = await addAdvanceBookingPriceService({
       branchId: BigInt(branchId),
-      daysInAdvance,
+      minDays,
+      maxDays,
       additionalFee,
     });
 
@@ -57,16 +58,17 @@ export const getAdvanceBookingPrices = async (_req: Request, res: Response) => {
  */
 export const updateAdvanceBookingPrice = async (
   req: Request,
-  res: Response
+  res: Response,
 ) => {
   try {
     const { id } = req.params;
-    const { daysInAdvance, additionalFee } = req.body;
+    const { minDays, maxDays, additionalFee } = req.body;
     const idBigInt = BigInt(id);
 
     const updatedAdvanceBookingPrice = await updateAdvanceBookingPriceService({
       id: idBigInt,
-      daysInAdvance,
+      minDays,
+      maxDays,
       additionalFee,
     });
 
@@ -84,7 +86,7 @@ export const updateAdvanceBookingPrice = async (
  */
 export const deleteAdvanceBookingPrice = async (
   req: Request,
-  res: Response
+  res: Response,
 ) => {
   try {
     const { id } = req.params;

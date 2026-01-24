@@ -1,6 +1,15 @@
+import dotenv from "dotenv";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
+
+dotenv.config();
+
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL is not defined in environment variables");
+}
+
+console.log("🔌 Connecting to database...");
 
 // Singleton pattern untuk Prisma Client
 declare global {
@@ -9,12 +18,14 @@ declare global {
 }
 
 // Buat atau reuse pool
-const pool = global.__pool || new Pool({
-  connectionString: process.env.DATABASE_URL,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-});
+const pool =
+  global.__pool ||
+  new Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
+  });
 
 if (process.env.NODE_ENV !== "production") {
   global.__pool = pool;
@@ -24,13 +35,13 @@ if (process.env.NODE_ENV !== "production") {
 const adapter = new PrismaPg(pool);
 
 // Buat atau reuse Prisma Client (Singleton)
-export const prisma = global.__prisma || new PrismaClient({
-  adapter,
-  log: process.env.NODE_ENV === "development" 
-    ? ["error", "warn"] 
-    : ["error"],
-  errorFormat: "pretty",
-});
+export const prisma =
+  global.__prisma ||
+  new PrismaClient({
+    adapter,
+    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+    errorFormat: "pretty",
+  });
 
 if (process.env.NODE_ENV !== "production") {
   global.__prisma = prisma;

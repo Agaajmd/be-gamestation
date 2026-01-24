@@ -1,7 +1,7 @@
 import { Router } from "express";
 import * as BookingFlowController from "../controller/BookingFlowController";
 import * as ValidateMiddleware from "../middleware/validateMiddleware";
-import { calculateBookingPriceSchema } from "../validation/bodyValidation/bookingValidation";
+// import { calculateBookingPriceSchema } from "../validation/bodyValidation/bookingValidation";
 import {
   getAvailableRoomsAndDevicesSchema,
   getAvailableDatesSchema,
@@ -78,10 +78,10 @@ router.get("/cart", authenticateToken, BookingFlowController.getBookingCart);
  * POST /booking/calculate-price
  * Menghitung harga booking sebelum checkout (public atau authenticated)
  */
-router.post(
-  "/calculate-price",
-  ValidateMiddleware.validateBody(calculateBookingPriceSchema),
-  BookingFlowController.calculateBookingPrice
-);
+// router.post(
+//   "/calculate-price",
+//   ValidateMiddleware.validateBody(calculateBookingPriceSchema),
+//   BookingFlowController.calculateBookingPrice
+// );
 
 export default router;

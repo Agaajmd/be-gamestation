@@ -1,12 +1,85 @@
 // import { Prisma } from "@prisma/client";
 import { prisma } from "../database";
 
+const roomAndDeviceInclude = {
+  category: {
+    select: {
+      id: true,
+      name: true,
+      tier: true,
+      branchId: true,
+    },
+  },
+  games: {
+    select: {
+      game: {
+        select: {
+          id: true,
+          name: true,
+          deviceType: true,
+        },
+      },
+    },
+  },
+  orderItems: {
+    select: {
+      id: true,
+      bookingStart: true,
+      bookingEnd: true,
+    },
+  },
+  _count: {
+    select: {
+      orderItems: true,
+      sessions: true,
+    },
+  },
+};
+
 export const RoomAndDeviceRepository = {
-  // Find Room And Device by ID and Branch ID
-  findById(id: bigint, branchId: bigint) {
-    return prisma.roomAndDevice.findUnique({
-      where: { id, branchId },
+
+  // Find First
+  findFirst(where: object, options?: object) {
+    return prisma.roomAndDevice.findFirst({
+      where: where,
+      ...options,
     });
+  },
+
+  // Find Unique
+  findUnique(where: any, options?: object) {
+    return prisma.roomAndDevice.findUnique({
+      where: where,
+      ...options,
+    });
+  },
+
+  // Find Room And Device by ID
+  findById(id: bigint, branchId?: bigint) {
+    const where: any = { id };
+    if (branchId) {
+      where.branchId = branchId;
+    }
+    return prisma.roomAndDevice.findUnique({
+      where,
+      include: roomAndDeviceInclude,
+    });
+  },
+
+  // Find many with filters
+  findMany(where: object, skip?: number, take?: number) {
+    return prisma.roomAndDevice.findMany({
+      where,
+      include: roomAndDeviceInclude,
+      skip,
+      take,
+      orderBy: { roomNumber: "asc" },
+    });
+  },
+
+  // Count
+  count(where: object, options?: object) {
+    return prisma.roomAndDevice.count({ where, ...options });
   },
 
   // Find Available Rooms And Devices by Branch ID
@@ -27,7 +100,7 @@ export const RoomAndDeviceRepository = {
     branchId: bigint,
     targetDate: Date,
     branchOpenTime: number,
-    branchCloseTime: number
+    branchCloseTime: number,
   ) {
     return prisma.roomAndDevice.findMany({
       where: {
@@ -38,7 +111,7 @@ export const RoomAndDeviceRepository = {
         orderItems: {
           where: {
             order: {
-              status: { in: ["pending", "paid", "checked_in"] },
+              status: { in: ["pending", "confirmed", "completed"] as any },
             },
             bookingStart: {
               gte: new Date(targetDate.setHours(branchOpenTime, 0, 0, 0)),
@@ -60,8 +133,7 @@ export const RoomAndDeviceRepository = {
     });
   },
 
-  /* Find Room And Device by branch ID
-  */
+  // Find Room And Device by branch ID
   findRoomsAndDevicesByBranchId(branchId: bigint) {
     return prisma.roomAndDevice.findMany({
       where: {
@@ -70,11 +142,44 @@ export const RoomAndDeviceRepository = {
     });
   },
 
-  // Find Many
+  // Find Many with custom options
   findManyRoomsAndDevices(where: object, options: object) {
     return prisma.roomAndDevice.findMany({
       where,
       ...options,
     });
-  }
+  },
+
+  // Create room and device
+  create(data: any) {
+    return prisma.roomAndDevice.create({
+      data,
+      include: roomAndDeviceInclude,
+    });
+  },
+
+  // Update room and device
+  update(id: bigint, data: any) {
+    return prisma.roomAndDevice.update({
+      where: { id },
+      data,
+      include: roomAndDeviceInclude,
+    });
+  },
+
+  // Update status
+  updateStatus(id: bigint, status: string) {
+    return prisma.roomAndDevice.update({
+      where: { id },
+      data: { status: status as any },
+      include: roomAndDeviceInclude,
+    });
+  },
+
+  // Delete
+  delete(id: bigint) {
+    return prisma.roomAndDevice.delete({
+      where: { id },
+    });
+  },
 };

@@ -1,13 +1,36 @@
 import { prisma } from "../database";
 
 export const AdvanceBookingPriceRepository = {
-  // Find advance booking price by branch ID and days in advance
-  findOne(branchId: bigint, daysInAdvance: number) {
+  // Find First
+  findFirst(where: object, options?: object) {
     return prisma.advanceBookingPrice.findFirst({
-      where: {
-        branchId,
-        daysInAdvance,
-      },
+      where,
+      ...options,
+    });
+  },
+
+  // Find advance booking price by branch ID and days in advance
+  findOne(branchId: bigint, minDays: number, maxDays: number | null) {
+    const where: any = {
+      branchId,
+      minDays,
+    };
+
+    if (maxDays !== null) {
+      where.maxDays = maxDays;
+    } else {
+      where.maxDays = null;
+    }
+
+    return prisma.advanceBookingPrice.findFirst({
+      where,
+    });
+  },
+
+  // Find all advance booking prices by branch ID
+  findByBranchId(branchId: bigint) {
+    return prisma.advanceBookingPrice.findMany({
+      where: { branchId },
     });
   },
 
@@ -26,15 +49,22 @@ export const AdvanceBookingPriceRepository = {
   // Create a new advance booking price
   create(data: {
     branchId: bigint;
-    daysInAdvance: number;
+    minDays: number;
+    maxDays: number | null;
     additionalFee: number;
   }) {
+    const createData: any = {
+      branchId: data.branchId,
+      minDays: data.minDays,
+      additionalFee: data.additionalFee,
+    };
+
+    if (data.maxDays !== null) {
+      createData.maxDays = data.maxDays;
+    }
+
     return prisma.advanceBookingPrice.create({
-      data: {
-        branchId: data.branchId,
-        daysInAdvance: data.daysInAdvance,
-        additionalFee: data.additionalFee,
-      },
+      data: createData,
     });
   },
 
@@ -42,13 +72,20 @@ export const AdvanceBookingPriceRepository = {
   update(
     id: bigint,
     data: {
-      daysInAdvance?: number;
+      minDays?: number;
+      maxDays?: number | null;
       additionalFee?: number;
-    }
+    },
   ) {
+    const updateData: any = {};
+    
+    if (data.minDays !== undefined) updateData.minDays = data.minDays;
+    if (data.additionalFee !== undefined) updateData.additionalFee = data.additionalFee;
+    if (data.maxDays !== undefined) updateData.maxDays = data.maxDays;
+
     return prisma.advanceBookingPrice.update({
       where: { id },
-      data,
+      data: updateData,
     });
   },
 

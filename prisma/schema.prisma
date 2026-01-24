@@ -49,16 +49,15 @@ enum RoomAndDeviceStatus {
 }
 
 enum OrderStatus {
-  pending
-  paid
-  cancelled
-  checked_in
-  completed
   cart
-  refunded
+  pending
+  confirmed
+  completed
+  cancelled
 }
 
 enum PaymentStatus {
+  pending
   unpaid
   paid
   failed
@@ -165,6 +164,7 @@ model Branch {
   orders               Order[]
   advanceBookingPrices AdvanceBookingPrice[]
   branchHolidays       BranchHoliday[]
+  reviews              Review[]
 
   @@index([ownerId], name: "idx_branches_owner")
   @@map("branches")
@@ -222,14 +222,15 @@ model roomAndDevice {
 model AdvanceBookingPrice {
   id            BigInt   @id @default(autoincrement())
   branchId      BigInt   @map("branch_id")
-  daysInAdvance Int      @map("days_in_advance")
+  minDays       Int      @map("min_days")
+  maxDays       Int      @map("max_days")
   additionalFee Decimal  @map("additional_fee") @db.Decimal(12, 2)
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(6)
 
   // Relations
   branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
-  @@unique([branchId, daysInAdvance])
+  @@unique([branchId, minDays, maxDays])
   @@map("advance_booking_prices")
 }
 
@@ -291,7 +292,6 @@ model Order {
   orderItems OrderItem[]
   payment    Payment?
   session    Session?
-  review     Review?
 
   @@index([customerId], name: "idx_orders_customer")
   @@index([branchId], name: "idx_orders_branch_booking")
@@ -410,16 +410,19 @@ model Admin {
 
 model Review {
   id         BigInt   @id @default(autoincrement())
-  orderId    BigInt   @unique @map("order_id")
+  branchId   BigInt   @map("branch_id")
   customerId BigInt   @map("customer_id")
   rating     Int      @db.SmallInt
   comment    String?  @db.Text
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
 
   // Relations
-  order    Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  customer User  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  customer User   @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
+  // Unique constraint: one review per customer per branch
+  @@unique([customerId, branchId])
   @@map("reviews")
 }
 

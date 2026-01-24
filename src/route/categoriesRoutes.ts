@@ -1,6 +1,7 @@
 import { Router } from "express";
 import * as CategoryController from "../controller/CategoryController";
 import { authenticateToken } from "../middleware/authMiddleware";
+import { requireOwnerOrAdmin } from "../middleware/roleMiddleware";
 import * as ValidateMiddleware from "../middleware/validateMiddleware";
 import {
     addCategorySchema,
@@ -17,6 +18,7 @@ const router = Router();
 router.post(
     "/:branchId/category",
     authenticateToken,
+    requireOwnerOrAdmin,
     ValidateMiddleware.validateBody(addCategorySchema),
     CategoryController.addCategory
 );

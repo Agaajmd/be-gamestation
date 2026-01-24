@@ -15,7 +15,7 @@ export const fetchMonthlyData = async (
     prisma.order.findMany({
       where: {
         branchId,
-        status: { in: ["pending", "paid", "checked_in"] },
+        status: { in: ["pending", "confirmed"] },
         orderItems: {
           some: {
             bookingStart: { gte: startDate, lte: endDatePlusOne },

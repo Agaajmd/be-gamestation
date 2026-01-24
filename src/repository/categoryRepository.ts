@@ -54,6 +54,13 @@ export const CategoryRepository = {
     });
   },
 
+  // Find by branch ID and category ID
+  findByBranchIdAndCategoryId(branchId: bigint, categoryId: bigint) {
+    return prisma.category.findFirst({
+      where: { branchId, id: categoryId },
+    });
+  },
+
   // Find many with filters
   findMany(filters: {
     branchId: bigint;

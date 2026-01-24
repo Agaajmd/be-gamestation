@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { prisma } from "../database";
+// import { prisma } from "../database";
 
 // Service
 import {
@@ -274,125 +274,125 @@ export const getBookingCart = async (
  * POST /booking/calculate-price
  * Menghitung harga booking sebelum checkout
  */
-export const calculateBookingPrice = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
-  try {
-    const {
-      branchId,
-      deviceId,
-      categoryId,
-      bookingDate,
-      startTime,
-      durationMinutes,
-    } = req.body;
+// export const calculateBookingPrice = async (
+//   req: Request,
+//   res: Response,
+// ): Promise<void> => {
+//   try {
+//     const {
+//       branchId,
+//       deviceId,
+//       categoryId,
+//       bookingDate,
+//       startTime,
+//       durationMinutes,
+//     } = req.body;
 
-    if (
-      !branchId ||
-      !deviceId ||
-      !categoryId ||
-      !bookingDate ||
-      !startTime ||
-      !durationMinutes
-    ) {
-      res.status(400).json({
-        success: false,
-        message: "Semua field wajib diisi",
-      });
-      return;
-    }
+//     if (
+//       !branchId ||
+//       !deviceId ||
+//       !categoryId ||
+//       !bookingDate ||
+//       !startTime ||
+//       !durationMinutes
+//     ) {
+//       res.status(400).json({
+//         success: false,
+//         message: "Semua field wajib diisi",
+//       });
+//       return;
+//     }
 
-    const branchIdBigInt = BigInt(branchId);
-    const deviceIdBigInt = BigInt(deviceId);
-    const categoryIdBigInt = BigInt(categoryId);
+//     const branchIdBigInt = BigInt(branchId);
+//     const deviceIdBigInt = BigInt(deviceId);
+//     const categoryIdBigInt = BigInt(categoryId);
 
-    // Get device
-    const device = await prisma.roomAndDevice.findUnique({
-      where: { id: deviceIdBigInt },
-      include: {
-        category: true,
-      },
-    });
+//     // Get device
+//     const device = await prisma.roomAndDevice.findUnique({
+//       where: { id: deviceIdBigInt },
+//       include: {
+//         category: true,
+//       },
+//     });
 
-    if (!device) {
-      res.status(404).json({
-        success: false,
-        message: "Device tidak ditemukan",
-      });
-      return;
-    }
+//     if (!device) {
+//       res.status(404).json({
+//         success: false,
+//         message: "Device tidak ditemukan",
+//       });
+//       return;
+//     }
 
-    // Get category
-    const category = await prisma.category.findUnique({
-      where: { id: categoryIdBigInt },
-    });
+//     // Get category
+//     const category = await prisma.category.findUnique({
+//       where: { id: categoryIdBigInt },
+//     });
 
-    if (!category) {
-      res.status(404).json({
-        success: false,
-        message: "Kategori tidak ditemukan",
-      });
-      return;
-    }
+//     if (!category) {
+//       res.status(404).json({
+//         success: false,
+//         message: "Kategori tidak ditemukan",
+//       });
+//       return;
+//     }
 
-    // Calculate base amount
-    const hours = durationMinutes / 60;
-    const baseAmount = Number(device.pricePerHour) * hours;
+//     // Calculate base amount
+//     const hours = durationMinutes / 60;
+//     const baseAmount = Number(device.pricePerHour) * hours;
 
-    // Calculate category fee
-    const categoryFee = Number(category.pricePerHour) * hours;
+//     // Calculate category fee
+//     const categoryFee = Number(category.pricePerHour) * hours;
 
-    // Calculate advance booking fee
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const bookingDateObj = new Date(bookingDate);
-    const daysFromToday = Math.floor(
-      (bookingDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
-    );
+//     // Calculate advance booking fee
+//     const today = new Date();
+//     today.setHours(0, 0, 0, 0);
+//     const bookingDateObj = new Date(bookingDate);
+//     const daysFromToday = Math.floor(
+//       (bookingDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+//     );
 
-    let advanceBookingFee = 0;
-    if (daysFromToday > 0) {
-      const advancePrice = await prisma.advanceBookingPrice.findFirst({
-        where: {
-          branchId: branchIdBigInt,
-          daysInAdvance: {
-            lte: daysFromToday,
-          },
-        },
-        orderBy: {
-          daysInAdvance: "desc",
-        },
-      });
+//     let advanceBookingFee = 0;
+//     if (daysFromToday > 0) {
+//       const advancePrice = await prisma.advanceBookingPrice.findFirst({
+//         where: {
+//           branchId: branchIdBigInt,
+//           daysInAdvance: {
+//             lte: daysFromToday,
+//           },
+//         },
+//         orderBy: {
+//           daysInAdvance: "desc",
+//         },
+//       });
 
-      if (advancePrice) {
-        advanceBookingFee = Number(advancePrice.additionalFee) * hours;
-      }
-    }
+//       if (advancePrice) {
+//         advanceBookingFee = Number(advancePrice.additionalFee) * hours;
+//       }
+//     }
 
-    // Total
-    const totalAmount = baseAmount + categoryFee + advanceBookingFee;
+//     // Total
+//     const totalAmount = baseAmount + categoryFee + advanceBookingFee;
 
-    res.status(200).json({
-      success: true,
-      data: {
-        baseAmount: baseAmount.toFixed(2),
-        categoryFee: categoryFee.toFixed(2),
-        advanceBookingFee: advanceBookingFee.toFixed(2),
-        totalAmount: totalAmount.toFixed(2),
-        breakdown: {
-          devicePricePerHour: device.pricePerHour.toString(),
-          categoryPricePerHour: category.pricePerHour.toString(),
-          durationHours: hours,
-          daysInAdvance: daysFromToday,
-        },
-      },
-    });
-  } catch (error) {
-    console.error("Calculate price error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat menghitung harga",
-    });
-  }
-};
+//     res.status(200).json({
+//       success: true,
+//       data: {
+//         baseAmount: baseAmount.toFixed(2),
+//         categoryFee: categoryFee.toFixed(2),
+//         advanceBookingFee: advanceBookingFee.toFixed(2),
+//         totalAmount: totalAmount.toFixed(2),
+//         breakdown: {
+//           devicePricePerHour: device.pricePerHour.toString(),
+//           categoryPricePerHour: category.pricePerHour.toString(),
+//           durationHours: hours,
+//           daysInAdvance: daysFromToday,
+//         },
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Calculate price error:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Terjadi kesalahan saat menghitung harga",
+//     });
+//   }
+// };

@@ -44,16 +44,12 @@ export const checkoutOrderSchema = Joi.object({
 });
 
 export const updateOrderStatusSchema = Joi.object({
+  branchId: Joi.string().required().messages({
+    "string.empty": "Branch ID tidak boleh kosong",
+    "any.required": "Branch ID wajib diisi",
+  }),
   status: Joi.string()
-    .valid(
-      "pending",
-      "paid",
-      "cancelled",
-      "checked_in",
-      "completed",
-      "no_show",
-      "refunded"
-    )
+    .valid("pending", "confirmed", "completed", "canceled")
     .required()
     .messages({
       "any.only": "Status tidak valid",

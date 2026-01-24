@@ -5,7 +5,6 @@ import {
   getOrders,
   getOrderById,
   updateOrderStatus,
-  updatePaymentStatus,
   cancelOrder,
 } from "../controller/OrderController";
 import { authenticateToken } from "../middleware/authMiddleware";
@@ -18,7 +17,6 @@ import {
   createOrderSchema,
   checkoutOrderSchema,
   updateOrderStatusSchema,
-  updatePaymentStatusSchema,
 } from "../validation/bodyValidation/orderValidation";
 
 const router = Router();
@@ -55,12 +53,5 @@ router.put(
   updateOrderStatus
 );
 
-router.put(
-  "/:id/payment-status",
-  authenticateToken,
-  requireOwnerOrAdmin,
-  ValidateMiddleware.validateBody(updatePaymentStatusSchema),
-  updatePaymentStatus
-);
 
 export default router;

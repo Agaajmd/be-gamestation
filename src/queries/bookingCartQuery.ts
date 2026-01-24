@@ -12,6 +12,6 @@ export const BookingCartQuery = {
       { customerId: userId },
       bookingCartConfig,
     );
-    return result as BookingCartWithRelations;
+    return result as unknown as BookingCartWithRelations;
   },
 };

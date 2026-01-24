@@ -7,7 +7,7 @@ import { Request, Response, NextFunction } from "express";
 export const requireOwner = (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): void => {
   if (!req.user) {
     res.status(401).json({
@@ -35,7 +35,7 @@ export const requireOwner = (
 export const requireAdmin = (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): void => {
   if (!req.user) {
     res.status(401).json({
@@ -62,7 +62,7 @@ export const requireAdmin = (
 export const requireOwnerOrAdmin = (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): void => {
   if (!req.user) {
     res.status(401).json({
@@ -73,7 +73,8 @@ export const requireOwnerOrAdmin = (
   }
 
   const isOwner = req.user.role === "owner";
-  const isAdminManager = req.user.role === "admin" && req.user.adminRole === "manager";
+  const isAdminManager =
+    req.user.role === "admin" && req.user.adminRole === "manager";
 
   if (!isOwner && !isAdminManager) {
     res.status(403).json({
@@ -89,7 +90,7 @@ export const requireOwnerOrAdmin = (
 export const requireOwnerOrAdminStaff = (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): void => {
   if (!req.user) {
     res.status(401).json({
@@ -99,8 +100,8 @@ export const requireOwnerOrAdminStaff = (
     return;
   }
 
-    const isOwner = req.user.role === "owner";
-    const isAdmin = req.user.role === "admin";
+  const isOwner = req.user.role === "owner";
+  const isAdmin = req.user.role === "admin";
 
   if (!isOwner && !isAdmin) {
     res.status(403).json({
@@ -120,7 +121,7 @@ export const requireOwnerOrAdminStaff = (
 export const requireCustomer = (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): void => {
   if (!req.user) {
     res.status(401).json({
@@ -140,4 +141,3 @@ export const requireCustomer = (
 
   next();
 };
-

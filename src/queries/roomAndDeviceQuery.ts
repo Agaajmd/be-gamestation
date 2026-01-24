@@ -3,6 +3,8 @@ import { RoomAndDeviceRepository } from "../repository/roomAndDeviceRepository";
 import {
   RoomAndDeviceWithRelations,
   RoomAndDeviceConfig,
+  RoomAndDeviceWithSessions,
+  RoomAndDeviceWithSessionsConfig,
 } from "../promise/roomAndDevice";
 
 export const RoomAndDeviceQuery = {
@@ -19,5 +21,15 @@ export const RoomAndDeviceQuery = {
       RoomAndDeviceConfig,
     );
     return result as RoomAndDeviceWithRelations[];
+  },
+
+  async findUniqueWithCount(id: bigint): Promise<RoomAndDeviceWithSessions> {
+    const result = await RoomAndDeviceRepository.findUnique(
+      {
+        id,
+      },
+      RoomAndDeviceWithSessionsConfig,
+    );
+    return result as RoomAndDeviceWithSessions;
   },
 };

@@ -51,12 +51,12 @@ router.put(
 );
 
 /**
- * @route  DELETE /branches/:branchId/rooms-and-devices/:deviceId
+ * @route  DELETE /branches/:branchId/rooms-and-devices/:roomAndDeviceId
  * @desc   Owner/staff menghapus device
  * @access Private (Owner/Admin)
  */
 router.delete(
-  "/:branchId/rooms-and-devices/:deviceId",
+  "/:branchId/rooms-and-devices/:roomAndDeviceId",
   authenticateToken,
   DeviceController.deleteRoomAndDevice
 );

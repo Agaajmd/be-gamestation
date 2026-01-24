@@ -1,6 +1,23 @@
 import { Request, Response } from "express";
-import { checkBranchAccess } from "../helper/checkBranchAccessHelper";
-import { prisma } from "../database";
+import { handleError } from "../helper/responseHelper";
+import {
+  createPaymentService,
+  getPaymentsService,
+  getPaymentByIdService,
+  updatePaymentStatusService,
+  deletePaymentService,
+} from "../service/PaymentService/paymentService";
+
+/**
+ * Serialize payment for response - BigInt to string conversion
+ */
+const serializePayment = (payment: any) => {
+  return JSON.parse(
+    JSON.stringify(payment, (_key, value) =>
+      typeof value === "bigint" ? value.toString() : value,
+    ),
+  );
+};
 
 /**
  * POST /payments
@@ -8,339 +25,96 @@ import { prisma } from "../database";
  */
 export const createPayment = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const userId = BigInt(req.user!.userId);
-    const userRole = req.user!.role;
+    const role = req.user!.role;
     const { orderId, amount, method, provider, transactionId, metadata } =
       req.body;
 
-    const orderIdBigInt = BigInt(orderId);
-
-    // Verify order exists
-    const order = await prisma.order.findUnique({
-      where: { id: orderIdBigInt },
+    const payment = await createPaymentService({
+      userId,
+      role,
+      orderId: BigInt(orderId),
+      amount,
+      method,
+      provider,
+      transactionId,
+      metadata,
     });
-
-    if (!order) {
-      res.status(404).json({
-        success: false,
-        message: "Order tidak ditemukan",
-      });
-      return;
-    }
-
-    // Check access rights
-    if (userRole === "customer" && order.customerId !== userId) {
-      res.status(403).json({
-        success: false,
-        message: "Anda tidak memiliki akses ke order ini",
-      });
-      return;
-    } else if (userRole === "admin") {
-      const hasAccess = await checkBranchAccess(userId, order.branchId);
-      if (!hasAccess) {
-        res.status(403).json({
-          success: false,
-          message: "Anda tidak memiliki akses ke order ini",
-        });
-        return;
-      }
-    } else if (userRole === "owner") {
-      const owner = await prisma.owner.findUnique({
-        where: { userId },
-        include: { branches: true },
-      });
-
-      const branchIds = owner?.branches.map((b) => b.id) || [];
-      if (!branchIds.includes(order.branchId)) {
-        res.status(403).json({
-          success: false,
-          message: "Anda tidak memiliki akses ke order ini",
-        });
-        return;
-      }
-    }
-
-    // Check if payment already exists
-    const existingPayment = await prisma.payment.findUnique({
-      where: { orderId: orderIdBigInt },
-    });
-
-    if (existingPayment) {
-      res.status(400).json({
-        success: false,
-        message: "Payment untuk order ini sudah ada",
-      });
-      return;
-    }
-
-    // Create payment
-    const payment = await prisma.payment.create({
-      data: {
-        orderId: orderIdBigInt,
-        amount,
-        method,
-        provider,
-        status: "pending",
-        transactionId,
-        metadata,
-      },
-    });
-
-    const serializedPayment = JSON.parse(
-      JSON.stringify(payment, (_key, value) =>
-        typeof value === "bigint" ? value.toString() : value
-      )
-    );
 
     res.status(201).json({
       success: true,
       message: "Payment berhasil dibuat",
-      data: serializedPayment,
+      data: serializePayment(payment),
     });
   } catch (error) {
-    console.error("Create payment error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat membuat payment",
-    });
+    handleError(error, res);
   }
 };
 
 /**
  * GET /payments
- * Get payments list (admin/owner only)
+ * Get payments (role-based filtering - admin/owner only)
  */
 export const getPayments = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const userId = BigInt(req.user!.userId);
-    const userRole = req.user!.role;
-    const { status, branchId } = req.query;
+    const role = req.user!.role;
+    const { status, branchId, skip, take } = req.query;
 
-    let payments;
-
-    if (userRole === "admin") {
-      // Admin sees payments in their branch
-      const admin = await prisma.admin.findUnique({
-        where: { userId },
-      });
-
-      if (!admin) {
-        res.status(403).json({
-          success: false,
-          message: "Admin profile tidak ditemukan",
-        });
-        return;
-      }
-
-      payments = await prisma.payment.findMany({
-        where: {
-          order: {
-            branchId: admin.branchId,
-          },
-          ...(status && { status: status as any }),
-        },
-        include: {
-          order: {
-            include: {
-              customer: {
-                select: {
-                  id: true,
-                  email: true,
-                  fullname: true,
-                },
-              },
-              branch: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
-            },
-          },
-        },
-        orderBy: {
-          id: "desc",
-        },
-      });
-    } else {
-      // Owner sees all payments in their branches
-      const owner = await prisma.owner.findUnique({
-        where: { userId },
-        include: { branches: true },
-      });
-
-      if (!owner) {
-        res.status(403).json({
-          success: false,
-          message: "Owner profile tidak ditemukan",
-        });
-        return;
-      }
-
-      const branchIds = owner.branches.map((b) => b.id);
-
-      payments = await prisma.payment.findMany({
-        where: {
-          order: {
-            branchId: {
-              in: branchIds,
-              ...(branchId && { equals: BigInt(branchId as string) }),
-            },
-          },
-          ...(status && { status: status as any }),
-        },
-        include: {
-          order: {
-            include: {
-              customer: {
-                select: {
-                  id: true,
-                  email: true,
-                  fullname: true,
-                },
-              },
-              branch: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
-            },
-          },
-        },
-        orderBy: {
-          id: "desc",
-        },
-      });
-    }
-
-    const serializedPayments = JSON.parse(
-      JSON.stringify(payments, (_key, value) =>
-        typeof value === "bigint" ? value.toString() : value
-      )
-    );
+    const { payments, total } = await getPaymentsService({
+      userId,
+      role,
+      status: String(status) || undefined,
+      branchId: branchId ? BigInt(String(branchId)) : undefined,
+      skip: skip ? parseInt(String(skip)) : 0,
+      take: take ? parseInt(String(take)) : 10,
+    });
 
     res.status(200).json({
       success: true,
-      data: serializedPayments,
+      data: payments.map(serializePayment),
+      meta: {
+        total,
+        skip,
+        take,
+      },
     });
   } catch (error) {
-    console.error("Get payments error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat mengambil data payment",
-    });
+    handleError(error, res);
   }
 };
 
 /**
  * GET /payments/:id
- * Get payment by ID
+ * Get payment by ID (role-based access control)
  */
 export const getPaymentById = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const userId = BigInt(req.user!.userId);
-    const userRole = req.user!.role;
+    const role = req.user!.role;
     const paymentId = BigInt(req.params.id);
 
-    const payment = await prisma.payment.findUnique({
-      where: { id: paymentId },
-      include: {
-        order: {
-          include: {
-            customer: {
-              select: {
-                id: true,
-                email: true,
-                fullname: true,
-                phone: true,
-              },
-            },
-            branch: {
-              select: {
-                id: true,
-                name: true,
-                address: true,
-                phone: true,
-              },
-            },
-            orderItems: {
-              include: {
-                roomAndDevice: true,
-              },
-            },
-          },
-        },
-      },
+    const payment = await getPaymentByIdService({
+      userId,
+      role,
+      paymentId,
     });
-
-    if (!payment) {
-      res.status(404).json({
-        success: false,
-        message: "Payment tidak ditemukan",
-      });
-      return;
-    }
-
-    // Check access rights
-    if (userRole === "customer") {
-      if (payment.order.customerId !== userId) {
-        res.status(403).json({
-          success: false,
-          message: "Anda tidak memiliki akses ke payment ini",
-        });
-        return;
-      }
-    } else if (userRole === "admin") {
-      const hasAccess = await checkBranchAccess(userId, payment.order.branchId);
-      if (!hasAccess) {
-        res.status(403).json({
-          success: false,
-          message: "Anda tidak memiliki akses ke payment ini",
-        });
-        return;
-      }
-    } else if (userRole === "owner") {
-      const owner = await prisma.owner.findUnique({
-        where: { userId },
-        include: { branches: true },
-      });
-
-      const branchIds = owner?.branches.map((b) => b.id) || [];
-      if (!branchIds.includes(payment.order.branchId)) {
-        res.status(403).json({
-          success: false,
-          message: "Anda tidak memiliki akses ke payment ini",
-        });
-        return;
-      }
-    }
-
-    const serializedPayment = JSON.parse(
-      JSON.stringify(payment, (_key, value) =>
-        typeof value === "bigint" ? value.toString() : value
-      )
-    );
 
     res.status(200).json({
       success: true,
-      data: serializedPayment,
+      data: serializePayment(payment),
     });
   } catch (error) {
-    console.error("Get payment by ID error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat mengambil data payment",
-    });
+    handleError(error, res);
   }
 };
 
@@ -350,118 +124,58 @@ export const getPaymentById = async (
  */
 export const updatePayment = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const userId = BigInt(req.user!.userId);
-    const userRole = req.user!.role;
+    const role = req.user!.role;
     const paymentId = BigInt(req.params.id);
     const { status, transactionId, paidAt, metadata } = req.body;
 
-    const payment = await prisma.payment.findUnique({
-      where: { id: paymentId },
-      include: {
-        order: {
-          include: {
-            customer: {
-              select: {
-                id: true,
-                email: true,
-                fullname: true,
-                phone: true,
-              },
-            },
-            branch: {
-              select: {
-                id: true,
-                name: true,
-                address: true,
-                phone: true,
-              },
-            },
-            orderItems: {
-              include: {
-                roomAndDevice: true,
-              },
-            },
-          },
-        },
-      },
+    const payment = await updatePaymentStatusService({
+      userId,
+      role,
+      paymentId,
+      status,
+      transactionId,
+      paidAt,
+      metadata,
     });
-
-    if (!payment) {
-      res.status(404).json({
-        success: false,
-        message: "Payment tidak ditemukan",
-      });
-      return;
-    }
-
-    // Check access rights
-    if (userRole === "admin") {
-      const hasAccess = await checkBranchAccess(userId, payment.order.branchId);
-      if (!hasAccess) {
-        res.status(403).json({
-          success: false,
-          message: "Anda tidak memiliki akses ke payment ini",
-        });
-        return;
-      }
-    } else if (userRole === "owner") {
-      const owner = await prisma.owner.findUnique({
-        where: { userId },
-        include: { branches: true },
-      });
-
-      const branchIds = owner?.branches.map((b) => b.id) || [];
-      if (!branchIds.includes(payment.order.branchId)) {
-        res.status(403).json({
-          success: false,
-          message: "Anda tidak memiliki akses ke payment ini",
-        });
-        return;
-      }
-    }
-
-    // Update payment
-    const updatedPayment = await prisma.payment.update({
-      where: { id: paymentId },
-      data: {
-        ...(status && { status }),
-        ...(transactionId && { transactionId }),
-        ...(paidAt && { paidAt: new Date(paidAt) }),
-        ...(metadata && { metadata }),
-        ...(status === "paid" && !paidAt && { paidAt: new Date() }),
-      },
-    });
-
-    // If payment status is "paid", update order status and payment status
-    if (status === "paid") {
-      await prisma.order.update({
-        where: { id: payment.orderId },
-        data: {
-          status: "paid",
-          paymentStatus: "paid",
-        },
-      });
-    }
-
-    const serializedPayment = JSON.parse(
-      JSON.stringify(updatedPayment, (_key, value) =>
-        typeof value === "bigint" ? value.toString() : value
-      )
-    );
 
     res.status(200).json({
       success: true,
       message: "Payment berhasil diupdate",
-      data: serializedPayment,
+      data: serializePayment(payment),
     });
   } catch (error) {
-    console.error("Update payment error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat mengupdate payment",
+    handleError(error, res);
+  }
+};
+
+/**
+ * DELETE /payments/:id
+ * Delete payment (admin/owner only)
+ */
+export const deletePayment = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const userId = BigInt(req.user!.userId);
+    const role = req.user!.role;
+    const paymentId = BigInt(req.params.id);
+
+    await deletePaymentService({
+      userId,
+      role,
+      paymentId,
     });
+
+    res.status(200).json({
+      success: true,
+      message: "Payment berhasil dihapus",
+    });
+  } catch (error) {
+    handleError(error, res);
   }
 };

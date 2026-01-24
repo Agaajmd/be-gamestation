@@ -242,5 +242,3 @@ export async function getBookingCartService(userId: bigint) {
     totalAmount,
   }
 }
-
-// Service to calculate booking price
