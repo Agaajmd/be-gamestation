@@ -1,3 +1,4 @@
+import { OrderStatus, PaymentStatus } from "@prisma/client";
 import { prisma } from "../database";
 
 const orderInclude = {
@@ -28,7 +29,6 @@ const orderInclude = {
   },
   payment: true,
   session: true,
-  review: true,
 };
 
 export const OrderRepository = {
@@ -127,10 +127,14 @@ export const OrderRepository = {
   },
 
   // Update order status
-  updateStatus(orderId: bigint, status: string, paymentStatus: string) {
+  updateStatus(
+    orderId: bigint,
+    status: OrderStatus,
+    paymentStatus?: PaymentStatus,
+  ) {
     return prisma.order.update({
       where: { id: orderId },
-      data: { status: status as any, paymentStatus: paymentStatus as any },
+      data: { status, ...(paymentStatus && { paymentStatus }) },
       include: orderInclude,
     });
   },

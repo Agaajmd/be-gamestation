@@ -48,12 +48,18 @@ export const updateOrderStatusSchema = Joi.object({
     "string.empty": "Branch ID tidak boleh kosong",
     "any.required": "Branch ID wajib diisi",
   }),
-  status: Joi.string()
+  orderStatus: Joi.string()
     .valid("pending", "confirmed", "completed", "canceled")
     .required()
     .messages({
       "any.only": "Status tidak valid",
       "any.required": "Status wajib diisi",
+    }),
+  paymentStatus: Joi.string()
+    .valid("unpaid", "paid", "failed", "refund_pending")
+    .optional()
+    .messages({
+      "any.only": "Payment status tidak valid",
     }),
 });
 

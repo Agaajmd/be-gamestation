@@ -9,8 +9,5 @@ export const isPastTime = (bookingStart: Date, bookingDate: Date): boolean => {
 
   const isToday = bookingDate.getTime() === today.getTime();
 
-  console.log("isToday: " + isToday);
-  console.log("now: " + now);
-
   return isToday && bookingStart <= now;
 };

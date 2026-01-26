@@ -1,9 +1,9 @@
 import Joi from "joi";
 
 export const createReviewSchema = Joi.object({
-  orderId: Joi.string().required().messages({
-    "string.empty": "Order ID tidak boleh kosong",
-    "any.required": "Order ID wajib diisi",
+  branchId: Joi.string().required().messages({
+    "string.empty": "Branch ID tidak boleh kosong",
+    "any.required": "Branch ID wajib diisi",
   }),
   rating: Joi.number().integer().min(1).max(5).required().messages({
     "number.min": "Rating minimal 1",

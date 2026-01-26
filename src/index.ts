@@ -16,6 +16,8 @@ import holidayRoutes from "./route/holidayRoutes";
 import gameAvailabilityRoutes from "./route/gameAvailabilityRoutes";
 import advanceBookingPriceRoutes from "./route/advanceBookingPriceRoutes";
 import { testEmailConnection } from "./helper/emailHelper";
+import cronRoutes from "./route/cronRoutes";
+import { startCompletionCron } from "./cron/completionCron";
 
 // Middleware
 import { bigIntSerializer } from "./middleware/bigIntSerializer";
@@ -45,6 +47,8 @@ app.use("/booking", bookingRoutes);
 app.use("/holidays", holidayRoutes);
 app.use("/advance-booking-price", advanceBookingPriceRoutes);
 
+app.use("/api/cron", cronRoutes);
+
 // Health check
 app.get("/health", (_req: Request, res: Response) => {
   res.status(200).json({
@@ -68,6 +72,10 @@ app.use((_req: Request, res: Response) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
+
+  // Start cron jobs
+  console.log("⏰ Starting cron jobs...");
+  startCompletionCron();
 });
 
 export default app;

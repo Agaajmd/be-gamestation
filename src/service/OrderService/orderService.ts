@@ -12,6 +12,7 @@ import { checkBranchAccess } from "../../helper/checkBranchAccessHelper";
 import { isPastDate } from "../../helper/bookingAvailability/isPastDate";
 import { isPastTime } from "../../helper/isPastTime";
 import { createNotificationService } from "../NotificationService/notificationService";
+import { prisma } from "../../database";
 
 // Errors
 import { RoomAndDeviceUnavailableError } from "../../errors/RoomAndDeviceError/roomAndDeviceError";
@@ -27,7 +28,7 @@ import {
 import { HasNoAccessError } from "../../errors/UserError/userError";
 
 // Types
-import { PaymentStatus, UserRole } from "@prisma/client";
+import { OrderStatus, PaymentStatus, UserRole } from "@prisma/client";
 
 /**
  * Generate unique order code
@@ -130,12 +131,10 @@ export const addToCartService = async (payload: {
   } = payload;
   // Verify room and device availability
   const roomAndDevice = await RoomAndDeviceRepository.findFirst({
-    where: {
-      id: roomAndDeviceId,
-      branchId,
-      categoryId,
-      status: "available",
-    },
+    id: roomAndDeviceId,
+    branchId,
+    categoryId,
+    status: "available",
   });
 
   if (!roomAndDevice) {
@@ -381,8 +380,8 @@ export const getOrderByIdService = async (payload: {
 export const updateOrderStatusService = async (payload: {
   userId: bigint;
   orderId: bigint;
-  newStatus: string;
-  newPaymentStatus: string;
+  newStatus: OrderStatus;
+  newPaymentStatus?: PaymentStatus;
   branchId: bigint;
 }) => {
   const { userId, orderId, newStatus, newPaymentStatus, branchId } = payload;
@@ -415,23 +414,25 @@ export const updateOrderStatusService = async (payload: {
     throw new InvalidOrderStatusError();
   }
 
-  // Validate payment status transitions
-  const validPaymentTransitions: { [key: string]: string[] } = {
-    unpaid: ["pending", "failed"],
-    pending: ["paid", "failed"],
-    paid: [],
-    failed: ["pending"],
-    refund_pending: [],
-  };
+  if (newPaymentStatus) {
+    // Validate payment status transitions
+    const validPaymentTransitions: { [key: string]: string[] } = {
+      unpaid: ["pending", "failed"],
+      pending: ["paid", "failed"],
+      paid: [],
+      failed: ["pending"],
+      refund_pending: [],
+    };
 
-  if (!validPaymentTransitions[order.paymentStatus]) {
-    throw new InvalidPaymentStatusError();
-  }
+    if (!validPaymentTransitions[order.paymentStatus]) {
+      throw new InvalidPaymentStatusError();
+    }
 
-  if (
-    !validPaymentTransitions[order.paymentStatus].includes(newPaymentStatus)
-  ) {
-    throw new InvalidPaymentStatusError();
+    if (
+      !validPaymentTransitions[order.paymentStatus].includes(newPaymentStatus)
+    ) {
+      throw new InvalidPaymentStatusError();
+    }
   }
 
   const updatedOrder = await OrderRepository.updateStatus(
@@ -499,11 +500,47 @@ export const cancelOrderService = async (payload: {
     throw new InvalidPaymentStatusError();
   }
 
-  const updatedOrder = await OrderRepository.updateStatus(
-    orderId,
-    "cancelled",
-    "failed",
-  );
+  // Use transaction to ensure data consistency
+  const updatedOrder = await prisma.$transaction(async (tx) => {
+    // Update order status to cancelled
+    const cancelled = await tx.order.update({
+      where: { id: orderId },
+      data: {
+        status: "cancelled",
+        paymentStatus: "failed",
+      },
+      include: { orderItems: true },
+    });
+
+    // Return devices to available status
+    for (const item of cancelled.orderItems) {
+      // Check if there are other active orders using the same device
+      const hasOtherActiveOrder = await tx.orderItem.findFirst({
+        where: {
+          roomAndDeviceId: item.roomAndDeviceId,
+          order: {
+            status: { in: ["pending", "confirmed"] },
+            id: { not: orderId },
+            orderItems: {
+              some: {
+                bookingEnd: { gt: new Date() },
+              },
+            },
+          },
+        },
+      });
+
+      // If no other active orders, change device status to available
+      if (!hasOtherActiveOrder) {
+        await tx.roomAndDevice.update({
+          where: { id: item.roomAndDeviceId },
+          data: { status: "available" },
+        });
+      }
+    }
+
+    return cancelled;
+  });
 
   // Create notification for customer
   try {
