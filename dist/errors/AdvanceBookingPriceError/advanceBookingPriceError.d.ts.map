@@ -1,0 +1,1 @@
+{"version":3,"file":"advanceBookingPriceError.d.ts","sourceRoot":"","sources":["../../../src/errors/AdvanceBookingPriceError/advanceBookingPriceError.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,QAAQ,EAAE,MAAM,aAAa,CAAC;AAEvC,qBAAa,qCAAsC,SAAQ,QAAQ;;CAQlE;AAED,qBAAa,gCAAiC,SAAQ,QAAQ;;CAQ7D"}

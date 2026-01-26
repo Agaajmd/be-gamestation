@@ -38,6 +38,7 @@ const BranchController = __importStar(require("../controller/BranchController"))
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const ValidateMiddleware = __importStar(require("../middleware/validateMiddleware"));
 const branchValidation_1 = require("../validation/bodyValidation/branchValidation");
+const roleMiddleware_1 = require("../middleware/roleMiddleware");
 const router = (0, express_1.Router)();
 /**
  * @route   POST /branches
@@ -50,24 +51,24 @@ router.post("/", authMiddleware_1.authenticateToken, ValidateMiddleware.validate
  * @desc    Get list cabang (owner/admin/super_admin)
  * @access  Private
  */
-router.get("/", authMiddleware_1.authenticateToken, BranchController.getBranches);
+router.get("/", authMiddleware_1.authenticateToken, roleMiddleware_1.requireOwnerOrAdminStaff, BranchController.getBranches);
 /**
  * @route   GET /branches/:id
  * @desc    Get detail cabang
  * @access  Private
  */
-router.get("/:id", authMiddleware_1.authenticateToken, BranchController.getBranchById);
+router.get("/:id", authMiddleware_1.authenticateToken, roleMiddleware_1.requireOwner, BranchController.getBranchById);
 /**
  * @route   PUT /branches/:id
  * @desc    Update cabang (owner only)
  * @access  Private (Owner)
  */
-router.put("/:id", authMiddleware_1.authenticateToken, ValidateMiddleware.validateBody(branchValidation_1.updateBranchSchema), BranchController.updateBranch);
+router.put("/:id", authMiddleware_1.authenticateToken, roleMiddleware_1.requireOwner, ValidateMiddleware.validateBody(branchValidation_1.updateBranchSchema), BranchController.updateBranch);
 /**
  * @route   DELETE /branches/:id
  * @desc    Delete cabang (owner only)
  * @access  Private (Owner)
  */
-router.delete("/:id", authMiddleware_1.authenticateToken, BranchController.deleteBranch);
+router.delete("/:id", authMiddleware_1.authenticateToken, roleMiddleware_1.requireOwner, BranchController.deleteBranch);
 exports.default = router;
 //# sourceMappingURL=branchRoutes.js.map

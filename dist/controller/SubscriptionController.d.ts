@@ -18,17 +18,12 @@ export declare const getSubscriptions: (req: Request, res: Response) => Promise<
 export declare const getSubscriptionById: (req: Request, res: Response) => Promise<void>;
 /**
  * PUT /subscriptions/:id
- * Update subscription (owner only)
+ * Update subscription
  */
 export declare const updateSubscription: (req: Request, res: Response) => Promise<void>;
 /**
- * DELETE /subscriptions/:id
- * Delete subscription (owner only)
+ * PUT /subscriptions/:id/cancel
+ * Cancel subscription
  */
-export declare const deleteSubscription: (req: Request, res: Response) => Promise<void>;
-/**
- * GET /subscriptions/active
- * Get active subscription for owner
- */
-export declare const getActiveSubscription: (req: Request, res: Response) => Promise<void>;
+export declare const cancelSubscription: (req: Request, res: Response) => Promise<void>;
 //# sourceMappingURL=SubscriptionController.d.ts.map

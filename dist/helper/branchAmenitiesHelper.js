@@ -1,10 +1,7 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FACILITIES_OPTIONS = exports.getAmenitiesSummary = exports.updateBranchFacilities = exports.updateBranchAmenities = void 0;
-const prisma_1 = __importDefault(require("../lib/prisma"));
+const database_1 = require("../database");
 /**
  * Auto-generate amenities untuk branch berdasarkan:
  * - Device types & versions yang tersedia
@@ -18,12 +15,12 @@ const prisma_1 = __importDefault(require("../lib/prisma"));
 const updateBranchAmenities = async (branchId, preserveFacilities = true) => {
     try {
         // Get current branch data
-        const branch = await prisma_1.default.branch.findUnique({
+        const branch = await database_1.prisma.branch.findUnique({
             where: { id: branchId },
             select: { amenities: true },
         });
         // Get all active devices
-        const roomAndDevices = await prisma_1.default.roomAndDevice.findMany({
+        const roomAndDevices = await database_1.prisma.roomAndDevice.findMany({
             where: { branchId, status: "available" },
             select: {
                 deviceType: true,
@@ -31,7 +28,7 @@ const updateBranchAmenities = async (branchId, preserveFacilities = true) => {
             },
         });
         // Get all active device categories
-        const categories = await prisma_1.default.category.findMany({
+        const categories = await database_1.prisma.category.findMany({
             where: { branchId },
             select: {
                 name: true,
@@ -80,7 +77,7 @@ const updateBranchAmenities = async (branchId, preserveFacilities = true) => {
             lastUpdated: new Date().toISOString(),
         };
         // Update branch amenities
-        await prisma_1.default.branch.update({
+        await database_1.prisma.branch.update({
             where: { id: branchId },
             data: { amenities: amenities },
         });
@@ -104,7 +101,7 @@ exports.updateBranchAmenities = updateBranchAmenities;
 const updateBranchFacilities = async (branchId, facilities) => {
     try {
         // Get current amenities
-        const branch = await prisma_1.default.branch.findUnique({
+        const branch = await database_1.prisma.branch.findUnique({
             where: { id: branchId },
             select: { amenities: true },
         });
@@ -130,7 +127,7 @@ const updateBranchFacilities = async (branchId, facilities) => {
             lastUpdated: new Date().toISOString(),
         };
         // Update branch
-        await prisma_1.default.branch.update({
+        await database_1.prisma.branch.update({
             where: { id: branchId },
             data: { amenities: updatedAmenities },
         });

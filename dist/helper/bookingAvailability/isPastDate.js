@@ -6,8 +6,9 @@ exports.isPastDate = void 0;
  */
 const isPastDate = (date) => {
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return date < today;
+    const todayStr = today.toISOString().split('T')[0];
+    const dateStr = date.toISOString().split('T')[0];
+    return dateStr < todayStr;
 };
 exports.isPastDate = isPastDate;
 //# sourceMappingURL=isPastDate.js.map

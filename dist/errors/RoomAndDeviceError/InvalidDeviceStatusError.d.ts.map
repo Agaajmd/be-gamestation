@@ -1,0 +1,1 @@
+{"version":3,"file":"InvalidDeviceStatusError.d.ts","sourceRoot":"","sources":["../../../src/errors/RoomAndDeviceError/InvalidDeviceStatusError.ts"],"names":[],"mappings":"AAAA,qBAAa,wBAAyB,SAAQ,KAAK;gBACrC,OAAO,GAAE,MAAoC;CAI1D"}

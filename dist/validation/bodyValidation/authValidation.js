@@ -13,8 +13,9 @@ exports.registerSchema = joi_1.default.object({
         "string.email": "Format email tidak valid",
         "any.required": "Email wajib diisi",
     }),
-    password: joi_1.default.string().min(6).optional().messages({
-        "string.min": "Password minimal 6 karakter",
+    password: joi_1.default.string().min(8).required().messages({
+        "string.min": "Password minimal 8 karakter",
+        "any.required": "Password wajib diisi",
     }),
     fullname: joi_1.default.string().min(3).max(100).required().messages({
         "string.min": "Nama lengkap minimal 3 karakter",
@@ -26,6 +27,7 @@ exports.registerSchema = joi_1.default.object({
         .required()
         .messages({
         "string.pattern.base": "Format nomor telepon tidak valid",
+        "any.required": "Nomor telepon wajib diisi",
     }),
 });
 /**

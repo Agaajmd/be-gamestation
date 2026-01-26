@@ -1,0 +1,1 @@
+{"version":3,"file":"branchError.js","sourceRoot":"","sources":["../../../src/errors/BranchError/branchError.ts"],"names":[],"mappings":";;;AAAA,0CAAuC;AAEvC,MAAa,mBAAoB,SAAQ,mBAAQ;IAC/C;QACE,KAAK,CAAC,wBAAwB,EAAE,GAAG,EAAE,kBAAkB,CAAC,CAAC;IAC3D,CAAC;CACF;AAJD,kDAIC"}

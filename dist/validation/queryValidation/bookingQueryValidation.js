@@ -56,10 +56,6 @@ exports.getAvailableTimesSchema = joi_1.default.object({
  * Query params: branchId, month
  */
 exports.getAvailableDatesSchema = joi_1.default.object({
-    branchId: joi_1.default.string().required().messages({
-        "any.required": "Branch ID wajib diisi",
-        "string.base": "Branch ID harus berupa string",
-    }),
     month: joi_1.default.string()
         .pattern(/^\d{4}-(0[1-9]|1[0-2])$/)
         .required()

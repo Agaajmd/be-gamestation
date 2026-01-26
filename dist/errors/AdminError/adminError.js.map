@@ -1,0 +1,1 @@
+{"version":3,"file":"adminError.js","sourceRoot":"","sources":["../../../src/errors/AdminError/adminError.ts"],"names":[],"mappings":";;;AAAA,0CAAuC;AAEvC,MAAa,kBAAmB,SAAQ,mBAAQ;IAC9C;QACE,KAAK,CACH,yCAAyC,EACzC,GAAG,EACH,sBAAsB,CACvB,CAAC;IACJ,CAAC;CACF;AARD,gDAQC;AAED,MAAa,kBAAmB,SAAQ,mBAAQ;IAC9C;QACE,KAAK,CAAC,uBAAuB,EAAE,GAAG,EAAE,iBAAiB,CAAC,CAAC;IACzD,CAAC;CACF;AAJD,gDAIC"}

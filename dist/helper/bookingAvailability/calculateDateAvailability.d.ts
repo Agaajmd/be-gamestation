@@ -4,10 +4,10 @@
 export declare const calculateDateAvailability: (currentDate: Date, devices: Array<{
     id: bigint;
 }>, orders: Array<{
-    bookingStart: Date;
-    bookingEnd: Date;
     orderItems: Array<{
         roomAndDeviceId: bigint;
+        bookingStart: Date;
+        bookingEnd: Date;
     }>;
 }>, exceptions: Array<{
     roomAndDeviceId: bigint;

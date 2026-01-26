@@ -11,12 +11,12 @@ exports.createGameSchema = joi_1.default.object({
         "string.max": "Nama game maksimal 100 karakter",
         "any.required": "Nama game wajib diisi",
     }),
-    platform: joi_1.default.string()
-        .valid("ps", "pc", "pcvr", "racing")
+    deviceType: joi_1.default.string()
+        .valid("ps", "pc", "vr", "racing", "arcade")
         .required()
         .messages({
-        "any.only": "Platform harus salah satu dari: ps, pc, pcvr, racing",
-        "any.required": "Platform wajib diisi",
+        "any.only": "DeviceType harus salah satu dari: ps, pc, vr, racing, arcade",
+        "any.required": "DeviceType wajib diisi",
     }),
 });
 exports.updateGameSchema = joi_1.default.object({
@@ -24,11 +24,11 @@ exports.updateGameSchema = joi_1.default.object({
         "string.min": "Nama game minimal 1 karakter",
         "string.max": "Nama game maksimal 100 karakter",
     }),
-    platform: joi_1.default.string()
+    deviceType: joi_1.default.string()
         .valid("ps", "pc", "pcvr", "racing")
         .optional()
         .messages({
-        "any.only": "Platform harus salah satu dari: ps, pc, pcvr, racing",
+        "any.only": "DeviceType harus salah satu dari: ps, pc, pcvr, racing",
     }),
 });
 //# sourceMappingURL=gameValidation.js.map

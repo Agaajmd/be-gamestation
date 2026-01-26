@@ -23,7 +23,7 @@ export declare const getNotificationById: (req: Request, res: Response) => Promi
 export declare const updateNotificationStatus: (req: Request, res: Response) => Promise<void>;
 /**
  * DELETE /notifications/:id
- * Delete notification (admin/owner only)
+ * Delete notification
  */
 export declare const deleteNotification: (req: Request, res: Response) => Promise<void>;
 //# sourceMappingURL=NotificationController.d.ts.map

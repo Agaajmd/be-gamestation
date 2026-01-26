@@ -5,5 +5,5 @@ export declare const isDateClosed: (currentDate: Date, openHour: number, closeHo
     roomAndDeviceId: bigint;
     startAt: Date;
     endAt: Date;
-}>, totalDevices: number) => boolean;
+}>, holidayDates: Set<string>, totalDevices: number) => boolean;
 //# sourceMappingURL=isDateClosed.d.ts.map

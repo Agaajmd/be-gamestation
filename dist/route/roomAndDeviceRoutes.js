@@ -64,10 +64,10 @@ router.post("/:id/rooms-and-devices", authMiddleware_1.authenticateToken, Valida
  */
 router.put("/:branchId/rooms-and-devices/:roomAndDeviceId", authMiddleware_1.authenticateToken, ValidateMiddleware.validateBody(roomAndDeviceValidation_1.updateRoomAndDeviceSchema), DeviceController.updateRoomAndDevice);
 /**
- * @route  DELETE /branches/:branchId/rooms-and-devices/:deviceId
+ * @route  DELETE /branches/:branchId/rooms-and-devices/:roomAndDeviceId
  * @desc   Owner/staff menghapus device
  * @access Private (Owner/Admin)
  */
-router.delete("/:branchId/rooms-and-devices/:deviceId", authMiddleware_1.authenticateToken, DeviceController.deleteRoomAndDevice);
+router.delete("/:branchId/rooms-and-devices/:roomAndDeviceId", authMiddleware_1.authenticateToken, DeviceController.deleteRoomAndDevice);
 exports.default = router;
 //# sourceMappingURL=roomAndDeviceRoutes.js.map

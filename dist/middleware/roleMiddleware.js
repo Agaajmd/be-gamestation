@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.requireCustomer = exports.requireOwnerOrAdmin = exports.requireAdmin = exports.requireOwner = void 0;
+exports.requireCustomer = exports.requireOwnerOrAdminStaff = exports.requireOwnerOrAdmin = exports.requireAdmin = exports.requireOwner = void 0;
 /**
  * Middleware untuk memastikan user adalah Owner
  * Mengharapkan req.user sudah di-set oleh authenticateToken middleware
@@ -56,7 +56,9 @@ const requireOwnerOrAdmin = (req, res, next) => {
         });
         return;
     }
-    if (req.user.role !== "owner" && req.user.role !== "admin") {
+    const isOwner = req.user.role === "owner";
+    const isAdminManager = req.user.role === "admin" && req.user.adminRole === "manager";
+    if (!isOwner && !isAdminManager) {
         res.status(403).json({
             success: false,
             message: "Akses ditolak. Hanya owner atau admin yang dapat mengakses",
@@ -66,6 +68,26 @@ const requireOwnerOrAdmin = (req, res, next) => {
     next();
 };
 exports.requireOwnerOrAdmin = requireOwnerOrAdmin;
+const requireOwnerOrAdminStaff = (req, res, next) => {
+    if (!req.user) {
+        res.status(401).json({
+            success: false,
+            message: "Unauthorized",
+        });
+        return;
+    }
+    const isOwner = req.user.role === "owner";
+    const isAdmin = req.user.role === "admin";
+    if (!isOwner && !isAdmin) {
+        res.status(403).json({
+            success: false,
+            message: "Akses ditolak. Hanya owner atau admin yang dapat mengakses",
+        });
+        return;
+    }
+    next();
+};
+exports.requireOwnerOrAdminStaff = requireOwnerOrAdminStaff;
 /**
  * Middleware untuk memastikan user adalah Customer
  * Mengharapkan req.user sudah di-set oleh authenticateToken middleware

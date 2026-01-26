@@ -1,683 +1,170 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cancelOrder = exports.updatePaymentStatus = exports.updateOrderStatus = exports.getOrderById = exports.getOrders = exports.createOrder = void 0;
-const checkBranchAccessHelper_1 = require("../helper/checkBranchAccessHelper");
-const prisma_1 = __importDefault(require("../lib/prisma"));
-/**
- * Generate unique order code
- */
-const generateOrderCode = () => {
-    const timestamp = Date.now().toString(36);
-    const random = Math.random().toString(36).substring(2, 7);
-    return `ORD-${timestamp}-${random}`.toUpperCase();
-};
+exports.cancelOrder = exports.updateOrderStatus = exports.getOrderById = exports.getOrders = exports.checkoutOrder = exports.addToCart = void 0;
+const responseHelper_1 = require("../helper/responseHelper");
+const orderService_1 = require("../service/OrderService/orderService");
 /**
  * POST /orders
- * Create new order (customer only)
+ * Add to cart - Create new order with cart status (customer only)
  */
-const createOrder = async (req, res) => {
+const addToCart = async (req, res) => {
     try {
         const userId = BigInt(req.user.userId);
-        const { branchId, deviceId, categoryId, gameId, bookingStart, bookingEnd, paymentMethod, notes, } = req.body;
-        const branchIdBigInt = BigInt(branchId);
-        const deviceIdBigInt = BigInt(deviceId);
-        const categoryIdBigInt = categoryId ? BigInt(categoryId) : null;
-        const gameIdBigInt = gameId ? BigInt(gameId) : null;
-        // Verify branch exists
-        const branch = await prisma_1.default.branch.findUnique({
-            where: { id: branchIdBigInt },
+        const { branchId, bookingDate, startTime, durationMinutes, categoryId, roomAndDeviceId, notes, } = req.body;
+        const order = await (0, orderService_1.addToCartService)({
+            userId,
+            branchId: BigInt(branchId),
+            bookingDate,
+            startTime,
+            durationMinutes: parseInt(durationMinutes),
+            categoryId: BigInt(categoryId),
+            roomAndDeviceId: BigInt(roomAndDeviceId),
+            notes,
         });
-        if (!branch) {
-            res.status(404).json({
-                success: false,
-                message: "Branch tidak ditemukan",
-            });
-            return;
-        }
-        // Verify device
-        const device = await prisma_1.default.roomAndDevice.findFirst({
-            where: {
-                id: deviceIdBigInt,
-                branchId: branchIdBigInt,
-                status: "available",
-            },
-            include: {
-                category: true,
-            },
-        });
-        if (!device) {
-            res.status(400).json({
-                success: false,
-                message: "Device tidak ditemukan atau tidak aktif",
-            });
-            return;
-        }
-        // Verify category if provided
-        let category = null;
-        if (categoryIdBigInt) {
-            category = await prisma_1.default.category.findFirst({
-                where: {
-                    id: categoryIdBigInt,
-                    branchId: branchIdBigInt,
-                },
-            });
-            if (!category) {
-                res.status(400).json({
-                    success: false,
-                    message: "Kategori tidak ditemukan atau tidak aktif",
-                });
-                return;
-            }
-        }
-        // Check device availability (no overlapping bookings)
-        const overlappingOrder = await prisma_1.default.orderItem.findFirst({
-            where: {
-                roomAndDeviceId: deviceIdBigInt,
-                order: {
-                    branchId: branchIdBigInt,
-                    status: {
-                        in: ["pending", "paid", "checked_in"],
-                    },
-                    OR: [
-                        {
-                            AND: [
-                                { bookingStart: { lte: new Date(bookingStart) } },
-                                { bookingEnd: { gt: new Date(bookingStart) } },
-                            ],
-                        },
-                        {
-                            AND: [
-                                { bookingStart: { lt: new Date(bookingEnd) } },
-                                { bookingEnd: { gte: new Date(bookingEnd) } },
-                            ],
-                        },
-                        {
-                            AND: [
-                                { bookingStart: { gte: new Date(bookingStart) } },
-                                { bookingEnd: { lte: new Date(bookingEnd) } },
-                            ],
-                        },
-                    ],
-                },
-            },
-        });
-        if (overlappingOrder) {
-            res.status(400).json({
-                success: false,
-                message: "Device sudah dibooking pada waktu tersebut",
-            });
-            return;
-        }
-        // Verify game if provided
-        if (gameIdBigInt) {
-            const game = await prisma_1.default.game.findUnique({
-                where: { id: gameIdBigInt },
-            });
-            if (!game) {
-                res.status(400).json({
-                    success: false,
-                    message: "Game tidak ditemukan",
-                });
-                return;
-            }
-        }
-        // Calculate duration and pricing
-        const startTime = new Date(bookingStart);
-        const endTime = new Date(bookingEnd);
-        const durationMs = endTime.getTime() - startTime.getTime();
-        const durationMinutes = Math.floor(durationMs / (1000 * 60));
-        const hours = durationMinutes / 60;
-        // Base amount from device price
-        const pricePerHour = Number(device.pricePerHour);
-        const baseAmount = pricePerHour * hours;
-        // Category fee (if category has different price than device)
-        let categoryFee = 0;
-        if (category && Number(category.pricePerHour) > pricePerHour) {
-            categoryFee = (Number(category.pricePerHour) - pricePerHour) * hours;
-        }
-        // Advance booking fee
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const bookingDate = new Date(bookingStart);
-        bookingDate.setHours(0, 0, 0, 0);
-        const daysFromToday = Math.floor((bookingDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        let advanceBookingFee = 0;
-        if (daysFromToday > 0) {
-            const advancePrice = await prisma_1.default.advanceBookingPrice.findFirst({
-                where: {
-                    branchId: branchIdBigInt,
-                    daysInAdvance: {
-                        lte: daysFromToday,
-                    },
-                },
-                orderBy: {
-                    daysInAdvance: "desc",
-                },
-            });
-            if (advancePrice) {
-                advanceBookingFee = Number(advancePrice.additionalFee) * hours;
-            }
-        }
-        const totalAmount = baseAmount + categoryFee + advanceBookingFee;
-        // Create order with order items
-        const orderCode = generateOrderCode();
-        const order = await prisma_1.default.order.create({
-            data: {
-                orderCode,
-                customerId: userId,
-                branchId: branchIdBigInt,
-                status: "pending",
-                baseAmount,
-                categoryFee,
-                advanceBookingFee,
-                totalAmount,
-                bookingStart: new Date(bookingStart),
-                bookingEnd: new Date(bookingEnd),
-                paymentMethod,
-                paymentStatus: "unpaid",
-                notes,
-                orderItems: {
-                    create: {
-                        roomAndDeviceId: deviceIdBigInt,
-                        gameId: gameIdBigInt,
-                        durationMinutes,
-                        price: totalAmount,
-                    },
-                },
-            },
-            include: {
-                orderItems: {
-                    include: {
-                        roomAndDevice: {
-                            include: {
-                                category: true,
-                            },
-                        },
-                        game: true,
-                    },
-                },
-                branch: {
-                    select: {
-                        id: true,
-                        name: true,
-                        address: true,
-                        phone: true,
-                    },
-                },
-            },
-        });
-        const serializedOrder = JSON.parse(JSON.stringify(order, (_key, value) => typeof value === "bigint" ? value.toString() : value));
         res.status(201).json({
             success: true,
-            message: "Order berhasil dibuat",
-            data: serializedOrder,
+            message: "Item berhasil ditambahkan ke keranjang",
+            data: order,
         });
     }
     catch (error) {
-        console.error("Create order error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Terjadi kesalahan saat membuat order",
-        });
+        (0, responseHelper_1.handleError)(error, res);
     }
 };
-exports.createOrder = createOrder;
+exports.addToCart = addToCart;
+/**
+ * PUT /orders/:id/checkout
+ * Checkout order - Convert cart to pending (customer only)
+ */
+const checkoutOrder = async (req, res) => {
+    try {
+        const userId = BigInt(req.user.userId);
+        const orderId = BigInt(req.params.id);
+        const { paymentMethod } = req.body;
+        const order = await (0, orderService_1.checkoutOrderService)({
+            userId,
+            orderId,
+            paymentMethod,
+        });
+        res.status(200).json({
+            success: true,
+            message: "Order berhasil di-checkout",
+            data: order,
+        });
+    }
+    catch (error) {
+        (0, responseHelper_1.handleError)(error, res);
+    }
+};
+exports.checkoutOrder = checkoutOrder;
 /**
  * GET /orders
- * Get orders list
- * - Customer: see own orders
- * - Admin: see orders in their branch
- * - Owner: see all orders in their branches
+ * Get orders - Role-based filtering
  */
 const getOrders = async (req, res) => {
     try {
         const userId = BigInt(req.user.userId);
-        const userRole = req.user.role;
-        const { status, branchId } = req.query;
-        let orders;
-        if (userRole === "customer") {
-            // Customer sees their own orders
-            orders = await prisma_1.default.order.findMany({
-                where: {
-                    customerId: userId,
-                    ...(status && { status: status }),
-                    ...(branchId && { branchId: BigInt(branchId) }),
-                },
-                include: {
-                    branch: {
-                        select: {
-                            id: true,
-                            name: true,
-                            address: true,
-                            phone: true,
-                        },
-                    },
-                    orderItems: {
-                        include: {
-                            roomAndDevice: true,
-                            game: true,
-                        },
-                    },
-                    payment: true,
-                    session: true,
-                    review: true,
-                },
-                orderBy: {
-                    createdAt: "desc",
-                },
-            });
-        }
-        else if (userRole === "admin") {
-            // Admin sees orders in their branch
-            const admin = await prisma_1.default.admin.findUnique({
-                where: { userId },
-            });
-            if (!admin) {
-                res.status(403).json({
-                    success: false,
-                    message: "Admin profile tidak ditemukan",
-                });
-                return;
-            }
-            orders = await prisma_1.default.order.findMany({
-                where: {
-                    branchId: admin.branchId,
-                    ...(status && { status: status }),
-                },
-                include: {
-                    customer: {
-                        select: {
-                            id: true,
-                            email: true,
-                            fullname: true,
-                            phone: true,
-                        },
-                    },
-                    branch: {
-                        select: {
-                            id: true,
-                            name: true,
-                        },
-                    },
-                    orderItems: {
-                        include: {
-                            roomAndDevice: true,
-                            game: true,
-                        },
-                    },
-                    payment: true,
-                    session: true,
-                    review: true,
-                },
-                orderBy: {
-                    createdAt: "desc",
-                },
-            });
-        }
-        else {
-            // Owner sees all orders in their branches
-            const owner = await prisma_1.default.owner.findUnique({
-                where: { userId },
-                include: { branches: true },
-            });
-            if (!owner) {
-                res.status(403).json({
-                    success: false,
-                    message: "Owner profile tidak ditemukan",
-                });
-                return;
-            }
-            const branchIds = owner.branches.map((b) => b.id);
-            orders = await prisma_1.default.order.findMany({
-                where: {
-                    branchId: { in: branchIds },
-                    ...(status && { status: status }),
-                    ...(branchId && { branchId: BigInt(branchId) }),
-                },
-                include: {
-                    customer: {
-                        select: {
-                            id: true,
-                            email: true,
-                            fullname: true,
-                            phone: true,
-                        },
-                    },
-                    branch: {
-                        select: {
-                            id: true,
-                            name: true,
-                            address: true,
-                        },
-                    },
-                    orderItems: {
-                        include: {
-                            roomAndDevice: true,
-                            game: true,
-                        },
-                    },
-                    payment: true,
-                    session: true,
-                    review: true,
-                },
-                orderBy: {
-                    createdAt: "desc",
-                },
-            });
-        }
-        const serializedOrders = JSON.parse(JSON.stringify(orders, (_key, value) => typeof value === "bigint" ? value.toString() : value));
+        const role = req.user.role;
+        const { branchId, status, skip, take } = req.query;
+        const { orders, total } = await (0, orderService_1.getOrdersService)({
+            userId,
+            role,
+            branchId: branchId ? BigInt(String(branchId)) : undefined,
+            status: String(status) || undefined,
+            skip: skip ? parseInt(String(skip)) : 0,
+            take: take ? parseInt(String(take)) : 10,
+        });
         res.status(200).json({
             success: true,
-            data: serializedOrders,
+            data: orders,
+            meta: {
+                total,
+                skip,
+                take,
+            },
         });
     }
     catch (error) {
-        console.error("Get orders error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Terjadi kesalahan saat mengambil data order",
-        });
+        (0, responseHelper_1.handleError)(error, res);
     }
 };
 exports.getOrders = getOrders;
 /**
  * GET /orders/:id
- * Get order by ID
+ * Get order by ID - Role-based access control
  */
 const getOrderById = async (req, res) => {
     try {
         const userId = BigInt(req.user.userId);
-        const userRole = req.user.role;
         const orderId = BigInt(req.params.id);
-        const order = await prisma_1.default.order.findUnique({
-            where: { id: orderId },
-            include: {
-                customer: {
-                    select: {
-                        id: true,
-                        email: true,
-                        fullname: true,
-                        phone: true,
-                    },
-                },
-                branch: {
-                    select: {
-                        id: true,
-                        name: true,
-                        address: true,
-                        phone: true,
-                        openTime: true,
-                        closeTime: true,
-                    },
-                },
-                orderItems: {
-                    include: {
-                        roomAndDevice: true,
-                        game: true,
-                    },
-                },
-                payment: true,
-                session: true,
-                review: true,
-            },
+        const role = req.user.role;
+        const { branchId } = req.query;
+        const order = await (0, orderService_1.getOrderByIdService)({
+            userId,
+            orderId,
+            role,
+            branchId: branchId ? BigInt(String(branchId)) : undefined,
         });
-        if (!order) {
-            res.status(404).json({
-                success: false,
-                message: "Order tidak ditemukan",
-            });
-            return;
-        }
-        // Check access rights
-        if (userRole === "customer") {
-            if (order.customerId !== userId) {
-                res.status(403).json({
-                    success: false,
-                    message: "Anda tidak memiliki akses ke order ini",
-                });
-                return;
-            }
-        }
-        else if (userRole === "admin") {
-            const hasAccess = await (0, checkBranchAccessHelper_1.checkBranchAccess)(userId, order.branchId);
-            if (!hasAccess) {
-                res.status(403).json({
-                    success: false,
-                    message: "Anda tidak memiliki akses ke order ini",
-                });
-                return;
-            }
-        }
-        else if (userRole === "owner") {
-            const owner = await prisma_1.default.owner.findUnique({
-                where: { userId },
-                include: { branches: true },
-            });
-            const branchIds = owner?.branches.map((b) => b.id) || [];
-            if (!branchIds.includes(order.branchId)) {
-                res.status(403).json({
-                    success: false,
-                    message: "Anda tidak memiliki akses ke order ini",
-                });
-                return;
-            }
-        }
-        const serializedOrder = JSON.parse(JSON.stringify(order, (_key, value) => typeof value === "bigint" ? value.toString() : value));
         res.status(200).json({
             success: true,
-            data: serializedOrder,
+            data: order,
         });
     }
     catch (error) {
-        console.error("Get order by ID error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Terjadi kesalahan saat mengambil data order",
-        });
+        (0, responseHelper_1.handleError)(error, res);
     }
 };
 exports.getOrderById = getOrderById;
 /**
- * PUT /orders/:id/status
- * Update order status (admin/owner only)
+ * PATCH /orders/:id/status
+ * Update order status - Admin/owner only with proper status transitions
  */
 const updateOrderStatus = async (req, res) => {
     try {
         const userId = BigInt(req.user.userId);
-        const userRole = req.user.role;
         const orderId = BigInt(req.params.id);
-        const { status } = req.body;
-        const order = await prisma_1.default.order.findUnique({
-            where: { id: orderId },
+        const { branchId, orderStatus, paymentStatus } = req.body;
+        const order = await (0, orderService_1.updateOrderStatusService)({
+            userId,
+            orderId,
+            newStatus: orderStatus,
+            newPaymentStatus: paymentStatus,
+            branchId: BigInt(branchId),
         });
-        if (!order) {
-            res.status(404).json({
-                success: false,
-                message: "Order tidak ditemukan",
-            });
-            return;
-        }
-        // Check access rights
-        if (userRole === "admin") {
-            const hasAccess = await (0, checkBranchAccessHelper_1.checkBranchAccess)(userId, order.branchId);
-            if (!hasAccess) {
-                res.status(403).json({
-                    success: false,
-                    message: "Anda tidak memiliki akses ke order ini",
-                });
-                return;
-            }
-        }
-        else if (userRole === "owner") {
-            const owner = await prisma_1.default.owner.findUnique({
-                where: { userId },
-                include: { branches: true },
-            });
-            const branchIds = owner?.branches.map((b) => b.id) || [];
-            if (!branchIds.includes(order.branchId)) {
-                res.status(403).json({
-                    success: false,
-                    message: "Anda tidak memiliki akses ke order ini",
-                });
-                return;
-            }
-        }
-        const updatedOrder = await prisma_1.default.order.update({
-            where: { id: orderId },
-            data: { status },
-            include: {
-                orderItems: {
-                    include: {
-                        roomAndDevice: true,
-                        game: true,
-                    },
-                },
-            },
-        });
-        const serializedOrder = JSON.parse(JSON.stringify(updatedOrder, (_key, value) => typeof value === "bigint" ? value.toString() : value));
         res.status(200).json({
             success: true,
-            message: "Status order berhasil diupdate",
-            data: serializedOrder,
+            message: "Status order berhasil diubah",
+            data: order,
         });
     }
     catch (error) {
-        console.error("Update order status error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Terjadi kesalahan saat mengupdate status order",
-        });
+        (0, responseHelper_1.handleError)(error, res);
     }
 };
 exports.updateOrderStatus = updateOrderStatus;
 /**
- * PUT /orders/:id/payment-status
- * Update payment status (admin/owner only)
- */
-const updatePaymentStatus = async (req, res) => {
-    try {
-        const userId = BigInt(req.user.userId);
-        const userRole = req.user.role;
-        const orderId = BigInt(req.params.id);
-        const { paymentStatus } = req.body;
-        const order = await prisma_1.default.order.findUnique({
-            where: { id: orderId },
-        });
-        if (!order) {
-            res.status(404).json({
-                success: false,
-                message: "Order tidak ditemukan",
-            });
-            return;
-        }
-        // Check access rights
-        if (userRole === "admin") {
-            const hasAccess = await (0, checkBranchAccessHelper_1.checkBranchAccess)(userId, order.branchId);
-            if (!hasAccess) {
-                res.status(403).json({
-                    success: false,
-                    message: "Anda tidak memiliki akses ke order ini",
-                });
-                return;
-            }
-        }
-        else if (userRole === "owner") {
-            const owner = await prisma_1.default.owner.findUnique({
-                where: { userId },
-                include: { branches: true },
-            });
-            const branchIds = owner?.branches.map((b) => b.id) || [];
-            if (!branchIds.includes(order.branchId)) {
-                res.status(403).json({
-                    success: false,
-                    message: "Anda tidak memiliki akses ke order ini",
-                });
-                return;
-            }
-        }
-        // Update order payment status
-        const updatedOrder = await prisma_1.default.order.update({
-            where: { id: orderId },
-            data: { paymentStatus },
-        });
-        // If payment status is "paid", also update order status to "paid"
-        if (paymentStatus === "paid") {
-            await prisma_1.default.order.update({
-                where: { id: orderId },
-                data: { status: "paid" },
-            });
-        }
-        const serializedOrder = JSON.parse(JSON.stringify(updatedOrder, (_key, value) => typeof value === "bigint" ? value.toString() : value));
-        res.status(200).json({
-            success: true,
-            message: "Status pembayaran berhasil diupdate",
-            data: serializedOrder,
-        });
-    }
-    catch (error) {
-        console.error("Update payment status error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Terjadi kesalahan saat mengupdate status pembayaran",
-        });
-    }
-};
-exports.updatePaymentStatus = updatePaymentStatus;
-/**
  * DELETE /orders/:id
- * Cancel order (customer can cancel their own pending orders)
+ * Cancel order - Admin/owner only, only if payment is invalid
  */
 const cancelOrder = async (req, res) => {
     try {
         const userId = BigInt(req.user.userId);
-        const userRole = req.user.role;
         const orderId = BigInt(req.params.id);
-        const order = await prisma_1.default.order.findUnique({
-            where: { id: orderId },
-        });
-        if (!order) {
-            res.status(404).json({
-                success: false,
-                message: "Order tidak ditemukan",
-            });
-            return;
-        }
-        // Customer can only cancel their own orders
-        if (userRole === "customer" && order.customerId !== userId) {
-            res.status(403).json({
-                success: false,
-                message: "Anda tidak memiliki akses ke order ini",
-            });
-            return;
-        }
-        // Can only cancel pending or unpaid orders
-        if (!["pending"].includes(order.status) ||
-            order.paymentStatus !== "unpaid") {
-            res.status(400).json({
-                success: false,
-                message: "Order yang sudah dibayar atau diproses tidak dapat dibatalkan",
-            });
-            return;
-        }
-        // Update order status to cancelled
-        await prisma_1.default.order.update({
-            where: { id: orderId },
-            data: { status: "cancelled" },
+        const { branchId, reason } = req.body;
+        const order = await (0, orderService_1.cancelOrderService)({
+            userId,
+            orderId,
+            branchId: BigInt(branchId),
+            reason,
         });
         res.status(200).json({
             success: true,
             message: "Order berhasil dibatalkan",
+            data: order,
         });
     }
     catch (error) {
-        console.error("Cancel order error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Terjadi kesalahan saat membatalkan order",
-        });
+        (0, responseHelper_1.handleError)(error, res);
     }
 };
 exports.cancelOrder = cancelOrder;

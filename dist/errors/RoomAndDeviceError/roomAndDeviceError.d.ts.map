@@ -1,0 +1,1 @@
+{"version":3,"file":"roomAndDeviceError.d.ts","sourceRoot":"","sources":["../../../src/errors/RoomAndDeviceError/roomAndDeviceError.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,QAAQ,EAAE,MAAM,aAAa,CAAC;AAEvC,qBAAa,0BAA2B,SAAQ,QAAQ;;CAQvD;AAED,qBAAa,6BAA8B,SAAQ,QAAQ;;CAQ1D;AAED,qBAAa,2BAA4B,SAAQ,QAAQ;;CAIxD;AAED,qBAAa,2BAA4B,SAAQ,QAAQ;;CAQxD;AAED,qBAAa,wBAAyB,SAAQ,QAAQ;;CAQrD"}

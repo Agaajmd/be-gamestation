@@ -1,26 +1,19 @@
-export interface JWTPayload {
+import { UserRole } from "@prisma/client";
+export interface TokenPayload {
     userId: string;
     email: string;
-    role: string;
+    role: UserRole;
+    adminRole?: string;
 }
-/**
- * Helper untuk decode JWT token dan ambil payload
- */
-export declare const decodeToken: (token: string) => JWTPayload | null;
-/**
- * Helper untuk ambil token dari Authorization header
- */
-export declare const extractTokenFromHeader: (authHeader: string | undefined) => string | null;
-/**
- * Helper untuk ambil role dari token
- */
-export declare const getRoleFromToken: (token: string) => string | null;
-/**
- * Helper untuk ambil userId dari token
- */
-export declare const getUserIdFromToken: (token: string) => string | null;
-/**
- * Helper untuk ambil email dari token
- */
-export declare const getEmailFromToken: (token: string) => string | null;
+export type JWTPayload = TokenPayload;
+export declare const generateToken: {
+    accessToken(userId: bigint, email: string, role: UserRole, adminRole?: string): string;
+    refreshToken(userId: bigint, email: string, role: UserRole, adminRole?: string): string;
+};
+export declare const verifyToken: {
+    accessToken(token: string): TokenPayload;
+    refreshToken(token: string): TokenPayload;
+};
+export declare function extractTokenFromHeader(authHeader: string | undefined): string | null;
+export declare function decodeToken(token: string): TokenPayload | null;
 //# sourceMappingURL=jwtHelper.d.ts.map

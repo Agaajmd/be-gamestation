@@ -1,0 +1,1 @@
+{"version":3,"file":"ownerRepository.js","sourceRoot":"","sources":["../../src/repository/ownerRepository.ts"],"names":[],"mappings":";;;AAAA,0CAAkC;AAErB,QAAA,eAAe,GAAG;IAC7B,mBAAmB;IACnB,YAAY,CAAC,MAAc;QACzB,OAAO,iBAAM,CAAC,KAAK,CAAC,UAAU,CAAC,EAAC,KAAK,EAAE,EAAC,MAAM,EAAC,EAAC,CAAC,CAAA;IACnD,CAAC;CACF,CAAA"}

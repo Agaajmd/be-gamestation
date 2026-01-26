@@ -1,19 +1,19 @@
 import { Request, Response } from "express";
 /**
  * POST /auth/register
- * Register user baru dengan email dan password
+ * Register new user (customer role only)
  */
 export declare const register: (req: Request, res: Response) => Promise<void>;
 /**
  * POST /auth/login
- * Login dengan email dan password
+ * Login with email and password
  */
 export declare const login: (req: Request, res: Response) => Promise<void>;
 /**
  * POST /auth/login-otp
- * Login menggunakan OTP yang dikirim ke email/phone
- * Step 1: POST /auth/login-otp dengan { email } - kirim OTP
- * Step 2: POST /auth/login-otp dengan { email, otp } - verify OTP
+ * Login using OTP sent to email/phone
+ * Step 1: POST /auth/login-otp with { email } - send OTP
+ * Step 2: POST /auth/login-otp with { email, otp } - verify OTP
  */
 export declare const loginOTP: (req: Request, res: Response) => Promise<void>;
 /**

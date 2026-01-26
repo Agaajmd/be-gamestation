@@ -36,14 +36,33 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const BookingFlowController = __importStar(require("../controller/BookingFlowController"));
 const ValidateMiddleware = __importStar(require("../middleware/validateMiddleware"));
-const bookingValidation_1 = require("../validation/bodyValidation/bookingValidation");
+// import { calculateBookingPriceSchema } from "../validation/bodyValidation/bookingValidation";
 const bookingQueryValidation_1 = require("../validation/queryValidation/bookingQueryValidation");
+const authMiddleware_1 = require("../middleware/authMiddleware");
 const router = (0, express_1.Router)();
 /**
  * GET /booking/branches
  * Mendapatkan semua cabang untuk halaman booking (public)
  */
 router.get("/branches", BookingFlowController.getBranches);
+/**
+ * GET /booking/branches/:branchId/available-dates
+ * Mendapatkan tanggal yang tersedia untuk booking (public)
+ * Query: startDate, endDate
+ */
+router.get("/branches/:branchId/available-dates", ValidateMiddleware.validateQuery(bookingQueryValidation_1.getAvailableDatesSchema), BookingFlowController.getAvailableDates);
+/**
+ * GET /booking/branches/:branchId/available-times
+ * Mendapatkan jam yang tersedia untuk booking (public)
+ * Query: deviceId, bookingDate, durationMinutes
+ */
+router.get("/branches/:branchId/available-times", BookingFlowController.getAvailableTimes);
+/**
+ * GET /booking/branches/:branchId/duraion-options
+ * Mendapatkan opsi durasi booking berdasarkan date dan jam (public)
+ * Query: bookingDate, startTime
+ */
+router.get("/branches/:branchId/duration-options", BookingFlowController.getDurationOptions);
 /**
  * GET /booking/branches/:branchId/categories
  * Mendapatkan kategori berdasarkan device type (public)
@@ -57,21 +76,18 @@ router.get("/branches/:branchId/categories", BookingFlowController.getAvailableC
  */
 router.get("/branches/:branchId/rooms-and-devices", ValidateMiddleware.validateQuery(bookingQueryValidation_1.getAvailableRoomsAndDevicesSchema), BookingFlowController.getAvailableRoomsAndDevices);
 /**
- * GET /booking/branches/:branchId/available-dates
- * Mendapatkan tanggal yang tersedia untuk booking (public)
- * Query: startDate, endDate
+ * GET /booking/cart
+ * Mendapatkan data cart booking untuk user yang sudah login (authenticated)
  */
-router.get("/available-dates", ValidateMiddleware.validateQuery(bookingQueryValidation_1.getAvailableDatesSchema), BookingFlowController.getAvailableDates);
-/**
- * GET /booking/branches/:branchId/available-times
- * Mendapatkan jam yang tersedia untuk booking (public)
- * Query: deviceId, bookingDate, durationMinutes
- */
-router.get("/branches/:branchId/available-times", BookingFlowController.getAvailableTimes);
+router.get("/cart", authMiddleware_1.authenticateToken, BookingFlowController.getBookingCart);
 /**
  * POST /booking/calculate-price
  * Menghitung harga booking sebelum checkout (public atau authenticated)
  */
-router.post("/calculate-price", ValidateMiddleware.validateBody(bookingValidation_1.calculateBookingPriceSchema), BookingFlowController.calculateBookingPrice);
+// router.post(
+//   "/calculate-price",
+//   ValidateMiddleware.validateBody(calculateBookingPriceSchema),
+//   BookingFlowController.calculateBookingPrice
+// );
 exports.default = router;
 //# sourceMappingURL=bookingRoutes.js.map

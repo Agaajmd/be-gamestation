@@ -41,13 +41,13 @@ const ValidateMiddleware = __importStar(require("../middleware/validateMiddlewar
 const orderValidation_1 = require("../validation/bodyValidation/orderValidation");
 const router = (0, express_1.Router)();
 // Customer routes
-router.post("/", authMiddleware_1.authenticateToken, roleMiddleware_1.requireCustomer, ValidateMiddleware.validateBody(orderValidation_1.createOrderSchema), OrderController_1.createOrder);
+router.post("/", authMiddleware_1.authenticateToken, roleMiddleware_1.requireCustomer, ValidateMiddleware.validateBody(orderValidation_1.createOrderSchema), OrderController_1.addToCart);
+router.post("/:id/checkout", authMiddleware_1.authenticateToken, roleMiddleware_1.requireCustomer, ValidateMiddleware.validateBody(orderValidation_1.checkoutOrderSchema), OrderController_1.checkoutOrder);
 router.delete("/:id", authMiddleware_1.authenticateToken, OrderController_1.cancelOrder);
 // All authenticated users
 router.get("/", authMiddleware_1.authenticateToken, OrderController_1.getOrders);
 router.get("/:id", authMiddleware_1.authenticateToken, OrderController_1.getOrderById);
 // Admin/Owner routes
 router.put("/:id/status", authMiddleware_1.authenticateToken, roleMiddleware_1.requireOwnerOrAdmin, ValidateMiddleware.validateBody(orderValidation_1.updateOrderStatusSchema), OrderController_1.updateOrderStatus);
-router.put("/:id/payment-status", authMiddleware_1.authenticateToken, roleMiddleware_1.requireOwnerOrAdmin, ValidateMiddleware.validateBody(orderValidation_1.updatePaymentStatusSchema), OrderController_1.updatePaymentStatus);
 exports.default = router;
 //# sourceMappingURL=orderRoutes.js.map

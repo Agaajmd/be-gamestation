@@ -43,9 +43,8 @@ const router = (0, express_1.Router)();
 // Owner routes only
 router.post("/", authMiddleware_1.authenticateToken, roleMiddleware_1.requireOwner, ValidateMiddleware.validateBody(subscriptionValidation_1.createSubscriptionSchema), SubscriptionController_1.createSubscription);
 router.get("/", authMiddleware_1.authenticateToken, roleMiddleware_1.requireOwner, SubscriptionController_1.getSubscriptions);
-router.get("/active", authMiddleware_1.authenticateToken, roleMiddleware_1.requireOwner, SubscriptionController_1.getActiveSubscription);
 router.get("/:id", authMiddleware_1.authenticateToken, roleMiddleware_1.requireOwner, SubscriptionController_1.getSubscriptionById);
 router.put("/:id", authMiddleware_1.authenticateToken, roleMiddleware_1.requireOwner, ValidateMiddleware.validateBody(subscriptionValidation_1.updateSubscriptionSchema), SubscriptionController_1.updateSubscription);
-router.delete("/:id", authMiddleware_1.authenticateToken, roleMiddleware_1.requireOwner, SubscriptionController_1.deleteSubscription);
+router.delete("/:id", authMiddleware_1.authenticateToken, roleMiddleware_1.requireOwner, SubscriptionController_1.cancelSubscription);
 exports.default = router;
 //# sourceMappingURL=subscriptionRoutes.js.map

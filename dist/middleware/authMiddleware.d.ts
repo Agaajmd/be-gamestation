@@ -11,4 +11,8 @@ declare global {
  * Middleware untuk verifikasi JWT token
  */
 export declare const authenticateToken: (req: Request, res: Response, next: NextFunction) => void;
+/**
+ * Middleware untuk verifikasi role
+ */
+export declare const requireRole: (...allowedRoles: string[]) => (req: Request, res: Response, next: NextFunction) => void;
 //# sourceMappingURL=authMiddleware.d.ts.map

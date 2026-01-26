@@ -1,10 +1,20 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getActiveSubscription = exports.deleteSubscription = exports.updateSubscription = exports.getSubscriptionById = exports.getSubscriptions = exports.createSubscription = void 0;
-const prisma_1 = __importDefault(require("../lib/prisma"));
+exports.cancelSubscription = exports.updateSubscription = exports.getSubscriptionById = exports.getSubscriptions = exports.createSubscription = void 0;
+// Services
+const subscriptionService_1 = require("../service/SubscriptionService/subscriptionService");
+// Error
+const responseHelper_1 = require("../helper/responseHelper");
+/**
+ * Helper function to serialize subscription data
+ */
+const serializeSubscription = (subscription) => {
+    return {
+        ...subscription,
+        id: subscription.id?.toString(),
+        ownerId: subscription.ownerId?.toString(),
+    };
+};
 /**
  * POST /subscriptions
  * Create subscription (owner only)
@@ -13,41 +23,22 @@ const createSubscription = async (req, res) => {
     try {
         const userId = BigInt(req.user.userId);
         const { plan, price, startsAt, endsAt } = req.body;
-        // Verify owner exists
-        const owner = await prisma_1.default.owner.findUnique({
-            where: { userId },
+        const subscription = await (0, subscriptionService_1.createSubscriptionService)({
+            userId,
+            plan,
+            price,
+            startsAt,
+            endsAt,
         });
-        if (!owner) {
-            res.status(403).json({
-                success: false,
-                message: "Owner profile tidak ditemukan",
-            });
-            return;
-        }
-        // Create subscription
-        const subscription = await prisma_1.default.subscription.create({
-            data: {
-                ownerId: owner.id,
-                plan,
-                price,
-                startsAt: new Date(startsAt),
-                endsAt: new Date(endsAt),
-                status: "active",
-            },
-        });
-        const serializedSubscription = JSON.parse(JSON.stringify(subscription, (_key, value) => typeof value === "bigint" ? value.toString() : value));
+        const serialized = serializeSubscription(subscription);
         res.status(201).json({
             success: true,
             message: "Subscription berhasil dibuat",
-            data: serializedSubscription,
+            data: serialized,
         });
     }
     catch (error) {
-        console.error("Create subscription error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Terjadi kesalahan saat membuat subscription",
-        });
+        (0, responseHelper_1.handleError)(error, res);
     }
 };
 exports.createSubscription = createSubscription;
@@ -62,45 +53,19 @@ const getSubscriptions = async (req, res) => {
         const userId = BigInt(req.user.userId);
         const userRole = req.user.role;
         const { status } = req.query;
-        if (userRole !== "owner") {
-            res.status(403).json({
-                success: false,
-                message: "Hanya owner yang dapat mengakses subscription",
-            });
-            return;
-        }
-        // Get owner
-        const owner = await prisma_1.default.owner.findUnique({
-            where: { userId },
+        const subscriptions = await (0, subscriptionService_1.getSubscriptionsService)({
+            userId,
+            userRole,
+            status: status,
         });
-        if (!owner) {
-            res.status(403).json({
-                success: false,
-                message: "Owner profile tidak ditemukan",
-            });
-            return;
-        }
-        const subscriptions = await prisma_1.default.subscription.findMany({
-            where: {
-                ownerId: owner.id,
-                ...(status && { status: status }),
-            },
-            orderBy: {
-                startsAt: "desc",
-            },
-        });
-        const serializedSubscriptions = JSON.parse(JSON.stringify(subscriptions, (_key, value) => typeof value === "bigint" ? value.toString() : value));
+        const serialized = subscriptions.map(serializeSubscription);
         res.status(200).json({
             success: true,
-            data: serializedSubscriptions,
+            data: serialized,
         });
     }
     catch (error) {
-        console.error("Get subscriptions error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Terjadi kesalahan saat mengambil data subscription",
-        });
+        (0, responseHelper_1.handleError)(error, res);
     }
 };
 exports.getSubscriptions = getSubscriptions;
@@ -113,238 +78,73 @@ const getSubscriptionById = async (req, res) => {
         const userId = BigInt(req.user.userId);
         const userRole = req.user.role;
         const subscriptionId = BigInt(req.params.id);
-        if (userRole !== "owner") {
-            res.status(403).json({
-                success: false,
-                message: "Hanya owner yang dapat mengakses subscription",
-            });
-            return;
-        }
-        const subscription = await prisma_1.default.subscription.findUnique({
-            where: { id: subscriptionId },
-            include: {
-                owner: {
-                    include: {
-                        user: {
-                            select: {
-                                id: true,
-                                fullname: true,
-                                email: true,
-                            },
-                        },
-                    },
-                },
-            },
+        const subscription = await (0, subscriptionService_1.getSubscriptionByIdService)({
+            subscriptionId,
+            userId,
+            userRole,
         });
-        if (!subscription) {
-            res.status(404).json({
-                success: false,
-                message: "Subscription tidak ditemukan",
-            });
-            return;
-        }
-        // Check if subscription belongs to the owner
-        const owner = await prisma_1.default.owner.findUnique({
-            where: { userId },
-        });
-        if (!owner || subscription.ownerId !== owner.id) {
-            res.status(403).json({
-                success: false,
-                message: "Anda tidak memiliki akses ke subscription ini",
-            });
-            return;
-        }
-        const serializedSubscription = JSON.parse(JSON.stringify(subscription, (_key, value) => typeof value === "bigint" ? value.toString() : value));
+        const serialized = serializeSubscription(subscription);
         res.status(200).json({
             success: true,
-            data: serializedSubscription,
+            data: serialized,
         });
     }
     catch (error) {
-        console.error("Get subscription by ID error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Terjadi kesalahan saat mengambil data subscription",
-        });
+        (0, responseHelper_1.handleError)(error, res);
     }
 };
 exports.getSubscriptionById = getSubscriptionById;
 /**
  * PUT /subscriptions/:id
- * Update subscription (owner only)
+ * Update subscription
  */
 const updateSubscription = async (req, res) => {
     try {
         const userId = BigInt(req.user.userId);
         const userRole = req.user.role;
         const subscriptionId = BigInt(req.params.id);
-        const { plan, price, startsAt, endsAt, status } = req.body;
-        if (userRole !== "owner") {
-            res.status(403).json({
-                success: false,
-                message: "Hanya owner yang dapat mengupdate subscription",
-            });
-            return;
-        }
-        const subscription = await prisma_1.default.subscription.findUnique({
-            where: { id: subscriptionId },
+        const updated = await (0, subscriptionService_1.updateSubscriptionService)({
+            subscriptionId,
+            userId,
+            userRole,
+            data: req.body,
         });
-        if (!subscription) {
-            res.status(404).json({
-                success: false,
-                message: "Subscription tidak ditemukan",
-            });
-            return;
-        }
-        // Check if subscription belongs to the owner
-        const owner = await prisma_1.default.owner.findUnique({
-            where: { userId },
-        });
-        if (!owner || subscription.ownerId !== owner.id) {
-            res.status(403).json({
-                success: false,
-                message: "Anda tidak memiliki akses ke subscription ini",
-            });
-            return;
-        }
-        // Update subscription
-        const updatedSubscription = await prisma_1.default.subscription.update({
-            where: { id: subscriptionId },
-            data: {
-                ...(plan && { plan }),
-                ...(price && { price }),
-                ...(startsAt && { startsAt: new Date(startsAt) }),
-                ...(endsAt && { endsAt: new Date(endsAt) }),
-                ...(status && { status }),
-            },
-        });
-        const serializedSubscription = JSON.parse(JSON.stringify(updatedSubscription, (_key, value) => typeof value === "bigint" ? value.toString() : value));
+        const serialized = serializeSubscription(updated);
         res.status(200).json({
             success: true,
             message: "Subscription berhasil diupdate",
-            data: serializedSubscription,
+            data: serialized,
         });
     }
     catch (error) {
-        console.error("Update subscription error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Terjadi kesalahan saat mengupdate subscription",
-        });
+        (0, responseHelper_1.handleError)(error, res);
     }
 };
 exports.updateSubscription = updateSubscription;
 /**
- * DELETE /subscriptions/:id
- * Delete subscription (owner only)
+ * PUT /subscriptions/:id/cancel
+ * Cancel subscription
  */
-const deleteSubscription = async (req, res) => {
+const cancelSubscription = async (req, res) => {
     try {
         const userId = BigInt(req.user.userId);
         const userRole = req.user.role;
         const subscriptionId = BigInt(req.params.id);
-        if (userRole !== "owner") {
-            res.status(403).json({
-                success: false,
-                message: "Hanya owner yang dapat menghapus subscription",
-            });
-            return;
-        }
-        const subscription = await prisma_1.default.subscription.findUnique({
-            where: { id: subscriptionId },
+        const updated = await (0, subscriptionService_1.cancelSubscriptionService)({
+            subscriptionId,
+            userId,
+            userRole,
         });
-        if (!subscription) {
-            res.status(404).json({
-                success: false,
-                message: "Subscription tidak ditemukan",
-            });
-            return;
-        }
-        // Check if subscription belongs to the owner
-        const owner = await prisma_1.default.owner.findUnique({
-            where: { userId },
-        });
-        if (!owner || subscription.ownerId !== owner.id) {
-            res.status(403).json({
-                success: false,
-                message: "Anda tidak memiliki akses ke subscription ini",
-            });
-            return;
-        }
-        await prisma_1.default.subscription.delete({
-            where: { id: subscriptionId },
-        });
+        const serialized = serializeSubscription(updated);
         res.status(200).json({
             success: true,
-            message: "Subscription berhasil dihapus",
+            message: "Subscription berhasil dibatalkan",
+            data: serialized,
         });
     }
     catch (error) {
-        console.error("Delete subscription error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Terjadi kesalahan saat menghapus subscription",
-        });
+        (0, responseHelper_1.handleError)(error, res);
     }
 };
-exports.deleteSubscription = deleteSubscription;
-/**
- * GET /subscriptions/active
- * Get active subscription for owner
- */
-const getActiveSubscription = async (req, res) => {
-    try {
-        const userId = BigInt(req.user.userId);
-        const userRole = req.user.role;
-        if (userRole !== "owner") {
-            res.status(403).json({
-                success: false,
-                message: "Hanya owner yang dapat mengakses subscription",
-            });
-            return;
-        }
-        const owner = await prisma_1.default.owner.findUnique({
-            where: { userId },
-        });
-        if (!owner) {
-            res.status(403).json({
-                success: false,
-                message: "Owner profile tidak ditemukan",
-            });
-            return;
-        }
-        const activeSubscription = await prisma_1.default.subscription.findFirst({
-            where: {
-                ownerId: owner.id,
-                status: "active",
-                endsAt: {
-                    gte: new Date(),
-                },
-            },
-            orderBy: {
-                endsAt: "desc",
-            },
-        });
-        if (!activeSubscription) {
-            res.status(404).json({
-                success: false,
-                message: "Tidak ada subscription aktif",
-            });
-            return;
-        }
-        const serializedSubscription = JSON.parse(JSON.stringify(activeSubscription, (_key, value) => typeof value === "bigint" ? value.toString() : value));
-        res.status(200).json({
-            success: true,
-            data: serializedSubscription,
-        });
-    }
-    catch (error) {
-        console.error("Get active subscription error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Terjadi kesalahan saat mengambil subscription aktif",
-        });
-    }
-};
-exports.getActiveSubscription = getActiveSubscription;
+exports.cancelSubscription = cancelSubscription;
 //# sourceMappingURL=SubscriptionController.js.map

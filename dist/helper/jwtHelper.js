@@ -3,57 +3,121 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getEmailFromToken = exports.getUserIdFromToken = exports.getRoleFromToken = exports.extractTokenFromHeader = exports.decodeToken = void 0;
+exports.verifyToken = exports.generateToken = void 0;
+exports.extractTokenFromHeader = extractTokenFromHeader;
+exports.decodeToken = decodeToken;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production";
-/**
- * Helper untuk decode JWT token dan ambil payload
- */
-const decodeToken = (token) => {
+// Validasi environment variables saat startup
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+if (!JWT_SECRET || JWT_SECRET.length < 32) {
+    throw new Error("JWT_SECRET must be defined and at least 32 characters long");
+}
+if (!JWT_REFRESH_SECRET || JWT_REFRESH_SECRET.length < 32) {
+    throw new Error("JWT_REFRESH_SECRET must be defined and at least 32 characters long");
+}
+if (JWT_SECRET === JWT_REFRESH_SECRET) {
+    throw new Error("JWT_SECRET and JWT_REFRESH_SECRET must be different");
+}
+const JWT_EXPIRES_IN = process.env.JWT_ACCESS_EXPIRES_IN || "15m";
+const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "7d";
+// Generate tokens
+exports.generateToken = {
+    accessToken(userId, email, role, adminRole) {
+        const payload = {
+            userId: userId.toString(),
+            email,
+            role,
+            ...(adminRole && { adminRole }),
+        };
+        return jsonwebtoken_1.default.sign(payload, JWT_SECRET, {
+            expiresIn: JWT_EXPIRES_IN,
+            issuer: "game-station",
+            audience: "users",
+        });
+    },
+    refreshToken(userId, email, role, adminRole) {
+        const payload = {
+            userId: userId.toString(),
+            email,
+            role,
+            ...(adminRole && { adminRole }),
+        };
+        return jsonwebtoken_1.default.sign(payload, JWT_REFRESH_SECRET, {
+            expiresIn: JWT_REFRESH_EXPIRES_IN,
+            issuer: "game-station",
+            audience: "users",
+        });
+    },
+};
+// Verify tokens
+exports.verifyToken = {
+    accessToken(token) {
+        try {
+            const decoded = jsonwebtoken_1.default.verify(token, JWT_SECRET, {
+                issuer: "game-station",
+                audience: "users",
+            });
+            return {
+                userId: decoded.userId,
+                email: decoded.email,
+                role: decoded.role,
+                ...(decoded.adminRole && { adminRole: decoded.adminRole }),
+            };
+        }
+        catch (error) {
+            if (error instanceof jsonwebtoken_1.default.TokenExpiredError) {
+                throw new Error("Access token has expired");
+            }
+            if (error instanceof jsonwebtoken_1.default.JsonWebTokenError) {
+                throw new Error("Invalid access token");
+            }
+            throw error;
+        }
+    },
+    refreshToken(token) {
+        try {
+            const decoded = jsonwebtoken_1.default.verify(token, JWT_REFRESH_SECRET, {
+                issuer: "game-station",
+                audience: "users",
+            });
+            return {
+                userId: decoded.userId,
+                email: decoded.email,
+                role: decoded.role,
+                ...(decoded.adminRole && { adminRole: decoded.adminRole }),
+            };
+        }
+        catch (error) {
+            if (error instanceof jsonwebtoken_1.default.TokenExpiredError) {
+                throw new Error("Refresh token has expired");
+            }
+            if (error instanceof jsonwebtoken_1.default.JsonWebTokenError) {
+                throw new Error("Invalid refresh token");
+            }
+            throw error;
+        }
+    },
+};
+// Helper functions untuk middleware
+function extractTokenFromHeader(authHeader) {
+    if (!authHeader) {
+        return null;
+    }
+    const parts = authHeader.split(" ");
+    // Format: "Bearer <token>"
+    if (parts.length !== 2 || parts[0] !== "Bearer") {
+        return null;
+    }
+    return parts[1];
+}
+function decodeToken(token) {
     try {
-        const decoded = jsonwebtoken_1.default.verify(token, JWT_SECRET);
-        return decoded;
+        return exports.verifyToken.accessToken(token);
     }
     catch (error) {
-        console.error("Error decoding token:", error);
+        console.error("Token decode error:", error);
         return null;
     }
-};
-exports.decodeToken = decodeToken;
-/**
- * Helper untuk ambil token dari Authorization header
- */
-const extractTokenFromHeader = (authHeader) => {
-    if (!authHeader)
-        return null;
-    const parts = authHeader.split(" ");
-    if (parts.length !== 2 || parts[0] !== "Bearer")
-        return null;
-    return parts[1];
-};
-exports.extractTokenFromHeader = extractTokenFromHeader;
-/**
- * Helper untuk ambil role dari token
- */
-const getRoleFromToken = (token) => {
-    const payload = (0, exports.decodeToken)(token);
-    return payload ? payload.role : null;
-};
-exports.getRoleFromToken = getRoleFromToken;
-/**
- * Helper untuk ambil userId dari token
- */
-const getUserIdFromToken = (token) => {
-    const payload = (0, exports.decodeToken)(token);
-    return payload ? payload.userId : null;
-};
-exports.getUserIdFromToken = getUserIdFromToken;
-/**
- * Helper untuk ambil email dari token
- */
-const getEmailFromToken = (token) => {
-    const payload = (0, exports.decodeToken)(token);
-    return payload ? payload.email : null;
-};
-exports.getEmailFromToken = getEmailFromToken;
+}
 //# sourceMappingURL=jwtHelper.js.map

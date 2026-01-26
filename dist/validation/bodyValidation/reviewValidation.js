@@ -6,9 +6,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.updateReviewSchema = exports.createReviewSchema = void 0;
 const joi_1 = __importDefault(require("joi"));
 exports.createReviewSchema = joi_1.default.object({
-    orderId: joi_1.default.string().required().messages({
-        "string.empty": "Order ID tidak boleh kosong",
-        "any.required": "Order ID wajib diisi",
+    branchId: joi_1.default.string().required().messages({
+        "string.empty": "Branch ID tidak boleh kosong",
+        "any.required": "Branch ID wajib diisi",
     }),
     rating: joi_1.default.number().integer().min(1).max(5).required().messages({
         "number.min": "Rating minimal 1",

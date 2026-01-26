@@ -1,0 +1,1 @@
+{"version":3,"file":"getAvailableTimesResult.d.ts","sourceRoot":"","sources":["../../../../src/service/BookingService/type/getAvailableTimesResult.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,QAAQ,EAAE,MAAM,+BAA+B,CAAC;AAEzD,MAAM,MAAM,uBAAuB,GAAG;IACpC,SAAS,EAAE,QAAQ,EAAE,CAAC;IACtB,YAAY,EAAE,MAAM,CAAC;CACtB,CAAC"}

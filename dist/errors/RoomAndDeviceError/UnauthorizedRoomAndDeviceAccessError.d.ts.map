@@ -1,0 +1,1 @@
+{"version":3,"file":"UnauthorizedRoomAndDeviceAccessError.d.ts","sourceRoot":"","sources":["../../../src/errors/RoomAndDeviceError/UnauthorizedRoomAndDeviceAccessError.ts"],"names":[],"mappings":"AAAA,qBAAa,oCAAqC,SAAQ,KAAK;gBAE3D,OAAO,GAAE,MAAuD;CAKnE"}

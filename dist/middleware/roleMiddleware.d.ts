@@ -13,6 +13,7 @@ export declare const requireAdmin: (req: Request, res: Response, next: NextFunct
  * Middleware untuk memastikan user adalah Owner atau Admin
  */
 export declare const requireOwnerOrAdmin: (req: Request, res: Response, next: NextFunction) => void;
+export declare const requireOwnerOrAdminStaff: (req: Request, res: Response, next: NextFunction) => void;
 /**
  * Middleware untuk memastikan user adalah Customer
  * Mengharapkan req.user sudah di-set oleh authenticateToken middleware

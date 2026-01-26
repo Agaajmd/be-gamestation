@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const CategoryController = __importStar(require("../controller/CategoryController"));
 const authMiddleware_1 = require("../middleware/authMiddleware");
+const roleMiddleware_1 = require("../middleware/roleMiddleware");
 const ValidateMiddleware = __importStar(require("../middleware/validateMiddleware"));
 const categoryValidation_1 = require("../validation/bodyValidation/categoryValidation");
 const router = (0, express_1.Router)();
@@ -44,7 +45,7 @@ const router = (0, express_1.Router)();
  * @desc    Owner/admin menambahkan kategori order ke cabang
  * @access  Private (Owner/Admin)
  */
-router.post("/:branchId/category", authMiddleware_1.authenticateToken, ValidateMiddleware.validateBody(categoryValidation_1.addCategorySchema), CategoryController.addCategory);
+router.post("/:branchId/category", authMiddleware_1.authenticateToken, roleMiddleware_1.requireOwnerOrAdmin, ValidateMiddleware.validateBody(categoryValidation_1.addCategorySchema), CategoryController.addCategory);
 /**
  * @route GET /branches/:branchId/category
  * @desc Owner/admin mendapatkan daftar kategori order di cabang

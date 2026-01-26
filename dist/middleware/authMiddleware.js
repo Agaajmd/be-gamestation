@@ -1,13 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.authenticateToken = void 0;
+exports.requireRole = exports.authenticateToken = void 0;
 const jwtHelper_1 = require("../helper/jwtHelper");
 /**
  * Middleware untuk verifikasi JWT token
  */
 const authenticateToken = (req, res, next) => {
     try {
-        // Get token from Authorization header
         const authHeader = req.headers.authorization;
         const token = (0, jwtHelper_1.extractTokenFromHeader)(authHeader);
         if (!token) {
@@ -17,7 +16,6 @@ const authenticateToken = (req, res, next) => {
             });
             return;
         }
-        // Verify token
         const payload = (0, jwtHelper_1.decodeToken)(token);
         if (!payload) {
             res.status(403).json({
@@ -26,7 +24,6 @@ const authenticateToken = (req, res, next) => {
             });
             return;
         }
-        // Attach payload to req.user
         req.user = payload;
         next();
     }
@@ -39,4 +36,27 @@ const authenticateToken = (req, res, next) => {
     }
 };
 exports.authenticateToken = authenticateToken;
+/**
+ * Middleware untuk verifikasi role
+ */
+const requireRole = (...allowedRoles) => {
+    return (req, res, next) => {
+        if (!req.user) {
+            res.status(401).json({
+                success: false,
+                message: "Unauthorized",
+            });
+            return;
+        }
+        if (!allowedRoles.includes(req.user.role)) {
+            res.status(403).json({
+                success: false,
+                message: "Akses ditolak. Role tidak sesuai",
+            });
+            return;
+        }
+        next();
+    };
+};
+exports.requireRole = requireRole;
 //# sourceMappingURL=authMiddleware.js.map

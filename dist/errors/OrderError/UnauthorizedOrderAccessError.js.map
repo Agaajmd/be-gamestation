@@ -1,0 +1,1 @@
+{"version":3,"file":"UnauthorizedOrderAccessError.js","sourceRoot":"","sources":["../../../src/errors/OrderError/UnauthorizedOrderAccessError.ts"],"names":[],"mappings":";;;AAAA,MAAa,4BAA6B,SAAQ,KAAK;IACrD,YAAY,UAAkB,oCAAoC;QAChE,KAAK,CAAC,OAAO,CAAC,CAAC;QACf,IAAI,CAAC,IAAI,GAAG,8BAA8B,CAAC;IAC7C,CAAC;CACF;AALD,oEAKC"}
