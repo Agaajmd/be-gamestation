@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express, { Application, Request, Response } from "express";
+import cors from "cors";
 import authRoutes from "./route/authRoutes";
 import branchRoutes from "./route/branchRoutes";
 import adminRoutes from "./route/adminRoutes";
@@ -17,7 +18,9 @@ import gameAvailabilityRoutes from "./route/gameAvailabilityRoutes";
 import advanceBookingPriceRoutes from "./route/advanceBookingPriceRoutes";
 import { testEmailConnection } from "./helper/emailHelper";
 import cronRoutes from "./route/cronRoutes";
-import { startCompletionCron } from "./cron/completionCron";
+// import { startCompletionCron, stopCompletionCron } from "./cron/completionCron";
+// import { prisma } from "./database"; // Import prisma instance
+// import { Server } from "http"; // Import Server type
 
 // Middleware
 import { bigIntSerializer } from "./middleware/bigIntSerializer";
@@ -27,6 +30,14 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(express.json());
+app.use(
+  cors({
+    origin: ["http://localhost:3001", "http://localhost:3000"],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
+);
 app.use(bigIntSerializer);
 app.use(express.urlencoded({ extended: true }));
 
@@ -74,8 +85,54 @@ app.listen(PORT, () => {
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
 
   // Start cron jobs
-  console.log("⏰ Starting cron jobs...");
-  startCompletionCron();
+  // console.log("⏰ Starting cron jobs...");
+  // startCompletionCron();
 });
+
+// ========================================
+// 🛡️ GRACEFUL SHUTDOWN HANDLERS
+// ========================================
+
+// async function gracefulShutdown(signal: string) {
+//   console.log(`\n📛 ${signal} received - Starting graceful shutdown...`);
+
+//   // 1. Stop accepting new requests
+//   server.close(() => {
+//     console.log("✅ HTTP server closed - No new requests accepted");
+//   });
+
+//   try {
+//     // 2. Stop cron jobs
+//     console.log("🛑 Stopping cron jobs...");
+//     // await stopCompletionCron();
+//     console.log("✅ Cron jobs stopped");
+
+//     // 3. Close database connections
+//     console.log("🔌 Disconnecting database...");
+//     await prisma.$disconnect();
+//     console.log("✅ Database disconnected");
+
+//     console.log("👋 Graceful shutdown completed successfully");
+//     process.exit(0);
+//   } catch (error) {
+//     console.error("❌ Error during graceful shutdown:", error);
+//     process.exit(1);
+//   }
+// }
+
+// // Handle different termination signals
+// process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+// process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+
+// // Handle uncaught errors
+// process.on("uncaughtException", (error) => {
+//   console.error("💥 Uncaught Exception:", error);
+//   gracefulShutdown("UNCAUGHT_EXCEPTION");
+// });
+
+// process.on("unhandledRejection", (reason, promise) => {
+//   console.error("💥 Unhandled Rejection at:", promise, "reason:", reason);
+//   gracefulShutdown("UNHANDLED_REJECTION");
+// });
 
 export default app;

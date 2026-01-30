@@ -1,20 +1,33 @@
-// cron/completion.cron.ts
+// cron/completionCron.ts
 import { prisma } from "../database";
+import { createLogger } from "../helper/logger";
 
-let isProcessing = false; // Simple lock mechanism
+const logger = createLogger("completion-cron");
+
+let isProcessing = false;
+let intervalId: NodeJS.Timeout | null = null;
+let isShuttingDown = false;
 
 export async function processCompletions() {
-  // Cegah overlapping execution
+  const jobId = `job-${Date.now()}`;
+  const startTime = Date.now();
+
+  if (isShuttingDown) {
+    logger.info({ jobId }, "Shutdown in progress, skipping job");
+    return;
+  }
+
   if (isProcessing) {
-    console.log("[CRON] Previous job still running, skipping...");
+    logger.warn({ jobId }, "Previous job still running, skipping execution");
     return;
   }
 
   isProcessing = true;
   const now = new Date();
 
+  logger.info({ jobId }, "Starting completion processing");
+
   try {
-    // 1. BATCHING: Hanya ambil 50 order per run untuk menjaga beban DB
     const orders = await prisma.order.findMany({
       take: 50,
       where: {
@@ -25,25 +38,136 @@ export async function processCompletions() {
     });
 
     if (orders.length === 0) {
-      // Tidak ada log berisik jika kosong
+      logger.debug({ jobId }, "No orders to process");
       return;
     }
 
-    console.log(`[CRON] Processing batch of ${orders.length} orders...`);
+    logger.info(
+      {
+        jobId,
+        orderCount: orders.length,
+        batchSize: 50,
+      },
+      "Processing orders batch",
+    );
 
-    // Proses loop tetap sama (logic bisnis kompleks sulit di-bulk update)
-    // Tapi karena dibatasi 50, beban DB terkontrol.
+    let successCount = 0;
+    let errorCount = 0;
+    const failedOrders: string[] = [];
+
     for (const order of orders) {
       try {
-        // Gunakan transaction untuk menjaga data consistency
-        await prisma.$transaction(async (tx) => {
-          // Update order status menjadi completed
+        await processOrder(order, now, jobId);
+        successCount++;
+
+        logger.debug(
+          {
+            jobId,
+            orderId: order.id,
+            orderCode: order.orderCode,
+          },
+          "Order processed successfully",
+        );
+      } catch (error) {
+        errorCount++;
+        failedOrders.push(order.orderCode);
+
+        logger.error(
+          {
+            jobId,
+            orderId: order.id,
+            orderCode: order.orderCode,
+            err: error,
+          },
+          "Failed to process order",
+        );
+
+        try {
+          await prisma.failedJob.create({
+            data: {
+              jobType: "order_completion",
+              entityId: order.id,
+              entityType: "Order",
+              error: error instanceof Error ? error.message : String(error),
+              stackTrace: error instanceof Error ? error.stack : null,
+              payload: JSON.stringify({
+                orderCode: order.orderCode,
+                customerId: order.customerId,
+                jobId,
+              }),
+              status: "failed",
+              attempts: 1,
+            },
+          });
+        } catch (dlqError) {
+          logger.error(
+            {
+              jobId,
+              orderId: order.id,
+              err: dlqError,
+            },
+            "Failed to create dead letter queue record",
+          );
+        }
+      }
+    }
+
+    const duration = Date.now() - startTime;
+
+    logger.info(
+      {
+        jobId,
+        duration,
+        totalOrders: orders.length,
+        successCount,
+        errorCount,
+        ...(failedOrders.length > 0 && { failedOrders }),
+      },
+      "Batch processing completed",
+    );
+
+    if (errorCount > orders.length * 0.5) {
+      logger.warn(
+        {
+          jobId,
+          errorRate: ((errorCount / orders.length) * 100).toFixed(2),
+          failedOrders,
+        },
+        "High error rate detected - check database connection",
+      );
+    }
+  } catch (error) {
+    logger.error(
+      {
+        jobId,
+        err: error,
+      },
+      "Critical error in completion processing",
+    );
+  } finally {
+    isProcessing = false;
+    logger.debug({ jobId }, "Job lock released");
+  }
+}
+
+async function processOrder(order: any, now: Date, jobId: string) {
+  if (process.env.NODE_ENV === "development") {
+    logger.info({ jobId, orderId: order.id }, "⏱️ Simulating 8s delay...");
+    await new Promise((resolve) => setTimeout(resolve, 8000));
+  }
+
+  const maxRetries = 3;
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await prisma.$transaction(
+        async (tx) => {
           await tx.order.update({
             where: { id: order.id },
             data: { status: "completed" },
           });
 
-          // Stop session jika masih running
           const existingSession = await tx.session.findFirst({
             where: {
               orderId: order.id,
@@ -59,11 +183,19 @@ export async function processCompletions() {
                 endedAt: now,
               },
             });
+
+            logger.debug(
+              {
+                jobId,
+                orderId: order.id,
+                sessionId: existingSession.id,
+              },
+              "Session stopped",
+            );
           }
 
-          // Return devices ke available status
+          let devicesReleased = 0;
           for (const item of order.orderItems) {
-            // Cek apakah ada order lain yang sedang menggunakan device
             const hasOtherActiveOrder = await tx.orderItem.findFirst({
               where: {
                 roomAndDeviceId: item.roomAndDeviceId,
@@ -79,16 +211,27 @@ export async function processCompletions() {
               },
             });
 
-            // Jika tidak ada order aktif lain, ubah status device menjadi available
             if (!hasOtherActiveOrder) {
               await tx.roomAndDevice.update({
                 where: { id: item.roomAndDeviceId },
                 data: { status: "available" },
               });
+              devicesReleased++;
             }
           }
 
-          // Create notification untuk customer
+          if (devicesReleased > 0) {
+            logger.debug(
+              {
+                jobId,
+                orderId: order.id,
+                devicesReleased,
+                totalDevices: order.orderItems.length,
+              },
+              "Devices released",
+            );
+          }
+
           try {
             await tx.notification.create({
               data: {
@@ -104,35 +247,102 @@ export async function processCompletions() {
                 status: "pending",
               },
             });
-          } catch (notifError) {
-            console.warn(
-              `[CRON] Notification creation failed for order ${order.id}:`,
-              notifError,
+
+            logger.debug(
+              {
+                jobId,
+                orderId: order.id,
+                userId: order.customerId,
+              },
+              "Notification created",
             );
-            // Don't fail the transaction if notification fails
+          } catch (notifError) {
+            logger.warn(
+              {
+                jobId,
+                orderId: order.id,
+                err: notifError,
+              },
+              "Notification creation failed",
+            );
           }
-        });
-      } catch (error) {
-        console.error(`[CRON] Error processing order ${order.id}:`, error);
-        // Continue processing next order jika ada error
+        },
+        {
+          maxWait: 5000,
+          timeout: 15000,
+        },
+      );
+
+      return;
+    } catch (error) {
+      lastError = error as Error;
+
+      logger.warn(
+        {
+          jobId,
+          orderId: order.id,
+          attempt,
+          maxRetries,
+          err: lastError,
+        },
+        `Transaction failed, retrying... (${attempt}/${maxRetries})`,
+      );
+
+      if (attempt < maxRetries) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.pow(2, attempt) * 1000),
+        );
       }
     }
-
-    console.log(`[CRON] Batch completed.`);
-
-    
-    // OPTIONAL: Jika jumlah order == 50 (max batch), mungkin ada sisa.
-    // Bisa panggil processCompletions() lagi segera (recursive)
-    // atau tunggu menit berikutnya.
-  } catch (error) {
-    console.error("[CRON] Error processing completions:", error);
-  } finally {
-    isProcessing = false; // Lepas lock
   }
+
+  throw lastError;
 }
 
 export function startCompletionCron() {
+  logger.info({ interval: "60s" }, "Completion cron started");
+
   processCompletions();
-  // Tetap gunakan setInterval, tapi dilindungi variabel isProcessing
-  setInterval(processCompletions, 60_000);
+  intervalId = setInterval(processCompletions, 60_000);
+}
+
+/**
+ * Gracefully stop the completion cron job
+ * Waits for running jobs to complete (max 30 seconds)
+ */
+export async function stopCompletionCron() {
+  logger.info("Stopping completion cron...");
+  isShuttingDown = true;
+
+  if (intervalId) {
+    clearInterval(intervalId);
+    intervalId = null;
+  }
+
+  // Tunggu job yang sedang running selesai (max 30 detik)
+  const maxWait = 30_000;
+  const checkInterval = 100;
+  let waited = 0;
+
+  while (isProcessing && waited < maxWait) {
+    await new Promise((resolve) => setTimeout(resolve, checkInterval));
+    waited += checkInterval;
+  }
+
+  if (isProcessing) {
+    logger.warn(
+      {
+        waited,
+        maxWait,
+      },
+      "Force stopping cron - job still running after 30s",
+    );
+  } else {
+    logger.info(
+      {
+        waited,
+      },
+      "Completion cron stopped gracefully",
+    );
+  }
 }

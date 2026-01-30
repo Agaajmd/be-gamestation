@@ -8,6 +8,11 @@ import {
 } from "../../helper/jwtHelper";
 import { generateAndStoreOTP, verifyOTP } from "../../helper/generateOTP";
 import { sendOTPEmail } from "../../helper/emailHelper";
+import {
+  generateVerificationToken,
+  hashToken,
+  sendVerificationEmail,
+} from "../../helper/sendVerificationEmail";
 
 //type
 import { LoginOTPResult } from "./type/LoginOTPResult";
@@ -21,6 +26,7 @@ import {
   EmailExistingError,
   PasswordError,
   UserNotFoundError,
+  EmailNotVerifiedError,
 } from "../../errors/AuthError/authError";
 
 // Service function to handle user registration
@@ -40,25 +46,28 @@ export async function registerUser(payload: {
 
   const passwordHash = await hashPassword(password);
 
+  const plainToken = generateVerificationToken();
+  const hashedToken = hashToken(plainToken);
+  const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
   const newUser = await UserRepository.createUser({
     email,
     passwordHash,
     fullname,
     phone,
+    verificationTokenHash: hashedToken,
+    verificationTokenExpiry: tokenExpires,
   });
 
-  const accessToken = generateToken.accessToken(
-    newUser.id,
-    newUser.email,
-    "customer"
-  );
-  const refreshToken = generateToken.refreshToken(
-    newUser.id,
-    newUser.email,
-    "customer"
-  );
+  sendVerificationEmail({
+    to: email,
+    token: plainToken, // Plain token, bukan yang di-hash
+    username: fullname,
+  }).catch((error) => {
+    console.error(`⚠️ Failed to send verification email to ${email}:`, error);
+  });
 
-  return { newUser, accessToken, refreshToken };
+  return newUser;
 }
 
 // Service function to handle user login
@@ -78,18 +87,27 @@ export async function loginUser(payload: {
     throw new PasswordError();
   }
 
+  if (!user.isVerified) {
+    throw new EmailNotVerifiedError();
+  }
+
   const isPasswordValid = await comparePassword(password, user.passwordHash);
 
   if (!isPasswordValid) {
     throw new PasswordError();
   }
 
-  const accessToken = generateToken.accessToken(user.id, user.email, user.role, user.admin?.role);
+  const accessToken = generateToken.accessToken(
+    user.id,
+    user.email,
+    user.role,
+    user.admin?.role,
+  );
   const refreshToken = generateToken.refreshToken(
     user.id,
     user.email,
     user.role,
-    user.admin?.role
+    user.admin?.role,
   );
 
   await UserRepository.updateLastLogin(user.id);
@@ -117,7 +135,7 @@ export async function loginUserOTP(payload: {
     if (!emailSent) {
       // Fallback: still log to console if email fails
       console.log(
-        `[OTP] Email: ${email}, OTP: ${newOtp} (expires at 5 minutes from now)`
+        `[OTP] Email: ${email}, OTP: ${newOtp} (expires at 5 minutes from now)`,
       );
       console.log("[WARNING] Email delivery failed, check console for OTP");
     }
@@ -138,12 +156,17 @@ export async function loginUserOTP(payload: {
     throw new EmailNotFoundError();
   }
 
-  const accessToken = generateToken.accessToken(user.id, user.email, user.role, user.admin?.role);
+  const accessToken = generateToken.accessToken(
+    user.id,
+    user.email,
+    user.role,
+    user.admin?.role,
+  );
   const refreshToken = generateToken.refreshToken(
     user.id,
     user.email,
     user.role,
-    user.admin?.role
+    user.admin?.role,
   );
 
   await UserRepository.updateLastLogin(user.id);
@@ -169,13 +192,13 @@ export async function refreshAccessToken(payload: {
     user.id,
     user.email,
     user.role,
-    user.admin?.role
+    user.admin?.role,
   );
   const newRefreshToken = generateToken.refreshToken(
     user.id,
     user.email,
     user.role,
-    user.admin?.role
+    user.admin?.role,
   );
 
   await UserRepository.updateLastLogin(user.id);

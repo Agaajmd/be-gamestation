@@ -59,11 +59,13 @@ export const checkoutOrder = async (
     const userId = BigInt(req.user!.userId);
     const orderId = BigInt(req.params.id);
     const { paymentMethod } = req.body;
+    const paymentProofFile = req.file;
 
     const order = await checkoutOrderService({
       userId,
       orderId,
       paymentMethod,
+      paymentProofFile,
     });
 
     res.status(200).json({

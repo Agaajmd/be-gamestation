@@ -6,13 +6,21 @@ import {
 } from "./type/user/userWithOwnerAndAdmin";
 
 export const UserRepository = {
+  // Find First
+  findFirst(where: object, options?: object) {
+    return prisma.user.findFirst({
+      where: where,
+      ...options,
+    });
+  },
+
   // Find by ID User only
   findByIdUserOnly(userId: string | bigint) {
     return prisma.user.findUnique({
       where: {
         id: BigInt(userId),
-      }
-    })
+      },
+    });
   },
 
   // Find user by ID
@@ -33,7 +41,7 @@ export const UserRepository = {
 
   // Find user by email with owner and admin relations
   findByEmailWithOwnerAndAdmin(
-    email: string
+    email: string,
   ): Promise<UserWithOwnerAndAdmin | null> {
     return prisma.user.findUnique({
       where: { email },
@@ -47,11 +55,15 @@ export const UserRepository = {
     passwordHash: string;
     fullname: string;
     phone: string;
+    verificationTokenHash?: string | null;
+    verificationTokenExpiry?: Date | null;
   }) {
     return prisma.user.create({
       data: {
         ...data,
         role: "customer",
+        isVerified: false,
+        verificationSentAt: new Date(),
       },
     });
   },
@@ -74,6 +86,21 @@ export const UserRepository = {
     return prisma.user.update({
       where: { id: userId },
       data: { role },
+    });
+  },
+
+  updateVerification(
+    userId: bigint,
+    verificationToken?: string | null,
+    verificationTokenExpires?: Date | null,
+  ) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: {
+        isVerified: true,
+        verificationToken: verificationToken ?? null,
+        verificationTokenExpires: verificationTokenExpires ?? null,
+      },
     });
   },
 };

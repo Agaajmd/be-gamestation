@@ -9,8 +9,6 @@ if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL is not defined in environment variables");
 }
 
-console.log("🔌 Connecting to database...");
-
 // Singleton pattern untuk Prisma Client
 declare global {
   var __prisma: PrismaClient | undefined;

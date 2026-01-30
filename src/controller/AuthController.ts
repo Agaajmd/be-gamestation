@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+
 import {
   loginUser,
   registerUser,
@@ -8,6 +9,12 @@ import {
   forgetPasswordUser,
   resetPasswordUser,
 } from "../service/AuthService/authService";
+import {
+  checkVerificationStatusService,
+  resendVerificationEmailService,
+  verifyEmailService,
+} from "../service/VerificationService/verificationService";
+
 import { handleError } from "../helper/responseHelper";
 
 /**
@@ -23,11 +30,8 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       message: "Registration successful",
       data: {
         user: {
-          ...result.newUser,
-          id: result.newUser.id.toString(),
+          ...result,
         },
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
       },
     });
   } catch (error: any) {
@@ -122,13 +126,75 @@ export const loginOTP = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+export const verifyEmail = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { token } = req.query;
+
+    const result = await verifyEmailService(token as string);
+
+    res.status(200).json({
+      success: true,
+      message: "Email berhasil diverifikasi",
+      data: {
+        result,
+      },
+    });
+  } catch (error) {
+    handleError(error, res);
+  }
+};
+
+export const resendVerificationEmail = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { email } = req.body;
+    const result = await resendVerificationEmailService(email);
+
+    res.status(200).json({
+      success: true,
+      message: "Email verifikasi berhasil dikirim ulang",
+      data: {
+        result,
+      },
+    });
+  } catch (error) {
+    handleError(error, res);
+  }
+};
+
+export const checkVerificationStatus = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { email } = req.body;
+
+    const result = await checkVerificationStatusService(email);
+
+    res.status(200).json({
+      success: true,
+      message: "Status verifikasi email berhasil diperiksa",
+      data: {
+        result,
+      },
+    });
+  } catch (error) {
+    handleError(error, res);
+  }
+};
+
 /**
  * POST /auth/refresh-token
  * Refresh access token menggunakan refresh token
  */
 export const refreshToken = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const result = await refreshAccessToken(req.body);
@@ -183,7 +249,7 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
  */
 export const forgotPassword = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     await forgetPasswordUser(req.body);
@@ -206,7 +272,7 @@ export const forgotPassword = async (
  */
 export const resetPassword = async (
   req: Request,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     await resetPasswordUser(req.body);

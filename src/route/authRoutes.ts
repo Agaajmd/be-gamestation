@@ -9,6 +9,7 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
 } from "../validation/bodyValidation/authValidation";
+import { checkVerificationStatusSchema, resendVerificationEmailSchema, verifyEmailSchema } from "../validation/queryValidation/authQueryValidation";
 
 const router = Router();
 
@@ -36,6 +37,29 @@ router.post("/login", ValidateMiddleware.validateBody(loginSchema), AuthControll
  *          Step 2: { email, otp }
  */
 router.post("/login-otp", ValidateMiddleware.validateBody(loginOTPSchema), AuthController.loginOTP);
+
+/**
+  * @route   POST /auth/verify-email
+  * @desc    Verifikasi email dengan token
+  * @access  Public
+*/
+router.get("/verify-email", ValidateMiddleware.validateQuery(verifyEmailSchema), AuthController.verifyEmail);
+
+/**
+ * @route   POST /auth/resend-verification-email
+ * @desc    Kirim ulang email verifikasi
+ * @access  Public
+ * @body    { email }
+ */
+router.post("/resend-verification-email", ValidateMiddleware.validateBody(resendVerificationEmailSchema), AuthController.resendVerificationEmail);
+
+/**
+ * @route   POST /auth/check-verification-status
+ * @desc    Cek status verifikasi email
+ * @access  Public
+ * @body    { email }
+ */
+router.post("/check-verification-status", ValidateMiddleware.validateBody(checkVerificationStatusSchema), AuthController.checkVerificationStatus);
 
 /**
  * @route   POST /auth/refresh-token

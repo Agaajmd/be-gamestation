@@ -246,8 +246,9 @@ export const checkoutOrderService = async (payload: {
   userId: bigint;
   orderId: bigint;
   paymentMethod?: string;
+  paymentProofFile?: Express.Multer.File;
 }) => {
-  const { userId, orderId, paymentMethod } = payload;
+  const { userId, orderId, paymentMethod, paymentProofFile } = payload;
 
   // Get order
   const order = await OrderRepository.findById(orderId);
@@ -267,10 +268,15 @@ export const checkoutOrderService = async (payload: {
   }
 
   // Update order to pending
+  const paymentProofPath = paymentProofFile ? `uploads/payment-proofs/${paymentProofFile.filename}`
+    : null;
+
   const updatedOrder = await OrderRepository.update(orderId, {
     status: "pending",
     paymentStatus: PaymentStatus.pending,
     paymentMethod: paymentMethod || null,
+    paymentProofUrl: paymentProofPath,
+    paymentProofUploadedAt: paymentProofFile ? new Date() : null,
   });
 
   // Create notification for customer

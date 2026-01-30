@@ -3,12 +3,12 @@ import { prisma } from "../src/database";
 
 async function seedTestData() {
   try {
-    const pastTime = new Date(Date.now() - 5 * 60 * 1000); // 5 menit yang lalu
+    const pastTime = new Date(Date.now() - 5 * 60 * 1000); 
 
     const order = await prisma.order.create({
       data: {
-        customerId: 1n, // pastikan customer ini ada
-        branchId: 1n, // pastikan branch ini ada
+        customerId: 1n, 
+        branchId: 1n, 
         status: "confirmed",
         paymentStatus: "paid",
         orderCode: `TEST-${Date.now()}`,
@@ -16,9 +16,9 @@ async function seedTestData() {
         orderItems: {
           create: [
             {
-              roomAndDeviceId: 1n, // pastikan device ini ada
-              bookingStart: new Date(Date.now() - 65 * 60 * 1000), // 65 menit lalu
-              bookingEnd: pastTime, // sudah lewat 5 menit
+              roomAndDeviceId: 1n,
+              bookingStart: new Date(Date.now() - 65 * 60 * 1000), 
+              bookingEnd: pastTime, 
               durationMinutes: 60,
               price: 10000,
               baseAmount: 10000,

@@ -18,6 +18,7 @@ import {
   checkoutOrderSchema,
   updateOrderStatusSchema,
 } from "../validation/bodyValidation/orderValidation";
+import { uploadImage } from "../helper/uploadImage";
 
 const router = Router();
 
@@ -27,16 +28,17 @@ router.post(
   authenticateToken,
   requireCustomer,
   ValidateMiddleware.validateBody(createOrderSchema),
-  addToCart
+  addToCart,
 );
 
 router.post(
   "/:id/checkout",
   authenticateToken,
   requireCustomer,
+  uploadImage.single("paymentProof"),
   ValidateMiddleware.validateBody(checkoutOrderSchema),
-  checkoutOrder
-)
+  checkoutOrder,
+);
 
 router.delete("/:id", authenticateToken, cancelOrder);
 
@@ -50,8 +52,7 @@ router.put(
   authenticateToken,
   requireOwnerOrAdmin,
   ValidateMiddleware.validateBody(updateOrderStatusSchema),
-  updateOrderStatus
+  updateOrderStatus,
 );
-
 
 export default router;

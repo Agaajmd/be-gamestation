@@ -119,10 +119,6 @@ export const updateBranchAmenities = async (
       data: { amenities: amenities as any },
     });
 
-    console.log(
-      `[AMENITIES] Updated for branch ${branchId}: ${amenities.auto.roomAndDevices.total} devices, ${amenities.auto.categories.total} categories`
-    );
-
     return amenities;
   } catch (error) {
     console.error("Update branch amenities error:", error);
@@ -178,8 +174,6 @@ export const updateBranchFacilities = async (
       where: { id: branchId },
       data: { amenities: updatedAmenities as any },
     });
-
-    console.log(`[AMENITIES] Updated facilities for branch ${branchId}`);
 
     return updatedAmenities;
   } catch (error) {
