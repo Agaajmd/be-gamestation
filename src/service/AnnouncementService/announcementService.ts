@@ -13,7 +13,7 @@ import {
 export const createAnnouncementService = async (payload: {
   title: string;
   content: string;
-  forBranch?: string | number | null;
+  forBranch: bigint | null;
   startDate: string;
   endDate: string;
 }) => {
@@ -31,7 +31,7 @@ export const createAnnouncementService = async (payload: {
   const announcement = await AnnouncementRepository.create({
     title,
     content,
-    forBranch: forBranch ? BigInt(forBranch) : null,
+    forBranch: forBranch,
     startDate: startDateObj,
     endDate: endDateObj,
   });

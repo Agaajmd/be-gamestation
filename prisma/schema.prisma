@@ -194,6 +194,7 @@ model Branch {
   branchHolidays       BranchHoliday[]
   reviews              Review[]
   paymentMethods       BranchPaymentMethod[]
+  announcements        Announcement[]
 
   @@index([ownerId], name: "idx_branches_owner")
   @@map("branches")
@@ -500,6 +501,8 @@ model Announcement {
   endDate   DateTime  @map("end_at") @db.Timestamp(6)
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime? @updatedAt @map("updated_at")
+
+  branch Branch? @relation(fields: [forBranch], references: [id], onDelete: Cascade)
 
   @@map("announcements")
 }

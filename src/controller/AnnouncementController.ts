@@ -19,7 +19,7 @@ export const createAnnouncement = async (req: Request, res: Response) => {
     const announcement = await createAnnouncementService({
       title,
       content,
-      forBranch,
+      forBranch: forBranch ? BigInt(forBranch) : null,
       startDate,
       endDate,
     });
