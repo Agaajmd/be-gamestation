@@ -42,7 +42,7 @@ const generateOrderCode = (): string => {
 /**
  * Calculate booking price using booking flow calculation
  */
-const calculateBookingPrice = async (
+export const calculateBookingPriceService = async (
   branchId: bigint,
   deviceId: bigint,
   categoryId: bigint,
@@ -178,7 +178,7 @@ export const addToCartService = async (payload: {
   }
 
   // Calculate pricing
-  const pricing = await calculateBookingPrice(
+  const pricing = await calculateBookingPriceService(
     branchId,
     roomAndDeviceId,
     categoryId,
@@ -195,17 +195,15 @@ export const addToCartService = async (payload: {
   if (existingCartOrder) {
     // Add new order item to existing cart
     await OrderItemRepository.create({
-      data: {
-        orderId: existingCartOrder.id,
-        roomAndDeviceId,
-        bookingStart,
-        bookingEnd,
-        durationMinutes,
-        price: pricing.totalAmount.toString(),
-        baseAmount: pricing.baseAmount.toString(),
-        categoryFee: pricing.categoryFee.toString(),
-        advanceBookingFee: pricing.advanceBookingFee.toString(),
-      },
+      orderId: existingCartOrder.id,
+      roomAndDeviceId,
+      bookingStart,
+      bookingEnd,
+      durationMinutes,
+      price: pricing.totalAmount.toString(),
+      baseAmount: pricing.baseAmount.toString(),
+      categoryFee: pricing.categoryFee.toString(),
+      advanceBookingFee: pricing.advanceBookingFee.toString(),
     });
 
     const updatedTotal =
@@ -245,10 +243,10 @@ export const addToCartService = async (payload: {
 export const checkoutOrderService = async (payload: {
   userId: bigint;
   orderId: bigint;
-  paymentMethod?: string;
+  paymentId: bigint;
   paymentProofFile?: Express.Multer.File;
 }) => {
-  const { userId, orderId, paymentMethod, paymentProofFile } = payload;
+  const { userId, orderId, paymentId, paymentProofFile } = payload;
 
   // Get order
   const order = await OrderRepository.findById(orderId);
@@ -268,14 +266,15 @@ export const checkoutOrderService = async (payload: {
   }
 
   // Update order to pending
-  const paymentProofPath = paymentProofFile ? `uploads/payment-proofs/${paymentProofFile.filename}`
+  const paymentProofPath = paymentProofFile
+    ? `uploads/payment-proofs/${paymentProofFile.filename}`
     : null;
 
   const updatedOrder = await OrderRepository.update(orderId, {
     status: "pending",
     paymentStatus: PaymentStatus.pending,
-    paymentMethod: paymentMethod || null,
-    paymentProofUrl: paymentProofPath,
+    paymentId: paymentId || null,
+    paymentProofFile: paymentProofPath,
     paymentProofUploadedAt: paymentProofFile ? new Date() : null,
   });
 

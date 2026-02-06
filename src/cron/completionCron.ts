@@ -28,17 +28,43 @@ export async function processCompletions() {
   logger.info({ jobId }, "Starting completion processing");
 
   try {
-    const orders = await prisma.order.findMany({
+    // Step 1: Find order IDs with optimized query (lightweight)
+    const completedOrderIds = await prisma.order.findMany({
       take: 50,
       where: {
         status: { in: ["pending", "confirmed"] },
-        orderItems: { every: { bookingEnd: { lte: now } } },
+        orderItems: {
+          none: {
+            bookingEnd: { gt: now },
+          },
+        },
       },
-      include: { orderItems: true },
+      select: { id: true },
+    });
+
+    if (completedOrderIds.length === 0) {
+      logger.debug({ jobId }, "No orders to process");
+      return;
+    }
+
+    // Step 2: Fetch full orders with items (only for completed ones)
+    const orders = await prisma.order.findMany({
+      where: {
+        id: { in: completedOrderIds.map((o) => o.id) },
+      },
+      include: {
+        orderItems: {
+          select: {
+            id: true,
+            roomAndDeviceId: true,
+            bookingEnd: true,
+          },
+        },
+      },
     });
 
     if (orders.length === 0) {
-      logger.debug({ jobId }, "No orders to process");
+      logger.debug({ jobId }, "No orders to process after verification");
       return;
     }
 
@@ -147,13 +173,19 @@ export async function processCompletions() {
   } finally {
     isProcessing = false;
     logger.debug({ jobId }, "Job lock released");
+
+    // Force garbage collection in development to prevent heap issues
+    if (process.env.NODE_ENV === "development" && global.gc) {
+      global.gc();
+    }
   }
 }
 
 async function processOrder(order: any, now: Date, jobId: string) {
   if (process.env.NODE_ENV === "development") {
-    logger.info({ jobId, orderId: order.id }, "⏱️ Simulating 8s delay...");
-    await new Promise((resolve) => setTimeout(resolve, 8000));
+    // Reduced from 8s to 100ms for memory efficiency
+    logger.info({ jobId, orderId: order.id }, "⏱️ Simulating 100ms delay...");
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
   const maxRetries = 3;

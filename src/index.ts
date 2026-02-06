@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express, { Application, Request, Response } from "express";
 import cors from "cors";
+import path from "path";
 import authRoutes from "./route/authRoutes";
 import branchRoutes from "./route/branchRoutes";
 import adminRoutes from "./route/adminRoutes";
@@ -16,7 +17,10 @@ import bookingRoutes from "./route/bookingRoutes";
 import holidayRoutes from "./route/holidayRoutes";
 import gameAvailabilityRoutes from "./route/gameAvailabilityRoutes";
 import advanceBookingPriceRoutes from "./route/advanceBookingPriceRoutes";
-import { testEmailConnection } from "./helper/emailHelper";
+import branchPaymentMethodRoutes from "./route/branchPaymentMethodRoutes";
+import userRoutes from "./route/userRoute";
+import announcementRoutes from "./route/announcementRoute";
+// import { testEmailConnection } from "./helper/emailHelper";
 import cronRoutes from "./route/cronRoutes";
 // import { startCompletionCron, stopCompletionCron } from "./cron/completionCron";
 // import { prisma } from "./database"; // Import prisma instance
@@ -41,8 +45,11 @@ app.use(
 app.use(bigIntSerializer);
 app.use(express.urlencoded({ extended: true }));
 
+app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
+
 // Routes
 app.use("/auth", authRoutes);
+app.use("/users", userRoutes);
 app.use("/branches", branchRoutes);
 app.use("/branches", adminRoutes);
 app.use("/branches", categoryRoutes);
@@ -57,6 +64,8 @@ app.use("/subscriptions", subscriptionRoutes);
 app.use("/booking", bookingRoutes);
 app.use("/holidays", holidayRoutes);
 app.use("/advance-booking-price", advanceBookingPriceRoutes);
+app.use("/branch-payment-methods", branchPaymentMethodRoutes);
+app.use("/announcements", announcementRoutes);
 
 app.use("/api/cron", cronRoutes);
 
@@ -69,7 +78,7 @@ app.get("/health", (_req: Request, res: Response) => {
   });
 });
 
-testEmailConnection().catch(console.error);
+// testEmailConnection().catch(console.error);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {

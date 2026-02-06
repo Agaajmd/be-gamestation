@@ -77,6 +77,27 @@ enum PaymentProviderStatus {
   refunded
 }
 
+enum PaymentProvider {
+  // E-wallet providers
+  qris
+  gopay
+  ovo
+  dana
+  shopeepay
+  linkaja
+  // Bank transfer providers
+  bca
+  bri
+  bni
+  mandiri
+  permata
+  cimb
+  // Payment gateway providers
+  midtrans
+  xendit
+  doku
+}
+
 enum SessionStatus {
   running
   stopped
@@ -172,6 +193,7 @@ model Branch {
   advanceBookingPrices AdvanceBookingPrice[]
   branchHolidays       BranchHoliday[]
   reviews              Review[]
+  paymentMethods       BranchPaymentMethod[]
 
   @@index([ownerId], name: "idx_branches_owner")
   @@map("branches")
@@ -289,18 +311,19 @@ model Order {
   totalAmount            Decimal       @map("total_amount") @db.Decimal(12, 2)
   createdAt              DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt              DateTime?     @updatedAt @map("updated_at") @db.Timestamp(6)
-  paymentMethod          String?       @map("payment_method") @db.VarChar(50)
+  paymentId              BigInt?       @map("payment_id")
   paymentStatus          PaymentStatus @map("payment_status")
   paymentProofFile       String?       @map("payment_proof_file") @db.Text
   paymentProofUploadedAt DateTime?     @map("payment_proof_uploaded_at") @db.Timestamp(6)
   notes                  String?       @db.Text
 
   // Relations
-  customer   User        @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  branch     Branch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  orderItems OrderItem[]
-  payment    Payment?
-  session    Session?
+  customer          User                 @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  branch            Branch               @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  paymentMethodUsed BranchPaymentMethod? @relation(fields: [paymentId], references: [id])
+  orderItems        OrderItem[]
+  session           Session?
+  payment           Payment?
 
   @@index([customerId], name: "idx_orders_customer")
   @@index([branchId], name: "idx_orders_branch_booking")
@@ -466,4 +489,39 @@ model FailedJob {
 
   @@index([jobType, status])
   @@index([createdAt])
+}
+
+model Announcement {
+  id        BigInt    @id @default(autoincrement())
+  title     String    @db.VarChar(150)
+  content   String    @db.Text
+  forBranch BigInt?   @map("for_branch")
+  startDate DateTime  @map("start_at") @db.Timestamp(6)
+  endDate   DateTime  @map("end_at") @db.Timestamp(6)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+
+  @@map("announcements")
+}
+
+model BranchPaymentMethod {
+  id            BigInt          @id @default(autoincrement())
+  branchId      BigInt          @map("branch_id")
+  method        PaymentMethod
+  provider      PaymentProvider
+  isActive      Boolean         @default(true) @map("is_active")
+  accountNumber String?         @map("account_number") @db.VarChar(255)
+  accountName   String?         @map("account_name") @db.VarChar(255)
+  qrCodeImage   String?         @map("qr_code_image") @db.Text
+  instructions  String?         @db.Text
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime?       @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  // Relations
+  branch Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@unique([branchId, provider])
+  @@index([branchId, isActive], name: "idx_branch_payment_methods_active")
+  @@map("branch_payment_methods")
 }

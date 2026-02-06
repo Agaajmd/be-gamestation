@@ -55,8 +55,8 @@ export const UserRepository = {
     passwordHash: string;
     fullname: string;
     phone: string;
-    verificationTokenHash?: string | null;
-    verificationTokenExpiry?: Date | null;
+    verificationToken?: string | null;
+    verificationTokenExpires?: Date | null;
   }) {
     return prisma.user.create({
       data: {
@@ -101,6 +101,25 @@ export const UserRepository = {
         verificationToken: verificationToken ?? null,
         verificationTokenExpires: verificationTokenExpires ?? null,
       },
+    });
+  },
+
+  // Update user information
+  updateUserInfo(
+    userId: bigint,
+    data: {
+      email?: string;
+      fullname?: string;
+      phone?: string;
+    },
+  ) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...data,
+        updatedAt: new Date(),
+      },
+      ...UserWithOwnerAndAdminConfig,
     });
   },
 };

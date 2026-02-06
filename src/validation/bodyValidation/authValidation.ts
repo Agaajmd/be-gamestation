@@ -18,10 +18,10 @@ export const registerSchema = Joi.object({
     "any.required": "Nama lengkap wajib diisi",
   }),
   phone: Joi.string()
-    .pattern(/^[0-9+\-\s()]+$/)
+    .pattern(/^[+]?[0-9]{8,15}$/)
     .required()
     .messages({
-      "string.pattern.base": "Format nomor telepon tidak valid",
+      "string.pattern.base": "Nomor telepon harus berisi 8-15 digit angka",
       "any.required": "Nomor telepon wajib diisi",
     }),
 });

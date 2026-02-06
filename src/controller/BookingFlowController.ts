@@ -12,19 +12,23 @@ import {
   getBookingCartService,
 } from "../service/BookingService/bookingService";
 
+import { calculateBookingPriceService } from "../service/OrderService/orderService";
+
 // Error
 import { handleError } from "../helper/responseHelper";
 
 /**
  * GET /booking/branches
  * Mendapatkan semua cabang untuk halaman booking
+ * Jika user sudah punya cart order, hanya return branch yang sama
  */
 export const getBranches = async (
-  _req: Request,
+  req: Request,
   res: Response,
 ): Promise<void> => {
   try {
-    const branches = await getBranchesService();
+    const userId = BigInt(req.user!.userId);
+    const branches = await getBranchesService(userId);
 
     res.status(200).json({
       success: true,
@@ -49,8 +53,9 @@ export const getAvailableDates = async (
 
     // Parse month
     const [year, monthNum] = (month as string).split("-").map(Number);
-    const startDate = new Date(year, monthNum - 1, 1);
-    const endDate = new Date(year, monthNum, 0);
+
+    const startDate = new Date(Date.UTC(year, monthNum - 1, 1, 0, 0, 0, 0));
+    const endDate = new Date(Date.UTC(year, monthNum, 0, 23, 59, 59, 999));
 
     const {
       availableDates,
@@ -126,7 +131,7 @@ export const getDurationOptions = async (
       .split(":")
       .map(Number);
 
-    const { durationOptions, closeHour, maxDurationMinutes } =
+    const { durationOptions, closeTime, maxDurationMinutes } =
       await getDurationOptionsService(
         branchId,
         bookingDate as string,
@@ -139,17 +144,13 @@ export const getDurationOptions = async (
       data: durationOptions,
       meta: {
         startTime: startTime,
-        closeTime: `${closeHour.toString().padStart(2, "0")}:00`,
+        closeTime: closeTime,
         maxDurationMinutes: maxDurationMinutes,
-        note: "Durasi minimum 1 jam, step 30 menit",
+        note: "Durasi minimum 1 jam, step 60 menit",
       },
     });
   } catch (error) {
-    console.error("Get duration options error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Terjadi kesalahan saat mengambil opsi durasi",
-    });
+    handleError(error, res);
   }
 };
 
@@ -254,8 +255,9 @@ export const getBookingCart = async (
 ): Promise<void> => {
   try {
     const userId = BigInt(req.user!.userId);
-    
-    const {order, totalItems, totalAmount} = await getBookingCartService(userId);
+
+    const { order, totalItems, totalAmount, paymentMethods } =
+      await getBookingCartService(userId);
 
     res.status(200).json({
       success: true,
@@ -263,6 +265,7 @@ export const getBookingCart = async (
         totalItems,
         totalAmount,
         order,
+        paymentMethods,
       },
     });
   } catch (error) {
@@ -274,125 +277,36 @@ export const getBookingCart = async (
  * POST /booking/calculate-price
  * Menghitung harga booking sebelum checkout
  */
-// export const calculateBookingPrice = async (
-//   req: Request,
-//   res: Response,
-// ): Promise<void> => {
-//   try {
-//     const {
-//       branchId,
-//       deviceId,
-//       categoryId,
-//       bookingDate,
-//       startTime,
-//       durationMinutes,
-//     } = req.body;
+export const calculateBookingPrice = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { branchId, deviceId, categoryId, bookingDate, durationMinutes } =
+      req.body;
 
-//     if (
-//       !branchId ||
-//       !deviceId ||
-//       !categoryId ||
-//       !bookingDate ||
-//       !startTime ||
-//       !durationMinutes
-//     ) {
-//       res.status(400).json({
-//         success: false,
-//         message: "Semua field wajib diisi",
-//       });
-//       return;
-//     }
+    const branchIdBigInt = BigInt(branchId);
+    const deviceIdBigInt = BigInt(deviceId);
+    const categoryIdBigInt = BigInt(categoryId);
 
-//     const branchIdBigInt = BigInt(branchId);
-//     const deviceIdBigInt = BigInt(deviceId);
-//     const categoryIdBigInt = BigInt(categoryId);
+    const result = await calculateBookingPriceService(
+      branchIdBigInt,
+      deviceIdBigInt,
+      categoryIdBigInt,
+      bookingDate,
+      durationMinutes,
+    );
 
-//     // Get device
-//     const device = await prisma.roomAndDevice.findUnique({
-//       where: { id: deviceIdBigInt },
-//       include: {
-//         category: true,
-//       },
-//     });
-
-//     if (!device) {
-//       res.status(404).json({
-//         success: false,
-//         message: "Device tidak ditemukan",
-//       });
-//       return;
-//     }
-
-//     // Get category
-//     const category = await prisma.category.findUnique({
-//       where: { id: categoryIdBigInt },
-//     });
-
-//     if (!category) {
-//       res.status(404).json({
-//         success: false,
-//         message: "Kategori tidak ditemukan",
-//       });
-//       return;
-//     }
-
-//     // Calculate base amount
-//     const hours = durationMinutes / 60;
-//     const baseAmount = Number(device.pricePerHour) * hours;
-
-//     // Calculate category fee
-//     const categoryFee = Number(category.pricePerHour) * hours;
-
-//     // Calculate advance booking fee
-//     const today = new Date();
-//     today.setHours(0, 0, 0, 0);
-//     const bookingDateObj = new Date(bookingDate);
-//     const daysFromToday = Math.floor(
-//       (bookingDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
-//     );
-
-//     let advanceBookingFee = 0;
-//     if (daysFromToday > 0) {
-//       const advancePrice = await prisma.advanceBookingPrice.findFirst({
-//         where: {
-//           branchId: branchIdBigInt,
-//           daysInAdvance: {
-//             lte: daysFromToday,
-//           },
-//         },
-//         orderBy: {
-//           daysInAdvance: "desc",
-//         },
-//       });
-
-//       if (advancePrice) {
-//         advanceBookingFee = Number(advancePrice.additionalFee) * hours;
-//       }
-//     }
-
-//     // Total
-//     const totalAmount = baseAmount + categoryFee + advanceBookingFee;
-
-//     res.status(200).json({
-//       success: true,
-//       data: {
-//         baseAmount: baseAmount.toFixed(2),
-//         categoryFee: categoryFee.toFixed(2),
-//         advanceBookingFee: advanceBookingFee.toFixed(2),
-//         totalAmount: totalAmount.toFixed(2),
-//         breakdown: {
-//           devicePricePerHour: device.pricePerHour.toString(),
-//           categoryPricePerHour: category.pricePerHour.toString(),
-//           durationHours: hours,
-//           daysInAdvance: daysFromToday,
-//         },
-//       },
-//     });
-//   } catch (error) {
-//     console.error("Calculate price error:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Terjadi kesalahan saat menghitung harga",
-//     });
-//   }
-// };
+    res.status(200).json({
+      success: true,
+      data: {
+        baseAmount: result.baseAmount.toFixed(2),
+        categoryFee: result.categoryFee.toFixed(2),
+        advanceBookingFee: result.advanceBookingFee.toFixed(2),
+        totalAmount: result.totalAmount.toFixed(2),
+      },
+    });
+  } catch (error) {
+    handleError(error, res);
+  }
+};

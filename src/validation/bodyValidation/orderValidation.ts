@@ -34,13 +34,10 @@ export const createOrderSchema = Joi.object({
 });
 
 export const checkoutOrderSchema = Joi.object({
-  paymentMethod: Joi.string()
-    .valid("credit_card", "debit_card", "cash", "e_wallet")
-    .required()
-    .messages({
-      "any.only": "Metode pembayaran tidak valid",
-      "any.required": "Metode pembayaran wajib diisi",
-    }),
+  paymentId: Joi.string().required().messages({
+    "string.empty": "Payment ID tidak boleh kosong",
+    "any.required": "Payment ID wajib diisi",
+  }),
 });
 
 export const updateOrderStatusSchema = Joi.object({

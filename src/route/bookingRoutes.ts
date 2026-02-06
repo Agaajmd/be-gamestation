@@ -1,7 +1,7 @@
 import { Router } from "express";
 import * as BookingFlowController from "../controller/BookingFlowController";
 import * as ValidateMiddleware from "../middleware/validateMiddleware";
-// import { calculateBookingPriceSchema } from "../validation/bodyValidation/bookingValidation";
+import { calculateBookingPriceSchema } from "../validation/bodyValidation/bookingValidation";
 import {
   getAvailableRoomsAndDevicesSchema,
   getAvailableDatesSchema,
@@ -14,7 +14,7 @@ const router = Router();
  * GET /booking/branches
  * Mendapatkan semua cabang untuk halaman booking (public)
  */
-router.get("/branches", BookingFlowController.getBranches);
+router.get("/branches", authenticateToken, BookingFlowController.getBranches);
 
 /**
  * GET /booking/branches/:branchId/available-dates
@@ -24,7 +24,7 @@ router.get("/branches", BookingFlowController.getBranches);
 router.get(
   "/branches/:branchId/available-dates",
   ValidateMiddleware.validateQuery(getAvailableDatesSchema),
-  BookingFlowController.getAvailableDates
+  BookingFlowController.getAvailableDates,
 );
 
 /**
@@ -34,7 +34,7 @@ router.get(
  */
 router.get(
   "/branches/:branchId/available-times",
-  BookingFlowController.getAvailableTimes
+  BookingFlowController.getAvailableTimes,
 );
 
 /**
@@ -44,7 +44,7 @@ router.get(
  */
 router.get(
   "/branches/:branchId/duration-options",
-  BookingFlowController.getDurationOptions
+  BookingFlowController.getDurationOptions,
 );
 
 /**
@@ -54,7 +54,7 @@ router.get(
  */
 router.get(
   "/branches/:branchId/categories",
-  BookingFlowController.getAvailableCategories
+  BookingFlowController.getAvailableCategories,
 );
 
 /**
@@ -65,7 +65,7 @@ router.get(
 router.get(
   "/branches/:branchId/rooms-and-devices",
   ValidateMiddleware.validateQuery(getAvailableRoomsAndDevicesSchema),
-  BookingFlowController.getAvailableRoomsAndDevices
+  BookingFlowController.getAvailableRoomsAndDevices,
 );
 
 /**
@@ -78,10 +78,10 @@ router.get("/cart", authenticateToken, BookingFlowController.getBookingCart);
  * POST /booking/calculate-price
  * Menghitung harga booking sebelum checkout (public atau authenticated)
  */
-// router.post(
-//   "/calculate-price",
-//   ValidateMiddleware.validateBody(calculateBookingPriceSchema),
-//   BookingFlowController.calculateBookingPrice
-// );
+router.post(
+  "/calculate-price",
+  ValidateMiddleware.validateBody(calculateBookingPriceSchema),
+  BookingFlowController.calculateBookingPrice,
+);
 
 export default router;

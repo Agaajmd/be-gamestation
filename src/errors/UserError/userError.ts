@@ -11,3 +11,15 @@ export class HasNoAccessError extends AppError {
     super("Pengguna tidak memiliki akses", 403, "HAS_NO_ACCESS");
   }
 }
+
+export class UserNotFoundError extends AppError {
+  constructor() {
+    super("User tidak ditemukan", 404, "USER_NOT_FOUND");
+  }
+}
+
+export class EmailAlreadyExistsError extends AppError {
+  constructor() {
+    super("Email sudah terdaftar", 409, "EMAIL_ALREADY_EXISTS");
+  }
+}

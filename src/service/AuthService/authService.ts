@@ -55,8 +55,8 @@ export async function registerUser(payload: {
     passwordHash,
     fullname,
     phone,
-    verificationTokenHash: hashedToken,
-    verificationTokenExpiry: tokenExpires,
+    verificationToken: hashedToken,
+    verificationTokenExpires: tokenExpires,
   });
 
   sendVerificationEmail({

@@ -343,3 +343,184 @@ Authorization: Bearer {{accessToken}}
 ### 17. Delete Holidays by Date Range - Single Branch
 DELETE {{baseUrl}}/holidays/delete-range?branchIds=1&startDate=2026-02-01&endDate=2026-02-28
 Authorization: Bearer {{accessToken}}
+
+### ===============================================
+### USER ENDPOINTS
+### ===============================================
+
+### Update User Information - Own Account (SUCCESS)
+PUT {{baseUrl}}/users/1
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "email": "newemail@example.com",
+  "fullname": "Nama Baru",
+  "phone": "+6281234567890"
+}
+
+### Update User Information - Partial Update (only email)
+PUT {{baseUrl}}/users/1
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "email": "anotheremail@example.com"
+}
+
+### Update User Information - Partial Update (only phone)
+PUT {{baseUrl}}/users/1
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "phone": "+62812345678901"
+}
+
+### Update User Information - Other User (FAIL - Unauthorized)
+PUT {{baseUrl}}/users/2
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "email": "otheremail@example.com",
+  "fullname": "Other User Name"
+}
+
+### Update User Information - Invalid Email Format
+PUT {{baseUrl}}/users/1
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "email": "invalid-email"
+}
+
+### Update User Information - Phone Invalid Format
+PUT {{baseUrl}}/users/1
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "phone": "123"
+}
+
+### Update User Information - Fullname Too Short
+PUT {{baseUrl}}/users/1
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "fullname": "ab"
+}
+
+### Update User Information - No Fields to Update
+PUT {{baseUrl}}/users/1
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+}
+
+### Update User Information - Without Token (FAIL - Unauthorized)
+PUT {{baseUrl}}/users/1
+Content-Type: application/json
+
+{
+  "email": "newemail@example.com"
+}
+
+### ===============================================
+### ANNOUNCEMENT ENDPOINTS
+### ===============================================
+
+### Create Announcement (Admin/Owner Only)
+POST {{baseUrl}}/announcements
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Penawaran Spesial Bulan Ini",
+  "content": "Dapatkan diskon 20% untuk semua pemesanan device gaming",
+  "forBranch": 1,
+  "startDate": "2026-02-05T00:00:00Z",
+  "endDate": "2026-02-28T23:59:59Z"
+}
+
+### Create Global Announcement (All Branches)
+POST {{baseUrl}}/announcements
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Maintenance System",
+  "content": "Server akan melakukan maintenance pada tanggal 6 Februari 2026",
+  "startDate": "2026-02-06T00:00:00Z",
+  "endDate": "2026-02-06T23:59:59Z"
+}
+
+### Get All Announcements with Pagination
+GET {{baseUrl}}/announcements?skip=0&take=10
+Content-Type: application/json
+
+### Get Announcements for Specific Branch
+GET {{baseUrl}}/announcements?skip=0&take=10&branchId=1
+Content-Type: application/json
+
+### Get Active Announcements Only (Public)
+GET {{baseUrl}}/announcements/active?skip=0&take=10
+Content-Type: application/json
+
+### Get Active Announcements for Specific Branch
+GET {{baseUrl}}/announcements/active?skip=0&take=10&branchId=1
+Content-Type: application/json
+
+### Get Announcement by ID
+GET {{baseUrl}}/announcements/1
+Content-Type: application/json
+
+### Update Announcement (Admin/Owner Only)
+PUT {{baseUrl}}/announcements/1
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Penawaran Spesial Update",
+  "endDate": "2026-03-15T23:59:59Z"
+}
+
+### Update Announcement - Partial Update (only title)
+PUT {{baseUrl}}/announcements/1
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Judul Announcement Baru"
+}
+
+### Delete Announcement (Admin/Owner Only)
+DELETE {{baseUrl}}/announcements/1
+Authorization: Bearer {{accessToken}}
+
+### Create Announcement - Invalid Date (endDate <= startDate)
+POST {{baseUrl}}/announcements
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Invalid Announcement",
+  "content": "This will fail because endDate is before startDate",
+  "startDate": "2026-02-28T23:59:59Z",
+  "endDate": "2026-02-05T00:00:00Z"
+}
+
+### Create Announcement - Missing Required Field
+POST {{baseUrl}}/announcements
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Missing Content",
+  "startDate": "2026-02-05T00:00:00Z",
+  "endDate": "2026-02-28T23:59:59Z"
+}

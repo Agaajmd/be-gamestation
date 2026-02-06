@@ -3,6 +3,7 @@ import { BranchRepository } from "../../repository/branchRepository";
 import { RoomAndDeviceRepository } from "../../repository/roomAndDeviceRepository";
 import { HolidayRepository } from "../../repository/holidayRepository";
 import { CategoryRepository } from "../../repository/categoryRepository";
+import { BranchPaymentMethodRepository } from "../../repository/branchPaymentMethodRepository";
 
 // Queries
 import { RoomAndDeviceQuery } from "../../queries/roomAndDeviceQuery";
@@ -26,8 +27,17 @@ import { checkDeviceAvailability } from "../../helper/checkDeviceAvailability";
 import { GetAvailableTimesResult } from "./type/getAvailableTimesResult";
 
 // Service to get all branches
-export async function getBranchesService() {
+// Jika user sudah punya cart order, hanya return branch yang sama dengan cart
+export async function getBranchesService(userId: bigint) {
   const branches = await BranchRepository.findAvailableBranches();
+
+  // Check apakah user sudah punya cart order
+  const cartOrder = await BookingCartQuery.findBookingCartByUserId(userId);
+
+  // Jika ada cart order, filter branches untuk hanya return branch yang sama
+  if (cartOrder) {
+    return branches.filter((branch) => branch.id === cartOrder.branchId);
+  }
 
   return branches;
 }
@@ -146,20 +156,16 @@ export async function getDurationOptionsService(
     throw new BranchNotFoundError();
   }
 
-  const closeHour = branch.closeTime
-    ? new Date(branch.closeTime).getUTCHours()
-    : 23;
-
   const maxDurationMinutes = calculateMaximumDuration(
     bookingDate,
     startHour,
     startMinute,
-    closeHour,
+    branch.closeTime,
   );
 
   const durationOptions = generateDurationOptions(maxDurationMinutes);
 
-  return { durationOptions, closeHour, maxDurationMinutes };
+  return { durationOptions, closeTime: branch.closeTime, maxDurationMinutes };
 }
 
 // Service to get available categories for a branch
@@ -236,9 +242,33 @@ export async function getBookingCartService(userId: bigint) {
   const totalItems = cartOrder ? cartOrder.orderItems.length : 0;
   const totalAmount = cartOrder ? Number(cartOrder.totalAmount) : 0;
 
+  const paymentMethods = cartOrder
+    ? await BranchPaymentMethodRepository.findActiveByBranchId(
+        cartOrder.branchId,
+      )
+    : [];
+
   return {
     order: cartOrder,
     totalItems,
     totalAmount,
+    paymentMethods,
+  };
+}
+
+// Service to validate if user can order from a specific branch
+// Jika sudah ada cart order dan branch berbeda, throw error
+export async function validateBranchForOrderService(
+  userId: bigint,
+  requestedBranchId: bigint,
+) {
+  const cartOrder = await BookingCartQuery.findBookingCartByUserId(userId);
+
+  if (cartOrder && cartOrder.branchId !== requestedBranchId) {
+    throw new Error(
+      `Anda sudah memiliki order di branch ID ${cartOrder.branchId}. Tidak bisa menambah order dari branch berbeda. Mohon selesaikan atau batalkan pesanan sebelumnya.`,
+    );
   }
+
+  return true;
 }

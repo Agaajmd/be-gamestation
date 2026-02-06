@@ -1,3 +1,4 @@
+import { OrderStatus } from "@prisma/client";
 import {
   bookingCartConfig,
   BookingCartWithRelations,
@@ -9,7 +10,7 @@ export const BookingCartQuery = {
     userId: bigint,
   ): Promise<BookingCartWithRelations> {
     const result = await OrderRepository.findFirst(
-      { customerId: userId },
+      { customerId: userId, status: OrderStatus.cart },
       bookingCartConfig,
     );
     return result as unknown as BookingCartWithRelations;
