@@ -1,5 +1,6 @@
 // Repository
 import { UserRepository } from "../../repository/userRepository";
+import { sanitizeString, sanitizeEmail } from "../../helper/inputSanitizer";
 
 // Helper
 import {
@@ -18,7 +19,10 @@ import {
 } from "../../errors/AuthError/authError";
 
 export async function verifyEmailService(token: string): Promise<boolean> {
-  const hashedToken = hashToken(token);
+  // Sanitize input
+  const sanitizedToken = sanitizeString(token);
+
+  const hashedToken = hashToken(sanitizedToken);
 
   const user = await UserRepository.findFirst({
     verificationToken: hashedToken,
@@ -44,8 +48,13 @@ export async function verifyEmailService(token: string): Promise<boolean> {
   return true;
 }
 
-export async function resendVerificationEmailService(email: string): Promise<boolean> {
-  const user = await UserRepository.findByEmail(email);
+export async function resendVerificationEmailService(
+  email: string,
+): Promise<boolean> {
+  // Sanitize input
+  const sanitizedEmail = sanitizeEmail(email);
+
+  const user = await UserRepository.findByEmail(sanitizedEmail);
 
   if (!user) {
     throw new UserNotFoundError();
@@ -75,7 +84,7 @@ export async function resendVerificationEmailService(email: string): Promise<boo
   await UserRepository.updateVerification(user.id, hashedToken, tokenExpires);
 
   const emailSent = await sendVerificationEmail({
-    to: email,
+    to: sanitizedEmail,
     token: plainToken,
     username: user.fullname,
   });
@@ -88,7 +97,10 @@ export async function resendVerificationEmailService(email: string): Promise<boo
 }
 
 export async function checkVerificationStatusService(email: string) {
-  const user = await UserRepository.findByEmail(email);
+  // Sanitize input
+  const sanitizedEmail = sanitizeEmail(email);
+
+  const user = await UserRepository.findByEmail(sanitizedEmail);
 
   if (!user) {
     throw new UserNotFoundError();

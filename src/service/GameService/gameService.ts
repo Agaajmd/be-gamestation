@@ -1,5 +1,6 @@
 // Repository
 import { GameRepository } from "../../repository/gameRepository";
+import { sanitizeString } from "../../helper/inputSanitizer";
 
 // Types
 interface CreateGamePayload {
@@ -38,7 +39,10 @@ export async function getGameByIdService(gameId: bigint) {
 
 // Service function to create a new game
 export async function createGameService(payload: CreateGamePayload) {
-  const { name, deviceType } = payload;
+  const { name: rawName, deviceType } = payload;
+
+  // Sanitize input
+  const name = sanitizeString(rawName);
 
   // Check if game with same name and deviceType already exists
   const existingGame = await GameRepository.findByNameAndDeviceType(
@@ -60,7 +64,10 @@ export async function createGameService(payload: CreateGamePayload) {
 
 // Service function to update a game
 export async function updateGameService(payload: UpdateGamePayload) {
-  const { gameId, name, deviceType } = payload;
+  const { gameId, name: rawName, deviceType } = payload;
+
+  // Sanitize input
+  const name = rawName ? sanitizeString(rawName) : undefined;
 
   // Check if game exists
   const game = await GameRepository.findById(gameId);

@@ -1,8 +1,11 @@
 // src/routes/cron.routes.ts
 import { Router } from "express";
 import { processCompletions } from "../cron/completionCron";
+import { apiKeyAuthMiddleware } from "../helper/apiKeyManager";
 
 const router = Router();
+
+router.use(apiKeyAuthMiddleware);
 
 // Endpoint untuk trigger manual (hanya untuk development/testing)
 if (process.env.NODE_ENV !== "production") {

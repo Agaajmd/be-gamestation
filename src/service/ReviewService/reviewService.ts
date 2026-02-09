@@ -1,5 +1,6 @@
 import { prisma } from "../../database";
 import { ReviewRepository } from "../../repository/reviewRepository";
+import { sanitizeString, sanitizeNumber } from "../../helper/inputSanitizer";
 
 // Error imports
 import {
@@ -20,10 +21,14 @@ export const createReviewService = async (payload: {
   rating: number;
   comment?: string;
 }) => {
-  const { userId, branchId, rating, comment } = payload;
+  const { userId, branchId, rating: rawRating, comment: rawComment } = payload;
+
+  // Sanitize inputs
+  const rating = sanitizeNumber(rawRating, 1, 5);
+  const comment = rawComment ? sanitizeString(rawComment) : undefined;
 
   // Validate rating
-  if (rating < 1 || rating > 5 || !Number.isInteger(rating)) {
+  if (rating === null || !Number.isInteger(rating)) {
     throw new InvalidRatingError();
   }
 
@@ -183,13 +188,17 @@ export const updateReviewService = async (payload: {
   rating?: number;
   comment?: string;
 }) => {
-  const { userId, reviewId, rating, comment } = payload;
+  const { userId, reviewId, rating: rawRating, comment: rawComment } = payload;
+
+  // Sanitize inputs
+  const rating =
+    rawRating !== undefined ? sanitizeNumber(rawRating, 1, 5) : undefined;
+  const comment =
+    rawComment !== undefined ? sanitizeString(rawComment) : undefined;
 
   // Validate rating if provided
-  if (rating !== undefined) {
-    if (rating < 1 || rating > 5 || !Number.isInteger(rating)) {
-      throw new InvalidRatingError();
-    }
+  if (rating !== undefined && rating === null) {
+    throw new InvalidRatingError();
   }
 
   const review = await ReviewRepository.findById(reviewId);

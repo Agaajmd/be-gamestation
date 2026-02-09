@@ -7,6 +7,7 @@ import {
   getOrderByIdService,
   updateOrderStatusService,
   cancelOrderService,
+  removeItemFromCartService,
 } from "../service/OrderService/orderService";
 
 /**
@@ -58,7 +59,7 @@ export const checkoutOrder = async (
   try {
     const userId = BigInt(req.user!.userId);
     const orderId = BigInt(req.params.id);
-    const paymentId  = BigInt(req.body.paymentId);
+    const paymentId = BigInt(req.body.paymentId);
     const paymentProofFile = req.file;
 
     const order = await checkoutOrderService({
@@ -195,6 +196,33 @@ export const cancelOrder = async (
     res.status(200).json({
       success: true,
       message: "Order berhasil dibatalkan",
+      data: order,
+    });
+  } catch (error) {
+    handleError(error, res);
+  }
+};
+
+/**
+ * DELETE /orders-items/:id
+ * Remove item from cart - Customer only
+ */
+export const removeItemFromCart = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const userId = BigInt(req.user!.userId);
+    const orderItemId = BigInt(req.params.id);
+
+    const order = await removeItemFromCartService({
+      userId,
+      orderItemId,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Item berhasil dihapus dari keranjang",
       data: order,
     });
   } catch (error) {

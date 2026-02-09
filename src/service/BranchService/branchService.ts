@@ -7,6 +7,9 @@ import { UserRepository } from "../../repository/userRepository";
 // Queries
 import { AdminQuery } from "../../queries/adminQuery";
 
+// Helpers
+import { sanitizeString, sanitizeObject } from "../../helper/inputSanitizer";
+
 // Error
 import { UserNotFoundError } from "../../errors/AuthError/authError";
 import { UserNotOwnerError } from "../../errors/UserError/userError";
@@ -30,14 +33,20 @@ export async function createBranchService(payload: {
 }) {
   const {
     userId,
-    name,
-    address,
-    phone,
-    timeZone,
+    name: rawName,
+    address: rawAddress,
+    phone: rawPhone,
+    timeZone: rawTimeZone,
     openTime,
     closeTime,
     facilities,
   } = payload;
+
+  // Sanitize inputs
+  const name = sanitizeString(rawName);
+  const address = sanitizeString(rawAddress);
+  const phone = sanitizeString(rawPhone);
+  const timeZone = sanitizeString(rawTimeZone);
 
   const owner = await OwnerRepository.findByUserId(userId);
   if (!owner) {
@@ -149,14 +158,20 @@ export async function updateBranchService(payload: {
   const {
     branchId,
     userId,
-    name,
-    address,
-    phone,
-    timezone,
+    name: rawName,
+    address: rawAddress,
+    phone: rawPhone,
+    timezone: rawTimezone,
     openTime,
     closeTime,
     facilities,
   } = payload;
+
+  // Sanitize inputs
+  const name = rawName ? sanitizeString(rawName) : undefined;
+  const address = rawAddress ? sanitizeString(rawAddress) : undefined;
+  const phone = rawPhone ? sanitizeString(rawPhone) : undefined;
+  const timezone = rawTimezone ? sanitizeString(rawTimezone) : undefined;
 
   // Check if branch exists
   const branch = await BranchRepository.findBranchById(branchId);
@@ -177,7 +192,7 @@ export async function updateBranchService(payload: {
 
   // Update facilities if provided
   if (facilities !== undefined) {
-    await updateBranchFacilities(branchId, facilities);
+    await updateBranchFacilities(branchId, sanitizeObject(facilities));
   }
 
   // Update branch

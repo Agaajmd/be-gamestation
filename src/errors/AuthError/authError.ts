@@ -29,8 +29,8 @@ export class EmailNotFoundError extends AppError {
 }
 
 export class PasswordError extends AppError {
-  constructor() {
-    super("Password anda tidak valid", 400, "PASSWORD_INVALID");
+  constructor(details?: string[]) {
+    super("Password anda tidak valid", 400, "PASSWORD_INVALID", details);
   }
 }
 
@@ -85,5 +85,11 @@ export class FailedSendingEmailError extends AppError {
       500,
       "FAILED_SENDING_EMAIL",
     );
+  }
+}
+
+export class InvalidEmailFormatError extends AppError { 
+  constructor() {
+    super("Format email tidak valid", 400, "INVALID_EMAIL_FORMAT");
   }
 }

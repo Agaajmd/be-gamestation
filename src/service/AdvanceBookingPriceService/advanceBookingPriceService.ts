@@ -1,6 +1,7 @@
 // Repository
 import { BranchRepository } from "../../repository/branchRepository";
 import { AdvanceBookingPriceRepository } from "../../repository/advanceBookingPriceRepository";
+import { sanitizeNumber } from "../../helper/inputSanitizer";
 
 // Error
 import { BranchNotFoundError } from "../../errors/BranchError/branchError";
@@ -13,7 +14,28 @@ export async function addAdvanceBookingPriceService(payload: {
   maxDays: number | null;
   additionalFee: number;
 }) {
-  const { branchId, minDays, maxDays, additionalFee } = payload;
+  const {
+    branchId,
+    minDays: rawMinDays,
+    maxDays: rawMaxDays,
+    additionalFee: rawFee,
+  } = payload;
+
+  // Sanitize input
+  const minDays = sanitizeNumber(rawMinDays, 0);
+  const maxDays = rawMaxDays ? sanitizeNumber(rawMaxDays, 0) : null;
+  const additionalFee = sanitizeNumber(rawFee, 0);
+
+  // Validate sanitization
+  if (minDays === null) {
+    throw new Error("Invalid minDays provided");
+  }
+  if (additionalFee === null) {
+    throw new Error("Invalid additionalFee provided");
+  }
+  if (maxDays === null && rawMaxDays !== null) {
+    throw new Error("Invalid maxDays provided");
+  }
 
   // Validate range: minDays must be <= maxDays (if maxDays is provided)
   if (maxDays !== null && minDays > maxDays) {
@@ -74,7 +96,26 @@ export async function updateAdvanceBookingPriceService(payload: {
   maxDays?: number | null;
   additionalFee?: number;
 }) {
-  const { id, minDays, maxDays, additionalFee } = payload;
+  const {
+    id,
+    minDays: rawMinDays,
+    maxDays: rawMaxDays,
+    additionalFee: rawFee,
+  } = payload;
+
+  // Sanitize input
+  const minDays = rawMinDays
+    ? (sanitizeNumber(rawMinDays, 0) ?? undefined)
+    : undefined;
+  const maxDays =
+    rawMaxDays !== undefined
+      ? rawMaxDays
+        ? (sanitizeNumber(rawMaxDays, 0) ?? undefined)
+        : null
+      : undefined;
+  const additionalFee = rawFee
+    ? (sanitizeNumber(rawFee, 0) ?? undefined)
+    : undefined;
 
   const advanceBookingPrice = await AdvanceBookingPriceRepository.findById(id);
 
@@ -88,6 +129,9 @@ export async function updateAdvanceBookingPriceService(payload: {
     const newMaxDays = maxDays ?? advanceBookingPrice.maxDays;
 
     // Validate range: minDays must be <= maxDays (if maxDays is provided)
+    if (newMinDays === null) {
+      throw new Error("minDays cannot be null");
+    }
     if (newMaxDays !== null && newMinDays > newMaxDays) {
       throw new Error(
         "Invalid range: minDays must be less than or equal to maxDays",

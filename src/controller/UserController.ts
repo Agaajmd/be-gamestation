@@ -7,6 +7,7 @@ import {
 
 import { handleError } from "../helper/responseHelper";
 
+
 /**
  * Update user information
  * PUT /api/users/:id

@@ -1,6 +1,7 @@
 // Repository
 import { BranchPaymentMethodRepository } from "../../repository/branchPaymentMethodRepository";
 import { BranchRepository } from "../../repository/branchRepository";
+import { sanitizeString, sanitizeNumber } from "../../helper/inputSanitizer";
 
 // Error
 import { BranchNotFoundError } from "../../errors/BranchError/branchError";
@@ -26,11 +27,25 @@ export async function addBranchPaymentMethodService(payload: {
     method,
     provider,
     isActive,
-    accountNumber,
-    accountName,
-    qrCodeImage,
-    instructions,
+    accountNumber: rawAccountNumber,
+    accountName: rawAccountName,
+    qrCodeImage: rawQrCodeImage,
+    instructions: rawInstructions,
   } = payload;
+
+  // Sanitize input
+  const accountNumber = rawAccountNumber
+    ? sanitizeString(rawAccountNumber)
+    : undefined;
+  const accountName = rawAccountName
+    ? sanitizeString(rawAccountName)
+    : undefined;
+  const qrCodeImage = rawQrCodeImage
+    ? sanitizeString(rawQrCodeImage)
+    : undefined;
+  const instructions = rawInstructions
+    ? sanitizeString(rawInstructions)
+    : undefined;
 
   // Validate branch exists
   const branch = await BranchRepository.findById(branchId);
@@ -117,12 +132,29 @@ export async function updateBranchPaymentMethodService(payload: {
     method,
     provider,
     isActive,
-    accountNumber,
-    accountName,
-    qrCodeImage,
-    instructions,
-    displayOrder,
+    accountNumber: rawAccountNumber,
+    accountName: rawAccountName,
+    qrCodeImage: rawQrCodeImage,
+    instructions: rawInstructions,
+    displayOrder: rawDisplayOrder,
   } = payload;
+
+  // Sanitize input
+  const accountNumber = rawAccountNumber
+    ? sanitizeString(rawAccountNumber)
+    : rawAccountNumber;
+  const accountName = rawAccountName
+    ? sanitizeString(rawAccountName)
+    : rawAccountName;
+  const qrCodeImage = rawQrCodeImage
+    ? sanitizeString(rawQrCodeImage)
+    : rawQrCodeImage;
+  const instructions = rawInstructions
+    ? sanitizeString(rawInstructions)
+    : rawInstructions;
+  const displayOrder = rawDisplayOrder
+    ? (sanitizeNumber(rawDisplayOrder, 0) ?? undefined)
+    : undefined;
 
   const paymentMethod = await BranchPaymentMethodRepository.findById(id);
 
@@ -186,4 +218,3 @@ export async function toggleBranchPaymentMethodStatusService(id: bigint) {
 
   return updatedPaymentMethod;
 }
-

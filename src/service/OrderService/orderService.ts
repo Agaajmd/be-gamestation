@@ -13,6 +13,7 @@ import { isPastDate } from "../../helper/bookingAvailability/isPastDate";
 import { isPastTime } from "../../helper/isPastTime";
 import { createNotificationService } from "../NotificationService/notificationService";
 import { prisma } from "../../database";
+import { sanitizeString, sanitizeNumber } from "../../helper/inputSanitizer";
 
 // Errors
 import { RoomAndDeviceUnavailableError } from "../../errors/RoomAndDeviceError/roomAndDeviceError";
@@ -124,11 +125,16 @@ export const addToCartService = async (payload: {
     branchId,
     bookingDate,
     startTime,
-    durationMinutes,
+    durationMinutes: rawDuration,
     categoryId,
     roomAndDeviceId,
-    notes,
+    notes: rawNotes,
   } = payload;
+
+  // Sanitize inputs
+  const durationMinutes = sanitizeNumber(rawDuration, 0) || 0;
+  const notes = rawNotes ? sanitizeString(rawNotes) : undefined;
+
   // Verify room and device availability
   const roomAndDevice = await RoomAndDeviceRepository.findFirst({
     id: roomAndDeviceId,
@@ -564,4 +570,61 @@ export const cancelOrderService = async (payload: {
   }
 
   return updatedOrder;
+};
+
+/**
+ * Remove item from cart - Customer only
+ */
+export const removeItemFromCartService = async (payload: {
+  userId: bigint;
+  orderItemId: bigint;
+}) => {
+  const { userId, orderItemId } = payload;
+
+  // Get order item with order relation
+  const orderItem = (await OrderItemRepository.findById(orderItemId, {
+    include: { order: true },
+  })) as any;
+
+  if (!orderItem) {
+    throw new OrderNotFoundError();
+  }
+
+  // Verify ownership and cart status
+  if (orderItem.order.customerId !== userId) {
+    throw new UnauthorizedOrderAccessError();
+  }
+
+  if (orderItem.order.status !== "cart") {
+    throw new InvalidOrderStatusError();
+  }
+
+  // Remove order item
+  await OrderItemRepository.delete(orderItemId);
+
+  const remainingItems = await OrderItemRepository.findMany({
+    orderId: orderItem.orderId,
+  });
+
+  if (remainingItems.length === 0) {
+    await OrderRepository.delete(orderItem.orderId);
+
+    return {
+      userId,
+      orderItemId,
+      orderDeleted: true,
+      updatedTotal: 0,
+    };
+  }
+
+  // Update order total amount
+  const updatedTotal =
+    Number(orderItem.order.totalAmount) - Number(orderItem.price);
+
+  return {
+    userId,
+    orderItemId,
+    orderDeleted: false,
+    updatedTotal,
+  };
 };

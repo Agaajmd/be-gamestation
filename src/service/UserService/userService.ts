@@ -1,6 +1,9 @@
 // Repositories
 import { UserRepository } from "../../repository/userRepository";
 
+// Helpers
+import { sanitizeString, sanitizeEmail } from "../../helper/inputSanitizer";
+
 // Errors
 import {
   UserNotFoundError,
@@ -16,7 +19,17 @@ export const updateUserInfoService = async (payload: {
   fullname?: string;
   phone?: string;
 }) => {
-  const { userId, email, fullname, phone } = payload;
+  const {
+    userId,
+    email: rawEmail,
+    fullname: rawFullname,
+    phone: rawPhone,
+  } = payload;
+
+  // Sanitize inputs
+  const email = rawEmail ? sanitizeEmail(rawEmail) : undefined;
+  const fullname = rawFullname ? sanitizeString(rawFullname) : undefined;
+  const phone = rawPhone ? sanitizeString(rawPhone) : undefined;
 
   // Check if user exists
   const user = await UserRepository.findById(userId);

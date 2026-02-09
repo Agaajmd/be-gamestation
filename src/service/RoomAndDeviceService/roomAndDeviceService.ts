@@ -4,6 +4,7 @@ import { CategoryRepository } from "../../repository/categoryRepository";
 import { RoomAndDeviceRepository } from "../../repository/roomAndDeviceRepository";
 import { checkBranchAccess } from "../../helper/checkBranchAccessHelper";
 import { updateBranchAmenities } from "../../helper/branchAmenitiesHelper";
+import { sanitizeString, sanitizeNumber } from "../../helper/inputSanitizer";
 
 // Queries
 import { RoomAndDeviceQuery } from "../../queries/roomAndDeviceQuery";
@@ -16,7 +17,7 @@ import {
   DuplicateRoomAndDeviceError,
   RoomAndDeviceNotFoundError,
   DeviceHasActiveSessionError,
-  DeviceHasOrderItemsError
+  DeviceHasOrderItemsError,
 } from "../../errors/RoomAndDeviceError/roomAndDeviceError";
 
 /**
@@ -36,12 +37,19 @@ export const addRoomAndDeviceService = async (payload: {
     userId,
     branchId,
     categoryId,
-    name,
-    deviceType,
-    version,
-    pricePerHour,
-    roomNumber,
+    name: rawName,
+    deviceType: rawDeviceType,
+    version: rawVersion,
+    pricePerHour: rawPrice,
+    roomNumber: rawRoomNumber,
   } = payload;
+
+  // Sanitize inputs
+  const name = sanitizeString(rawName);
+  const deviceType = sanitizeString(rawDeviceType);
+  const version = sanitizeString(rawVersion);
+  const pricePerHour = sanitizeNumber(rawPrice, 0) || 0;
+  const roomNumber = sanitizeString(rawRoomNumber);
 
   // Verify authorization
   const hasAccess = await checkBranchAccess(userId, branchId);
@@ -124,13 +132,18 @@ export const getRoomsAndDevicesService = async (payload: {
 }) => {
   const {
     branchId,
-    deviceType,
-    status,
+    deviceType: rawDeviceType,
+    status: rawStatus,
     categoryId,
-    search,
+    search: rawSearch,
     skip = 0,
     take = 10,
   } = payload;
+
+  // Sanitize string inputs
+  const deviceType = rawDeviceType ? sanitizeString(rawDeviceType) : undefined;
+  const status = rawStatus ? sanitizeString(rawStatus) : undefined;
+  const search = rawSearch ? sanitizeString(rawSearch) : undefined;
 
   const where: any = { branchId };
 
@@ -229,13 +242,21 @@ export const updateRoomAndDeviceService = async (payload: {
     branchId,
     roomAndDeviceId,
     categoryId,
-    name,
-    deviceType,
-    version,
-    pricePerHour,
-    roomNumber,
-    status,
+    name: rawName,
+    deviceType: rawDeviceType,
+    version: rawVersion,
+    pricePerHour: rawPrice,
+    roomNumber: rawRoomNumber,
+    status: rawStatus,
   } = payload;
+
+  // Sanitize inputs
+  const name = rawName ? sanitizeString(rawName) : undefined;
+  const deviceType = rawDeviceType ? sanitizeString(rawDeviceType) : undefined;
+  const version = rawVersion ? sanitizeString(rawVersion) : undefined;
+  const pricePerHour = rawPrice ? sanitizeNumber(rawPrice, 0) : undefined;
+  const roomNumber = rawRoomNumber ? sanitizeString(rawRoomNumber) : undefined;
+  const status = rawStatus ? sanitizeString(rawStatus) : undefined;
 
   // Verify authorization
   const hasAccess = await checkBranchAccess(userId, branchId);

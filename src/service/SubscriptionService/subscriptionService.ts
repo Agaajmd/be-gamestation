@@ -1,5 +1,10 @@
 // Database
 import { prisma } from "../../database";
+import {
+  sanitizeString,
+  sanitizeNumber,
+  sanitizeObject,
+} from "../../helper/inputSanitizer";
 
 // Repository
 import { OwnerRepository } from "../../repository/ownerRepository";
@@ -42,7 +47,11 @@ interface CancelSubscriptionPayload {
 export async function createSubscriptionService(
   payload: CreateSubscriptionPayload,
 ) {
-  const { userId, plan, price, startsAt, endsAt } = payload;
+  const { userId, plan: rawPlan, price: rawPrice, startsAt, endsAt } = payload;
+
+  // Sanitize input
+  const plan = sanitizeString(rawPlan);
+  const price = sanitizeNumber(rawPrice, 0) ?? 0;
 
   // Verify owner exists
   const owner = await OwnerRepository.findByUserId(userId);
@@ -70,7 +79,10 @@ export async function createSubscriptionService(
 export async function getSubscriptionsService(
   payload: GetSubscriptionsPayload,
 ) {
-  const { userId, userRole, status } = payload;
+  const { userId, userRole, status: rawStatus } = payload;
+
+  // Sanitize input
+  const status = rawStatus ? sanitizeString(rawStatus) : undefined;
 
   if (userRole !== "owner") {
     throw new Error("Hanya owner yang dapat mengakses subscription");
@@ -141,7 +153,10 @@ export async function getSubscriptionByIdService(
 export async function updateSubscriptionService(
   payload: UpdateSubscriptionPayload,
 ) {
-  const { subscriptionId, userId, userRole, data } = payload;
+  const { subscriptionId, userId, userRole, data: rawData } = payload;
+
+  // Sanitize input
+  const data = sanitizeObject(rawData);
 
   if (userRole !== "owner") {
     throw new Error("Hanya owner yang dapat mengakses subscription");

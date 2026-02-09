@@ -1,5 +1,6 @@
 // Database
 import { prisma } from "../../database";
+import { sanitizeString, sanitizeObject } from "../../helper/inputSanitizer";
 
 // Types
 interface CreateNotificationPayload {
@@ -37,7 +38,17 @@ interface DeleteNotificationPayload {
 export async function createNotificationService(
   payload: CreateNotificationPayload,
 ) {
-  const { userId, type, channel, payload: notificationPayload } = payload;
+  const {
+    userId,
+    type: rawType,
+    channel: rawChannel,
+    payload: rawPayload,
+  } = payload;
+
+  // Sanitize input
+  const type = sanitizeString(rawType);
+  const channel = sanitizeString(rawChannel);
+  const notificationPayload = sanitizeObject(rawPayload);
 
   // Verify user exists
   const user = await prisma.user.findUnique({
@@ -66,7 +77,11 @@ export async function createNotificationService(
 export async function getNotificationsService(
   payload: GetNotificationsPayload,
 ) {
-  const { userId, userRole, status, type } = payload;
+  const { userId, userRole, status: rawStatus, type: rawType } = payload;
+
+  // Sanitize input
+  const status = rawStatus ? sanitizeString(rawStatus) : undefined;
+  const type = rawType ? sanitizeString(rawType) : undefined;
 
   let notifications;
 
@@ -142,7 +157,10 @@ export async function getNotificationByIdService(
 export async function updateNotificationStatusService(
   payload: UpdateNotificationStatusPayload,
 ) {
-  const { notificationId, status } = payload;
+  const { notificationId, status: rawStatus } = payload;
+
+  // Sanitize input
+  const status = sanitizeString(rawStatus);
 
   // Check if notification exists
   const notification = await prisma.notification.findUnique({

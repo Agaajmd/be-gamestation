@@ -2,6 +2,11 @@ import { prisma } from "../../database";
 import { PaymentRepository } from "../../repository/paymentRepository";
 import { checkBranchAccess } from "../../helper/checkBranchAccessHelper";
 import { createNotificationService } from "../NotificationService/notificationService";
+import {
+  sanitizeNumber,
+  sanitizeString,
+  sanitizeObject,
+} from "../../helper/inputSanitizer";
 
 // Error imports
 import { PaymentNotFoundError } from "../../errors/PaymentError/PaymentNotFoundError";
@@ -27,12 +32,22 @@ export const createPaymentService = async (payload: {
     userId,
     role,
     orderId,
-    amount,
+    amount: rawAmount,
     method,
     provider,
-    transactionId,
-    metadata,
+    transactionId: rawTransactionId,
+    metadata: rawMetadata,
   } = payload;
+
+  // Sanitize input
+  const amount = sanitizeNumber(rawAmount, 0);
+  if (amount === null || amount < 0) {
+    throw new Error("Invalid amount: must be a non-negative number");
+  }
+  const transactionId = rawTransactionId
+    ? sanitizeString(rawTransactionId)
+    : undefined;
+  const metadata = rawMetadata ? sanitizeObject(rawMetadata) : undefined;
 
   // Verify order exists
   const order = await prisma.order.findUnique({
@@ -115,7 +130,17 @@ export const getPaymentsService = async (payload: {
   skip?: number;
   take?: number;
 }) => {
-  const { userId, role, status, branchId, skip = 0, take = 10 } = payload;
+  const {
+    userId,
+    role,
+    status: rawStatus,
+    branchId,
+    skip = 0,
+    take = 10,
+  } = payload;
+
+  // Sanitize input
+  const status = rawStatus ? sanitizeString(rawStatus) : undefined;
 
   const where: any = {};
 
@@ -221,8 +246,22 @@ export const updatePaymentStatusService = async (payload: {
   paidAt?: string;
   metadata?: any;
 }) => {
-  const { userId, role, paymentId, status, transactionId, paidAt, metadata } =
-    payload;
+  const {
+    userId,
+    role,
+    paymentId,
+    status: rawStatus,
+    transactionId: rawTransactionId,
+    paidAt,
+    metadata: rawMetadata,
+  } = payload;
+
+  // Sanitize input
+  const status = sanitizeString(rawStatus);
+  const transactionId = rawTransactionId
+    ? sanitizeString(rawTransactionId)
+    : undefined;
+  const metadata = rawMetadata ? sanitizeObject(rawMetadata) : undefined;
 
   // Only admin/owner can update payment
   if (!["admin", "owner"].includes(role)) {

@@ -6,6 +6,7 @@ import {
   getOrderById,
   updateOrderStatus,
   cancelOrder,
+  removeItemFromCart,
 } from "../controller/OrderController";
 import { authenticateToken } from "../middleware/authMiddleware";
 import {
@@ -53,6 +54,14 @@ router.put(
   requireOwnerOrAdmin,
   ValidateMiddleware.validateBody(updateOrderStatusSchema),
   updateOrderStatus,
+);
+
+// Remove item from cart (customer only)
+router.delete(
+  "/items/:id",
+  authenticateToken,
+  requireCustomer,
+  removeItemFromCart,
 );
 
 export default router;

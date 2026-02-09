@@ -8,6 +8,11 @@ import { CategoryTier } from "@prisma/client";
 // Helper
 import { checkBranchAccess } from "../../helper/checkBranchAccessHelper";
 import { updateBranchAmenities } from "../../helper/branchAmenitiesHelper";
+import {
+  sanitizeString,
+  sanitizeNumber,
+  sanitizeObject,
+} from "../../helper/inputSanitizer";
 
 // Errors
 import {
@@ -50,8 +55,23 @@ interface DeleteCategoryPayload {
 
 // Service function to add category
 export async function addCategoryService(payload: AddCategoryPayload) {
-  const { branchId, userId, name, description, tier, pricePerHour, amenities } =
-    payload;
+  const {
+    branchId,
+    userId,
+    name: rawName,
+    description: rawDescription,
+    tier,
+    pricePerHour: rawPrice,
+    amenities,
+  } = payload;
+
+  // Sanitize inputs
+  const name = sanitizeString(rawName);
+  const description = rawDescription
+    ? sanitizeString(rawDescription)
+    : undefined;
+  const pricePerHour = sanitizeNumber(rawPrice, 0) || 0;
+  const sanitizedAmenities = amenities ? sanitizeObject(amenities) : undefined;
 
   // Check authorization
   const hasAccess = await checkBranchAccess(userId, branchId);
@@ -77,7 +97,7 @@ export async function addCategoryService(payload: AddCategoryPayload) {
     description,
     tier,
     pricePerHour,
-    amenities,
+    amenities: sanitizedAmenities,
   });
 
   // Log audit
@@ -119,7 +139,10 @@ export async function getCategoriesService(payload: GetCategoriesPayload) {
 
 // Service function to update category
 export async function updateCategoryService(payload: UpdateCategoryPayload) {
-  const { branchId, categoryId, userId, data } = payload;
+  const { branchId, categoryId, userId, data: rawData } = payload;
+
+  // Sanitize data object
+  const data = sanitizeObject(rawData);
 
   // Check authorization
   const hasAccess = await checkBranchAccess(userId, branchId);

@@ -4,6 +4,7 @@ import { RoomAndDeviceRepository } from "../../repository/roomAndDeviceRepositor
 import { HolidayRepository } from "../../repository/holidayRepository";
 import { CategoryRepository } from "../../repository/categoryRepository";
 import { BranchPaymentMethodRepository } from "../../repository/branchPaymentMethodRepository";
+import { sanitizeNumber, sanitizeString } from "../../helper/inputSanitizer";
 
 // Queries
 import { RoomAndDeviceQuery } from "../../queries/roomAndDeviceQuery";
@@ -150,6 +151,11 @@ export async function getDurationOptionsService(
   startHour: number,
   startMinute: number,
 ) {
+  // Sanitize numeric inputs
+  const hour = sanitizeNumber(startHour, 0, 23) ?? 0;
+  const minute = sanitizeNumber(startMinute, 0, 59) ?? 0;
+  const date = sanitizeString(bookingDate);
+
   const branch = await BranchRepository.findById(branchId);
 
   if (!branch) {
@@ -157,9 +163,9 @@ export async function getDurationOptionsService(
   }
 
   const maxDurationMinutes = calculateMaximumDuration(
-    bookingDate,
-    startHour,
-    startMinute,
+    date,
+    hour,
+    minute,
     branch.closeTime,
   );
 
@@ -192,10 +198,16 @@ export async function getAvailableRoomAndDeviceService(
   startMinute: number,
   durationMinutes: number,
 ) {
-  const targetStart = new Date(bookingDate);
-  targetStart.setUTCHours(startHour, startMinute, 0, 0);
+  // Sanitize inputs
+  const date = sanitizeString(bookingDate);
+  const hour = sanitizeNumber(startHour,  0,  23 ) ?? 0;
+  const minute = sanitizeNumber(startMinute, 0, 59 ) ?? 0;
+  const duration = sanitizeNumber(durationMinutes, 0) ?? 0;
+
+  const targetStart = new Date(date);
+  targetStart.setUTCHours(hour, minute, 0, 0);
   const targetEnd = new Date(targetStart);
-  targetEnd.setMinutes(targetEnd.getMinutes() + durationMinutes);
+  targetEnd.setMinutes(targetEnd.getMinutes() + duration);
 
   const roomsAndDevices =
     await RoomAndDeviceQuery.findAvailableRoomAndDevicesByBranchAndCategory(

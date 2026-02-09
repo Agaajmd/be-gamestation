@@ -3,6 +3,7 @@ import { BranchRepository } from "../../repository/branchRepository";
 import { UserRepository } from "../../repository/userRepository";
 import { AdminRepository } from "../../repository/adminRepository";
 import { AuditLogRepository } from "../../repository/auditLogRepository";
+import { sanitizeEmail, sanitizeString } from "../../helper/inputSanitizer";
 
 // Error
 import { BranchNotFoundError } from "../../errors/BranchError/branchError";
@@ -22,11 +23,18 @@ export async function addBranchAdminService(payload: {
   email: string;
   role: AdminRole;
 }) {
-  const { userId, email } = payload;
+  const { userId, email: rawEmail, role: rawRole } = payload;
+
+  // Sanitize input
+  const email = sanitizeEmail(rawEmail);
+  if (!email) {
+    throw new Error("Invalid email provided");
+  }
+  const role = sanitizeString(rawRole as string) as AdminRole;
 
   const [branch, user] = await Promise.all([
     BranchRepository.findById(payload.branchId),
-    UserRepository.findByEmail(payload.email),
+    UserRepository.findByEmail(email),
   ]);
 
   if (!branch) {
@@ -50,7 +58,7 @@ export async function addBranchAdminService(payload: {
   const admin = await AdminRepository.createAdminWithUserData({
     userId: user.id,
     branchId: payload.branchId,
-    role: payload.role,
+    role,
   });
 
   await AuditLogRepository.createAuditLog({
@@ -61,7 +69,7 @@ export async function addBranchAdminService(payload: {
     meta: {
       branchId: payload.branchId.toString(),
       adminEmail: email,
-      role: payload.role,
+      role,
       timestamp: new Date().toISOString(),
     },
   });
@@ -87,8 +95,13 @@ export async function updateBranchAdminService(
   adminId: bigint,
   currentBranchId: bigint,
   targetBranchId?: bigint,
-  role?: AdminRole
+  role?: AdminRole,
 ) {
+  // Sanitize input
+  const sanitizedRole = role
+    ? (sanitizeString(role as string) as AdminRole)
+    : undefined;
+
   const admin = await AdminRepository.findById(adminId);
 
   if (!admin) {
@@ -105,7 +118,7 @@ export async function updateBranchAdminService(
 
   const updatedAdmin = await AdminRepository.updateAdmin(adminId, {
     branchId: targetBranchId,
-    role,
+    role: sanitizedRole,
   });
 
   await AuditLogRepository.createAuditLog({
@@ -116,7 +129,7 @@ export async function updateBranchAdminService(
     meta: {
       oldBranchId: currentBranchId.toString(),
       newBranchId: targetBranchId?.toString() || admin.branchId.toString(),
-      newRole: role || admin.role,
+      newRole: sanitizedRole || admin.role,
       adminEmail: admin.user.email,
       timestamp: new Date().toISOString(),
     },
@@ -129,7 +142,7 @@ export async function updateBranchAdminService(
 export async function removeBranchAdminService(
   adminId: bigint,
   branchId: bigint,
-  userId: bigint
+  userId: bigint,
 ) {
   const admin = await AdminRepository.findById(adminId);
 

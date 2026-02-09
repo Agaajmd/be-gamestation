@@ -1,5 +1,6 @@
 // Repositories
 import { AnnouncementRepository } from "../../repository/announcementRepository";
+import { sanitizeString } from "../../helper/inputSanitizer";
 
 // Errors
 import {
@@ -17,7 +18,17 @@ export const createAnnouncementService = async (payload: {
   startDate: string;
   endDate: string;
 }) => {
-  const { title, content, forBranch, startDate, endDate } = payload;
+  const {
+    title: rawTitle,
+    content: rawContent,
+    forBranch,
+    startDate,
+    endDate,
+  } = payload;
+
+  // Sanitize inputs
+  const title = sanitizeString(rawTitle);
+  const content = sanitizeString(rawContent);
 
   // Validate dates
   const startDateObj = new Date(startDate);
@@ -117,7 +128,18 @@ export const updateAnnouncementService = async (payload: {
   startDate?: string;
   endDate?: string;
 }) => {
-  const { id, title, content, forBranch, startDate, endDate } = payload;
+  const {
+    id,
+    title: rawTitle,
+    content: rawContent,
+    forBranch,
+    startDate,
+    endDate,
+  } = payload;
+
+  // Sanitize inputs
+  const title = rawTitle ? sanitizeString(rawTitle) : undefined;
+  const content = rawContent ? sanitizeString(rawContent) : undefined;
 
   // Check if announcement exists
   const announcement = await AnnouncementRepository.findById(BigInt(id));

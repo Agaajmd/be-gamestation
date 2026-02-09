@@ -1,5 +1,6 @@
 // Database
 import { prisma } from "../../database";
+import { sanitizeString, sanitizeNumber } from "../../helper/inputSanitizer";
 
 // Types
 interface SyncNationalHolidaysPayload {
@@ -58,12 +59,15 @@ export async function syncNationalHolidaysService(
 ) {
   const {
     branchIds,
-    year,
+    year: rawYear,
     overwrite = false,
     deleteExisting = false,
   } = payload;
 
-  if (isNaN(year) || year < 2020 || year > 2030) {
+  // Sanitize input
+  const year = sanitizeNumber(rawYear, 2020, 2030);
+
+  if (year === null || isNaN(year) || year < 2020 || year > 2030) {
     throw new YearInvalidError();
   }
 
@@ -233,7 +237,19 @@ export async function syncNationalHolidaysService(
 export async function addCustomHolidayService(
   payload: AddCustomHolidayPayload,
 ) {
-  const { branchIds, date, name, description, overwrite = false } = payload;
+  const {
+    branchIds,
+    date,
+    name: rawName,
+    description: rawDescription,
+    overwrite = false,
+  } = payload;
+
+  // Sanitize input
+  const name = sanitizeString(rawName);
+  const description = rawDescription
+    ? sanitizeString(rawDescription)
+    : undefined;
 
   if (!date || !name) {
     throw new Error("Date dan name wajib diisi");
@@ -348,7 +364,16 @@ export async function addCustomHolidayService(
 export async function addCustomHolidaysService(
   payload: AddCustomHolidaysPayload,
 ) {
-  const { branchIds, holidays, overwrite = false } = payload;
+  const { branchIds, holidays: rawHolidays, overwrite = false } = payload;
+
+  // Sanitize each holiday in the array
+  const holidays = rawHolidays.map((holiday) => ({
+    date: holiday.date,
+    name: sanitizeString(holiday.name),
+    description: holiday.description
+      ? sanitizeString(holiday.description)
+      : undefined,
+  }));
 
   if (!holidays || holidays.length === 0) {
     throw new Error("Minimal ada 1 holiday yang harus ditambahkan");

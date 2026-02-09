@@ -1,24 +1,12 @@
 import { UserRole } from "@prisma/client";
 import jwt, { JwtPayload } from "jsonwebtoken";
+import { envConfig } from "../config/envValidator";
 
-// Validasi environment variables saat startup
-const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
-
-if (!JWT_SECRET || JWT_SECRET.length < 32) {
-  throw new Error("JWT_SECRET must be defined and at least 32 characters long");
-}
-
-if (!JWT_REFRESH_SECRET || JWT_REFRESH_SECRET.length < 32) {
-  throw new Error("JWT_REFRESH_SECRET must be defined and at least 32 characters long");
-}
-
-if (JWT_SECRET === JWT_REFRESH_SECRET) {
-  throw new Error("JWT_SECRET and JWT_REFRESH_SECRET must be different");
-}
-
-const JWT_EXPIRES_IN = process.env.JWT_ACCESS_EXPIRES_IN || "15m";
-const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || "7d";
+// Use validated environment config
+const JWT_SECRET = envConfig.JWT_SECRET;
+const JWT_REFRESH_SECRET = envConfig.JWT_REFRESH_SECRET;
+const JWT_EXPIRES_IN = envConfig.JWT_ACCESS_EXPIRES_IN;
+const JWT_REFRESH_EXPIRES_IN = envConfig.JWT_REFRESH_EXPIRES_IN;
 
 // Interface untuk payload
 export interface TokenPayload {
@@ -33,7 +21,12 @@ export type JWTPayload = TokenPayload;
 
 // Generate tokens
 export const generateToken = {
-  accessToken(userId: bigint, email: string, role: UserRole, adminRole?: string): string {
+  accessToken(
+    userId: bigint,
+    email: string,
+    role: UserRole,
+    adminRole?: string,
+  ): string {
     const payload: TokenPayload = {
       userId: userId.toString(),
       email,
@@ -48,7 +41,12 @@ export const generateToken = {
     } as any);
   },
 
-  refreshToken(userId: bigint, email: string, role: UserRole, adminRole?: string): string {
+  refreshToken(
+    userId: bigint,
+    email: string,
+    role: UserRole,
+    adminRole?: string,
+  ): string {
     const payload: TokenPayload = {
       userId: userId.toString(),
       email,
@@ -116,13 +114,15 @@ export const verifyToken = {
 };
 
 // Helper functions untuk middleware
-export function extractTokenFromHeader(authHeader: string | undefined): string | null {
+export function extractTokenFromHeader(
+  authHeader: string | undefined,
+): string | null {
   if (!authHeader) {
     return null;
   }
 
   const parts = authHeader.split(" ");
-  
+
   // Format: "Bearer <token>"
   if (parts.length !== 2 || parts[0] !== "Bearer") {
     return null;

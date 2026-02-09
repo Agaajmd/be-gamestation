@@ -13,6 +13,8 @@ import {
   hashToken,
   sendVerificationEmail,
 } from "../../helper/sendVerificationEmail";
+import { sanitizeEmail, sanitizeString } from "../../helper/inputSanitizer";
+import { validatePasswordPolicy } from "../../helper/password";
 
 //type
 import { LoginOTPResult } from "./type/LoginOTPResult";
@@ -27,6 +29,7 @@ import {
   PasswordError,
   UserNotFoundError,
   EmailNotVerifiedError,
+  InvalidEmailFormatError,
 } from "../../errors/AuthError/authError";
 
 // Service function to handle user registration
@@ -38,10 +41,28 @@ export async function registerUser(payload: {
 }) {
   const { email, password, fullname, phone } = payload;
 
-  const existing = await UserRepository.findByEmail(email);
+  // Sanitize inputs
+  const sanitizedEmail = sanitizeEmail(email);
+  const sanitizedFullname = sanitizeString(fullname);
+  const sanitizedPhone = sanitizeString(phone);
+
+  if (!sanitizedEmail) {
+    throw new InvalidEmailFormatError();
+  }
+
+  if (!sanitizedFullname || !sanitizedPhone) {
+    throw new Error("Name and phone must be valid");
+  }
+
+  const existing = await UserRepository.findByEmail(sanitizedEmail);
 
   if (existing) {
     throw new EmailExistingError();
+  }
+
+  const passwordValidation = validatePasswordPolicy(password);
+  if (!passwordValidation.isValid) {
+    throw new PasswordError(passwordValidation.errors);
   }
 
   const passwordHash = await hashPassword(password);
@@ -51,20 +72,23 @@ export async function registerUser(payload: {
   const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
   const newUser = await UserRepository.createUser({
-    email,
+    email: sanitizedEmail,
     passwordHash,
-    fullname,
-    phone,
+    fullname: sanitizedFullname,
+    phone: sanitizedPhone,
     verificationToken: hashedToken,
     verificationTokenExpires: tokenExpires,
   });
 
   sendVerificationEmail({
-    to: email,
+    to: sanitizedEmail,
     token: plainToken, // Plain token, bukan yang di-hash
-    username: fullname,
+    username: sanitizedFullname,
   }).catch((error) => {
-    console.error(`⚠️ Failed to send verification email to ${email}:`, error);
+    console.error(
+      `⚠️ Failed to send verification email to ${sanitizedEmail}:`,
+      error,
+    );
   });
 
   return newUser;
@@ -77,7 +101,15 @@ export async function loginUser(payload: {
 }): Promise<LoginResult> {
   const { email, password } = payload;
 
-  const user = await UserRepository.findByEmailWithOwnerAndAdmin(email);
+  // Sanitize email before database query
+  const sanitizedEmail = sanitizeEmail(email);
+
+  if (!sanitizedEmail) {
+    throw new InvalidEmailFormatError();
+  }
+
+  const user =
+    await UserRepository.findByEmailWithOwnerAndAdmin(sanitizedEmail);
 
   if (!user) {
     throw new EmailNotFoundError();
@@ -122,12 +154,21 @@ export async function loginUserOTP(payload: {
 }): Promise<LoginOTPResult> {
   const { email, otp } = payload;
 
+  // Sanitize email
+  const sanitizedEmail = sanitizeEmail(email);
+  if (!sanitizedEmail) {
+    throw new InvalidEmailFormatError();
+  }
+
+  // Sanitize OTP if provided (alphanumeric only)
+  const sanitizedOtp = otp ? sanitizeString(otp) : undefined;
+
   // Check if OTP is provided
-  if (!otp) {
-    const newOtp = await generateAndStoreOTP(email);
+  if (!sanitizedOtp) {
+    const newOtp = await generateAndStoreOTP(sanitizedEmail);
 
     const emailSent = await sendOTPEmail({
-      to: email,
+      to: sanitizedEmail,
       otp: newOtp,
       expiresInMinutes: 5,
     });
@@ -143,14 +184,14 @@ export async function loginUserOTP(payload: {
     return { status: "OTP_SENT", message: "OTP telah dikirim ke email" };
   }
 
-  // Verify OTP
-  const isOtpValid = await verifyOTP(email, otp);
+  // Verify OTP with sanitized values
+  const isOtpValid = await verifyOTP(sanitizedEmail, sanitizedOtp);
 
   if (!isOtpValid) {
     throw new OTPInvalidError();
   }
 
-  const user = await UserRepository.findByEmail(email);
+  const user = await UserRepository.findByEmail(sanitizedEmail);
 
   if (!user) {
     throw new EmailNotFoundError();
@@ -235,16 +276,23 @@ export async function logoutUser(payload: { authHeader: string }) {
 // Service function to handle forgot password (stub implementation)
 export async function forgetPasswordUser(payload: { email: string }) {
   const { email } = payload;
-  const user = await UserRepository.findByEmail(email);
+
+  // Sanitize email
+  const sanitizedEmail = sanitizeEmail(email);
+  if (!sanitizedEmail) {
+    throw new InvalidEmailFormatError();
+  }
+
+  const user = await UserRepository.findByEmail(sanitizedEmail);
 
   if (!user) {
     throw new UserNotFoundError();
   }
 
-  const otp = await generateAndStoreOTP(email);
+  const otp = await generateAndStoreOTP(sanitizedEmail);
 
   await sendOTPEmail({
-    to: email,
+    to: sanitizedEmail,
     otp,
     expiresInMinutes: 10,
   });
@@ -269,7 +317,21 @@ export async function resetPasswordUser(payload: {
 }) {
   const { email, otp, newPassword } = payload;
 
-  const isOtpValid = await verifyOTP(email, otp);
+  // Sanitize inputs
+  const sanitizedEmail = sanitizeEmail(email);
+  const sanitizedOtp = sanitizeString(otp);
+
+  if (!sanitizedEmail) {
+    throw new InvalidEmailFormatError();
+  }
+
+  // Validate new password strength
+  const passwordValidation = validatePasswordPolicy(newPassword);
+  if (!passwordValidation.isValid) {
+    throw new PasswordError(passwordValidation.errors);
+  }
+
+  const isOtpValid = await verifyOTP(sanitizedEmail, sanitizedOtp);
 
   if (!isOtpValid) {
     throw new OTPInvalidError();
@@ -277,9 +339,9 @@ export async function resetPasswordUser(payload: {
 
   const passwordHash = await hashPassword(newPassword);
 
-  await UserRepository.updatePassword(email, passwordHash);
+  await UserRepository.updatePassword(sanitizedEmail, passwordHash);
 
-  const user = await UserRepository.findByEmail(email);
+  const user = await UserRepository.findByEmail(sanitizedEmail);
 
   if (user) {
     await AuditLogRepository.createAuditLog({
