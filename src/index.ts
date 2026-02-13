@@ -36,6 +36,7 @@ import { apiRateLimiter, authRateLimiter } from "./middleware/rateLimiter";
 import { validateEnvironment } from "./config/envValidator";
 import { initializeDefaultAPIKeys } from "./helper/apiKeyManager";
 import { sanitizeQueryParams } from "./helper/inputSanitizer";
+import { securityConfig } from "./config/securityConfig";
 
 const app: Application = express();
 const PORT = process.env.PORT || 3000;
@@ -59,7 +60,7 @@ initializeDefaultAPIKeys();
 app.use(
   helmet({
     contentSecurityPolicy: false, // pakai CSP custom
-  })
+  }),
 );
 
 // Security headers
@@ -93,7 +94,9 @@ app.use((req: Request, _res: Response, next: any) => {
 });
 
 // General API rate limiting (applies to all routes except those with custom limiters)
-app.use(apiRateLimiter);
+if (securityConfig.features.enableRateLimiting) {
+  app.use(apiRateLimiter);
+}
 
 // Static file serving for uploads
 app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
@@ -116,7 +119,11 @@ app.get("/health", (_req: Request, res: Response) => {
 // ========================================
 
 // Auth routes
-app.use("/auth", authRateLimiter, authRoutes);
+app.use(
+  "/auth",
+  securityConfig.features.enableRateLimiting ? authRateLimiter : [],
+  authRoutes,
+);
 
 // ========================================
 // 🔒 PROTECTED ROUTES

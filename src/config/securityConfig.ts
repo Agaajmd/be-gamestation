@@ -28,23 +28,23 @@ export const securityConfig = {
   rateLimiting: {
     auth: {
       windowMs: 15 * 60 * 1000, // 15 minutes
-      maxRequests: 5,
+      maxRequests: process.env.NODE_ENV === "production" ? 5 : 1000,
     },
     api: {
       windowMs: 15 * 60 * 1000, // 15 minutes
-      maxRequests: 100,
+      maxRequests: process.env.NODE_ENV === "production" ? 100 : 10000,
     },
     passwordReset: {
       windowMs: 60 * 60 * 1000, // 1 hour
-      maxRequests: 3,
+      maxRequests: process.env.NODE_ENV === "production" ? 3 : 1000,
     },
     emailVerification: {
       windowMs: 10 * 60 * 1000, // 10 minutes
-      maxRequests: 5,
+      maxRequests: process.env.NODE_ENV === "production" ? 5 : 1000,
     },
     upload: {
       windowMs: 60 * 60 * 1000, // 1 hour
-      maxRequests: 50,
+      maxRequests: process.env.NODE_ENV === "production" ? 50 : 10000,
     },
   },
 
@@ -101,7 +101,7 @@ export const securityConfig = {
   // Security features
   features: {
     enableHelmet: true,
-    enableRateLimiting: true,
+    enableRateLimiting: process.env.NODE_ENV === "production",
     enableInputSanitization: true,
     enableSecurityHeaders: true,
     enableApiKeyAuth: true,
