@@ -3,7 +3,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // src/routes/cron.routes.ts
 const express_1 = require("express");
 const completionCron_1 = require("../cron/completionCron");
+const apiKeyManager_1 = require("../helper/apiKeyManager");
 const router = (0, express_1.Router)();
+router.use(apiKeyManager_1.apiKeyAuthMiddleware);
 // Endpoint untuk trigger manual (hanya untuk development/testing)
 if (process.env.NODE_ENV !== "production") {
     router.post("/trigger-completion", async (_req, res) => {

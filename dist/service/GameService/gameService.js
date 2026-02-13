@@ -7,6 +7,7 @@ exports.updateGameService = updateGameService;
 exports.deleteGameService = deleteGameService;
 // Repository
 const gameRepository_1 = require("../../repository/gameRepository");
+const inputSanitizer_1 = require("../../helper/inputSanitizer");
 // Errors
 const gameError_1 = require("../../errors/GameError/gameError");
 // Service function to get all games
@@ -24,7 +25,9 @@ async function getGameByIdService(gameId) {
 }
 // Service function to create a new game
 async function createGameService(payload) {
-    const { name, deviceType } = payload;
+    const { name: rawName, deviceType } = payload;
+    // Sanitize input
+    const name = (0, inputSanitizer_1.sanitizeString)(rawName);
     // Check if game with same name and deviceType already exists
     const existingGame = await gameRepository_1.GameRepository.findByNameAndDeviceType(name, deviceType);
     if (existingGame) {
@@ -38,7 +41,9 @@ async function createGameService(payload) {
 }
 // Service function to update a game
 async function updateGameService(payload) {
-    const { gameId, name, deviceType } = payload;
+    const { gameId, name: rawName, deviceType } = payload;
+    // Sanitize input
+    const name = rawName ? (0, inputSanitizer_1.sanitizeString)(rawName) : undefined;
     // Check if game exists
     const game = await gameRepository_1.GameRepository.findById(gameId);
     if (!game) {

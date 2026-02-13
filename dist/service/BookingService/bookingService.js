@@ -7,11 +7,14 @@ exports.getDurationOptionsService = getDurationOptionsService;
 exports.getAvailableCategoriesService = getAvailableCategoriesService;
 exports.getAvailableRoomAndDeviceService = getAvailableRoomAndDeviceService;
 exports.getBookingCartService = getBookingCartService;
+exports.validateBranchForOrderService = validateBranchForOrderService;
 // Repository
 const branchRepository_1 = require("../../repository/branchRepository");
 const roomAndDeviceRepository_1 = require("../../repository/roomAndDeviceRepository");
 const holidayRepository_1 = require("../../repository/holidayRepository");
 const categoryRepository_1 = require("../../repository/categoryRepository");
+const branchPaymentMethodRepository_1 = require("../../repository/branchPaymentMethodRepository");
+const inputSanitizer_1 = require("../../helper/inputSanitizer");
 // Queries
 const roomAndDeviceQuery_1 = require("../../queries/roomAndDeviceQuery");
 const bookingCartQuery_1 = require("../../queries/bookingCartQuery");
@@ -28,8 +31,15 @@ const calculateMaximumDuration_1 = require("../../helper/calculateMaximumDuratio
 const generateDurationOptions_1 = require("../../helper/generateDurationOptions");
 const checkDeviceAvailability_1 = require("../../helper/checkDeviceAvailability");
 // Service to get all branches
-async function getBranchesService() {
+// Jika user sudah punya cart order, hanya return branch yang sama dengan cart
+async function getBranchesService(userId) {
     const branches = await branchRepository_1.BranchRepository.findAvailableBranches();
+    // Check apakah user sudah punya cart order
+    const cartOrder = await bookingCartQuery_1.BookingCartQuery.findBookingCartByUserId(userId);
+    // Jika ada cart order, filter branches untuk hanya return branch yang sama
+    if (cartOrder) {
+        return branches.filter((branch) => branch.id === cartOrder.branchId);
+    }
     return branches;
 }
 // Service to get available dates for a branch
@@ -80,16 +90,17 @@ async function getAvailableTimesService(branchId, date) {
 }
 // Service to get duration options
 async function getDurationOptionsService(branchId, bookingDate, startHour, startMinute) {
+    // Sanitize numeric inputs
+    const hour = (0, inputSanitizer_1.sanitizeNumber)(startHour, 0, 23) ?? 0;
+    const minute = (0, inputSanitizer_1.sanitizeNumber)(startMinute, 0, 59) ?? 0;
+    const date = (0, inputSanitizer_1.sanitizeString)(bookingDate);
     const branch = await branchRepository_1.BranchRepository.findById(branchId);
     if (!branch) {
         throw new branchError_1.BranchNotFoundError();
     }
-    const closeHour = branch.closeTime
-        ? new Date(branch.closeTime).getUTCHours()
-        : 23;
-    const maxDurationMinutes = (0, calculateMaximumDuration_1.calculateMaximumDuration)(bookingDate, startHour, startMinute, closeHour);
+    const maxDurationMinutes = (0, calculateMaximumDuration_1.calculateMaximumDuration)(date, hour, minute, branch.closeTime);
     const durationOptions = (0, generateDurationOptions_1.generateDurationOptions)(maxDurationMinutes);
-    return { durationOptions, closeHour, maxDurationMinutes };
+    return { durationOptions, closeTime: branch.closeTime, maxDurationMinutes };
 }
 // Service to get available categories for a branch
 async function getAvailableCategoriesService(branchId) {
@@ -102,10 +113,15 @@ async function getAvailableCategoriesService(branchId) {
 }
 // Service to get available room and device based on category, booking date, start time, and duration
 async function getAvailableRoomAndDeviceService(branchId, categoryId, bookingDate, startHour, startMinute, durationMinutes) {
-    const targetStart = new Date(bookingDate);
-    targetStart.setUTCHours(startHour, startMinute, 0, 0);
+    // Sanitize inputs
+    const date = (0, inputSanitizer_1.sanitizeString)(bookingDate);
+    const hour = (0, inputSanitizer_1.sanitizeNumber)(startHour, 0, 23) ?? 0;
+    const minute = (0, inputSanitizer_1.sanitizeNumber)(startMinute, 0, 59) ?? 0;
+    const duration = (0, inputSanitizer_1.sanitizeNumber)(durationMinutes, 0) ?? 0;
+    const targetStart = new Date(date);
+    targetStart.setUTCHours(hour, minute, 0, 0);
     const targetEnd = new Date(targetStart);
-    targetEnd.setMinutes(targetEnd.getMinutes() + durationMinutes);
+    targetEnd.setMinutes(targetEnd.getMinutes() + duration);
     const roomsAndDevices = await roomAndDeviceQuery_1.RoomAndDeviceQuery.findAvailableRoomAndDevicesByBranchAndCategory(branchId, categoryId);
     const availableRoomsAndDevices = roomsAndDevices
         .map((roomAndDevice) => {
@@ -136,10 +152,23 @@ async function getBookingCartService(userId) {
     const cartOrder = await bookingCartQuery_1.BookingCartQuery.findBookingCartByUserId(userId);
     const totalItems = cartOrder ? cartOrder.orderItems.length : 0;
     const totalAmount = cartOrder ? Number(cartOrder.totalAmount) : 0;
+    const paymentMethods = cartOrder
+        ? await branchPaymentMethodRepository_1.BranchPaymentMethodRepository.findActiveByBranchId(cartOrder.branchId)
+        : [];
     return {
         order: cartOrder,
         totalItems,
         totalAmount,
+        paymentMethods,
     };
+}
+// Service to validate if user can order from a specific branch
+// Jika sudah ada cart order dan branch berbeda, throw error
+async function validateBranchForOrderService(userId, requestedBranchId) {
+    const cartOrder = await bookingCartQuery_1.BookingCartQuery.findBookingCartByUserId(userId);
+    if (cartOrder && cartOrder.branchId !== requestedBranchId) {
+        throw new Error(`Anda sudah memiliki order di branch ID ${cartOrder.branchId}. Tidak bisa menambah order dari branch berbeda. Mohon selesaikan atau batalkan pesanan sebelumnya.`);
+    }
+    return true;
 }
 //# sourceMappingURL=bookingService.js.map

@@ -16,10 +16,10 @@ export declare const OrderRepository: {
         payment: {
             id: bigint;
             status: import("@prisma/client").$Enums.PaymentProviderStatus;
-            orderId: bigint;
-            amount: import("@prisma/client-runtime-utils").Decimal;
             method: import("@prisma/client").$Enums.PaymentMethod;
             provider: string | null;
+            orderId: bigint;
+            amount: import("@prisma/client-runtime-utils").Decimal;
             transactionId: string | null;
             paidAt: Date | null;
             metadata: import("@prisma/client/runtime/client").JsonValue | null;
@@ -80,8 +80,10 @@ export declare const OrderRepository: {
         branchId: bigint;
         status: import("@prisma/client").$Enums.OrderStatus;
         totalAmount: import("@prisma/client-runtime-utils").Decimal;
-        paymentMethod: string | null;
+        paymentId: bigint | null;
         paymentStatus: import("@prisma/client").$Enums.PaymentStatus;
+        paymentProofFile: string | null;
+        paymentProofUploadedAt: Date | null;
         notes: string | null;
     }) | null, null, import("@prisma/client/runtime/client").DefaultArgs, import("@prisma/client").Prisma.PrismaClientOptions>;
     findById(orderId: bigint): import("@prisma/client").Prisma.Prisma__OrderClient<({
@@ -100,10 +102,10 @@ export declare const OrderRepository: {
         payment: {
             id: bigint;
             status: import("@prisma/client").$Enums.PaymentProviderStatus;
-            orderId: bigint;
-            amount: import("@prisma/client-runtime-utils").Decimal;
             method: import("@prisma/client").$Enums.PaymentMethod;
             provider: string | null;
+            orderId: bigint;
+            amount: import("@prisma/client-runtime-utils").Decimal;
             transactionId: string | null;
             paidAt: Date | null;
             metadata: import("@prisma/client/runtime/client").JsonValue | null;
@@ -164,8 +166,10 @@ export declare const OrderRepository: {
         branchId: bigint;
         status: import("@prisma/client").$Enums.OrderStatus;
         totalAmount: import("@prisma/client-runtime-utils").Decimal;
-        paymentMethod: string | null;
+        paymentId: bigint | null;
         paymentStatus: import("@prisma/client").$Enums.PaymentStatus;
+        paymentProofFile: string | null;
+        paymentProofUploadedAt: Date | null;
         notes: string | null;
     }) | null, null, import("@prisma/client/runtime/client").DefaultArgs, import("@prisma/client").Prisma.PrismaClientOptions>;
     findByOrderCode(orderCode: string): import("@prisma/client").Prisma.Prisma__OrderClient<({
@@ -184,10 +188,10 @@ export declare const OrderRepository: {
         payment: {
             id: bigint;
             status: import("@prisma/client").$Enums.PaymentProviderStatus;
-            orderId: bigint;
-            amount: import("@prisma/client-runtime-utils").Decimal;
             method: import("@prisma/client").$Enums.PaymentMethod;
             provider: string | null;
+            orderId: bigint;
+            amount: import("@prisma/client-runtime-utils").Decimal;
             transactionId: string | null;
             paidAt: Date | null;
             metadata: import("@prisma/client/runtime/client").JsonValue | null;
@@ -248,8 +252,10 @@ export declare const OrderRepository: {
         branchId: bigint;
         status: import("@prisma/client").$Enums.OrderStatus;
         totalAmount: import("@prisma/client-runtime-utils").Decimal;
-        paymentMethod: string | null;
+        paymentId: bigint | null;
         paymentStatus: import("@prisma/client").$Enums.PaymentStatus;
+        paymentProofFile: string | null;
+        paymentProofUploadedAt: Date | null;
         notes: string | null;
     }) | null, null, import("@prisma/client/runtime/client").DefaultArgs, import("@prisma/client").Prisma.PrismaClientOptions>;
     findFirst(where: object, options?: object): import("@prisma/client").Prisma.Prisma__OrderClient<({
@@ -268,10 +274,10 @@ export declare const OrderRepository: {
         payment: {
             id: bigint;
             status: import("@prisma/client").$Enums.PaymentProviderStatus;
-            orderId: bigint;
-            amount: import("@prisma/client-runtime-utils").Decimal;
             method: import("@prisma/client").$Enums.PaymentMethod;
             provider: string | null;
+            orderId: bigint;
+            amount: import("@prisma/client-runtime-utils").Decimal;
             transactionId: string | null;
             paidAt: Date | null;
             metadata: import("@prisma/client/runtime/client").JsonValue | null;
@@ -332,8 +338,10 @@ export declare const OrderRepository: {
         branchId: bigint;
         status: import("@prisma/client").$Enums.OrderStatus;
         totalAmount: import("@prisma/client-runtime-utils").Decimal;
-        paymentMethod: string | null;
+        paymentId: bigint | null;
         paymentStatus: import("@prisma/client").$Enums.PaymentStatus;
+        paymentProofFile: string | null;
+        paymentProofUploadedAt: Date | null;
         notes: string | null;
     }) | null, null, import("@prisma/client/runtime/client").DefaultArgs, import("@prisma/client").Prisma.PrismaClientOptions>;
     findMany(where: object, skip?: number, take?: number): import("@prisma/client").Prisma.PrismaPromise<({
@@ -352,10 +360,10 @@ export declare const OrderRepository: {
         payment: {
             id: bigint;
             status: import("@prisma/client").$Enums.PaymentProviderStatus;
-            orderId: bigint;
-            amount: import("@prisma/client-runtime-utils").Decimal;
             method: import("@prisma/client").$Enums.PaymentMethod;
             provider: string | null;
+            orderId: bigint;
+            amount: import("@prisma/client-runtime-utils").Decimal;
             transactionId: string | null;
             paidAt: Date | null;
             metadata: import("@prisma/client/runtime/client").JsonValue | null;
@@ -416,8 +424,10 @@ export declare const OrderRepository: {
         branchId: bigint;
         status: import("@prisma/client").$Enums.OrderStatus;
         totalAmount: import("@prisma/client-runtime-utils").Decimal;
-        paymentMethod: string | null;
+        paymentId: bigint | null;
         paymentStatus: import("@prisma/client").$Enums.PaymentStatus;
+        paymentProofFile: string | null;
+        paymentProofUploadedAt: Date | null;
         notes: string | null;
     })[]>;
     findByCustomerId(customerId: bigint, skip?: number, take?: number): import("@prisma/client").Prisma.PrismaPromise<({
@@ -436,10 +446,10 @@ export declare const OrderRepository: {
         payment: {
             id: bigint;
             status: import("@prisma/client").$Enums.PaymentProviderStatus;
-            orderId: bigint;
-            amount: import("@prisma/client-runtime-utils").Decimal;
             method: import("@prisma/client").$Enums.PaymentMethod;
             provider: string | null;
+            orderId: bigint;
+            amount: import("@prisma/client-runtime-utils").Decimal;
             transactionId: string | null;
             paidAt: Date | null;
             metadata: import("@prisma/client/runtime/client").JsonValue | null;
@@ -500,8 +510,10 @@ export declare const OrderRepository: {
         branchId: bigint;
         status: import("@prisma/client").$Enums.OrderStatus;
         totalAmount: import("@prisma/client-runtime-utils").Decimal;
-        paymentMethod: string | null;
+        paymentId: bigint | null;
         paymentStatus: import("@prisma/client").$Enums.PaymentStatus;
+        paymentProofFile: string | null;
+        paymentProofUploadedAt: Date | null;
         notes: string | null;
     })[]>;
     findByBranchId(branchId: bigint, skip?: number, take?: number): import("@prisma/client").Prisma.PrismaPromise<({
@@ -520,10 +532,10 @@ export declare const OrderRepository: {
         payment: {
             id: bigint;
             status: import("@prisma/client").$Enums.PaymentProviderStatus;
-            orderId: bigint;
-            amount: import("@prisma/client-runtime-utils").Decimal;
             method: import("@prisma/client").$Enums.PaymentMethod;
             provider: string | null;
+            orderId: bigint;
+            amount: import("@prisma/client-runtime-utils").Decimal;
             transactionId: string | null;
             paidAt: Date | null;
             metadata: import("@prisma/client/runtime/client").JsonValue | null;
@@ -584,8 +596,10 @@ export declare const OrderRepository: {
         branchId: bigint;
         status: import("@prisma/client").$Enums.OrderStatus;
         totalAmount: import("@prisma/client-runtime-utils").Decimal;
-        paymentMethod: string | null;
+        paymentId: bigint | null;
         paymentStatus: import("@prisma/client").$Enums.PaymentStatus;
+        paymentProofFile: string | null;
+        paymentProofUploadedAt: Date | null;
         notes: string | null;
     })[]>;
     count(where: object): import("@prisma/client").Prisma.PrismaPromise<number>;
@@ -605,10 +619,10 @@ export declare const OrderRepository: {
         payment: {
             id: bigint;
             status: import("@prisma/client").$Enums.PaymentProviderStatus;
-            orderId: bigint;
-            amount: import("@prisma/client-runtime-utils").Decimal;
             method: import("@prisma/client").$Enums.PaymentMethod;
             provider: string | null;
+            orderId: bigint;
+            amount: import("@prisma/client-runtime-utils").Decimal;
             transactionId: string | null;
             paidAt: Date | null;
             metadata: import("@prisma/client/runtime/client").JsonValue | null;
@@ -669,8 +683,10 @@ export declare const OrderRepository: {
         branchId: bigint;
         status: import("@prisma/client").$Enums.OrderStatus;
         totalAmount: import("@prisma/client-runtime-utils").Decimal;
-        paymentMethod: string | null;
+        paymentId: bigint | null;
         paymentStatus: import("@prisma/client").$Enums.PaymentStatus;
+        paymentProofFile: string | null;
+        paymentProofUploadedAt: Date | null;
         notes: string | null;
     }, never, import("@prisma/client/runtime/client").DefaultArgs, import("@prisma/client").Prisma.PrismaClientOptions>;
     update(orderId: bigint, data: any): import("@prisma/client").Prisma.Prisma__OrderClient<{
@@ -689,10 +705,10 @@ export declare const OrderRepository: {
         payment: {
             id: bigint;
             status: import("@prisma/client").$Enums.PaymentProviderStatus;
-            orderId: bigint;
-            amount: import("@prisma/client-runtime-utils").Decimal;
             method: import("@prisma/client").$Enums.PaymentMethod;
             provider: string | null;
+            orderId: bigint;
+            amount: import("@prisma/client-runtime-utils").Decimal;
             transactionId: string | null;
             paidAt: Date | null;
             metadata: import("@prisma/client/runtime/client").JsonValue | null;
@@ -753,8 +769,10 @@ export declare const OrderRepository: {
         branchId: bigint;
         status: import("@prisma/client").$Enums.OrderStatus;
         totalAmount: import("@prisma/client-runtime-utils").Decimal;
-        paymentMethod: string | null;
+        paymentId: bigint | null;
         paymentStatus: import("@prisma/client").$Enums.PaymentStatus;
+        paymentProofFile: string | null;
+        paymentProofUploadedAt: Date | null;
         notes: string | null;
     }, never, import("@prisma/client/runtime/client").DefaultArgs, import("@prisma/client").Prisma.PrismaClientOptions>;
     updateStatus(orderId: bigint, status: OrderStatus, paymentStatus?: PaymentStatus): import("@prisma/client").Prisma.Prisma__OrderClient<{
@@ -773,10 +791,10 @@ export declare const OrderRepository: {
         payment: {
             id: bigint;
             status: import("@prisma/client").$Enums.PaymentProviderStatus;
-            orderId: bigint;
-            amount: import("@prisma/client-runtime-utils").Decimal;
             method: import("@prisma/client").$Enums.PaymentMethod;
             provider: string | null;
+            orderId: bigint;
+            amount: import("@prisma/client-runtime-utils").Decimal;
             transactionId: string | null;
             paidAt: Date | null;
             metadata: import("@prisma/client/runtime/client").JsonValue | null;
@@ -837,8 +855,10 @@ export declare const OrderRepository: {
         branchId: bigint;
         status: import("@prisma/client").$Enums.OrderStatus;
         totalAmount: import("@prisma/client-runtime-utils").Decimal;
-        paymentMethod: string | null;
+        paymentId: bigint | null;
         paymentStatus: import("@prisma/client").$Enums.PaymentStatus;
+        paymentProofFile: string | null;
+        paymentProofUploadedAt: Date | null;
         notes: string | null;
     }, never, import("@prisma/client/runtime/client").DefaultArgs, import("@prisma/client").Prisma.PrismaClientOptions>;
     delete(orderId: bigint): import("@prisma/client").Prisma.Prisma__OrderClient<{
@@ -850,8 +870,10 @@ export declare const OrderRepository: {
         branchId: bigint;
         status: import("@prisma/client").$Enums.OrderStatus;
         totalAmount: import("@prisma/client-runtime-utils").Decimal;
-        paymentMethod: string | null;
+        paymentId: bigint | null;
         paymentStatus: import("@prisma/client").$Enums.PaymentStatus;
+        paymentProofFile: string | null;
+        paymentProofUploadedAt: Date | null;
         notes: string | null;
     }, never, import("@prisma/client/runtime/client").DefaultArgs, import("@prisma/client").Prisma.PrismaClientOptions>;
     findFirstSimple(where: object): Promise<{
@@ -863,8 +885,10 @@ export declare const OrderRepository: {
         branchId: bigint;
         status: import("@prisma/client").$Enums.OrderStatus;
         totalAmount: import("@prisma/client-runtime-utils").Decimal;
-        paymentMethod: string | null;
+        paymentId: bigint | null;
         paymentStatus: import("@prisma/client").$Enums.PaymentStatus;
+        paymentProofFile: string | null;
+        paymentProofUploadedAt: Date | null;
         notes: string | null;
     } | null>;
     getCartOrder(customerId: bigint, branchId?: bigint): import("@prisma/client").Prisma.Prisma__OrderClient<({
@@ -883,10 +907,10 @@ export declare const OrderRepository: {
         payment: {
             id: bigint;
             status: import("@prisma/client").$Enums.PaymentProviderStatus;
-            orderId: bigint;
-            amount: import("@prisma/client-runtime-utils").Decimal;
             method: import("@prisma/client").$Enums.PaymentMethod;
             provider: string | null;
+            orderId: bigint;
+            amount: import("@prisma/client-runtime-utils").Decimal;
             transactionId: string | null;
             paidAt: Date | null;
             metadata: import("@prisma/client/runtime/client").JsonValue | null;
@@ -947,8 +971,10 @@ export declare const OrderRepository: {
         branchId: bigint;
         status: import("@prisma/client").$Enums.OrderStatus;
         totalAmount: import("@prisma/client-runtime-utils").Decimal;
-        paymentMethod: string | null;
+        paymentId: bigint | null;
         paymentStatus: import("@prisma/client").$Enums.PaymentStatus;
+        paymentProofFile: string | null;
+        paymentProofUploadedAt: Date | null;
         notes: string | null;
     }) | null, null, import("@prisma/client/runtime/client").DefaultArgs, import("@prisma/client").Prisma.PrismaClientOptions>;
 };

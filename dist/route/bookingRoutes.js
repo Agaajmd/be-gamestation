@@ -36,7 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const BookingFlowController = __importStar(require("../controller/BookingFlowController"));
 const ValidateMiddleware = __importStar(require("../middleware/validateMiddleware"));
-// import { calculateBookingPriceSchema } from "../validation/bodyValidation/bookingValidation";
+const bookingValidation_1 = require("../validation/bodyValidation/bookingValidation");
 const bookingQueryValidation_1 = require("../validation/queryValidation/bookingQueryValidation");
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const router = (0, express_1.Router)();
@@ -44,7 +44,7 @@ const router = (0, express_1.Router)();
  * GET /booking/branches
  * Mendapatkan semua cabang untuk halaman booking (public)
  */
-router.get("/branches", BookingFlowController.getBranches);
+router.get("/branches", authMiddleware_1.authenticateToken, BookingFlowController.getBranches);
 /**
  * GET /booking/branches/:branchId/available-dates
  * Mendapatkan tanggal yang tersedia untuk booking (public)
@@ -84,10 +84,6 @@ router.get("/cart", authMiddleware_1.authenticateToken, BookingFlowController.ge
  * POST /booking/calculate-price
  * Menghitung harga booking sebelum checkout (public atau authenticated)
  */
-// router.post(
-//   "/calculate-price",
-//   ValidateMiddleware.validateBody(calculateBookingPriceSchema),
-//   BookingFlowController.calculateBookingPrice
-// );
+router.post("/calculate-price", ValidateMiddleware.validateBody(bookingValidation_1.calculateBookingPriceSchema), BookingFlowController.calculateBookingPrice);
 exports.default = router;
 //# sourceMappingURL=bookingRoutes.js.map

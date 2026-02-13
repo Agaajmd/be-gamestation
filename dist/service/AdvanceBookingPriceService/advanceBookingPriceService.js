@@ -6,12 +6,27 @@ exports.deleteAdvanceBookingPriceService = deleteAdvanceBookingPriceService;
 // Repository
 const branchRepository_1 = require("../../repository/branchRepository");
 const advanceBookingPriceRepository_1 = require("../../repository/advanceBookingPriceRepository");
+const inputSanitizer_1 = require("../../helper/inputSanitizer");
 // Error
 const branchError_1 = require("../../errors/BranchError/branchError");
 const advanceBookingPriceError_1 = require("../../errors/AdvanceBookingPriceError/advanceBookingPriceError");
 // Service function to add an advance booking price
 async function addAdvanceBookingPriceService(payload) {
-    const { branchId, minDays, maxDays, additionalFee } = payload;
+    const { branchId, minDays: rawMinDays, maxDays: rawMaxDays, additionalFee: rawFee, } = payload;
+    // Sanitize input
+    const minDays = (0, inputSanitizer_1.sanitizeNumber)(rawMinDays, 0);
+    const maxDays = rawMaxDays ? (0, inputSanitizer_1.sanitizeNumber)(rawMaxDays, 0) : null;
+    const additionalFee = (0, inputSanitizer_1.sanitizeNumber)(rawFee, 0);
+    // Validate sanitization
+    if (minDays === null) {
+        throw new Error("Invalid minDays provided");
+    }
+    if (additionalFee === null) {
+        throw new Error("Invalid additionalFee provided");
+    }
+    if (maxDays === null && rawMaxDays !== null) {
+        throw new Error("Invalid maxDays provided");
+    }
     // Validate range: minDays must be <= maxDays (if maxDays is provided)
     if (maxDays !== null && minDays > maxDays) {
         throw new Error("Invalid range: minDays must be less than or equal to maxDays");
@@ -52,7 +67,19 @@ async function addAdvanceBookingPriceService(payload) {
 }
 // Service function to update an advance booking price
 async function updateAdvanceBookingPriceService(payload) {
-    const { id, minDays, maxDays, additionalFee } = payload;
+    const { id, minDays: rawMinDays, maxDays: rawMaxDays, additionalFee: rawFee, } = payload;
+    // Sanitize input
+    const minDays = rawMinDays
+        ? ((0, inputSanitizer_1.sanitizeNumber)(rawMinDays, 0) ?? undefined)
+        : undefined;
+    const maxDays = rawMaxDays !== undefined
+        ? rawMaxDays
+            ? ((0, inputSanitizer_1.sanitizeNumber)(rawMaxDays, 0) ?? undefined)
+            : null
+        : undefined;
+    const additionalFee = rawFee
+        ? ((0, inputSanitizer_1.sanitizeNumber)(rawFee, 0) ?? undefined)
+        : undefined;
     const advanceBookingPrice = await advanceBookingPriceRepository_1.AdvanceBookingPriceRepository.findById(id);
     if (!advanceBookingPrice) {
         throw new advanceBookingPriceError_1.AdvanceBookingPriceNotFoundError();
@@ -62,6 +89,9 @@ async function updateAdvanceBookingPriceService(payload) {
         const newMinDays = minDays ?? advanceBookingPrice.minDays;
         const newMaxDays = maxDays ?? advanceBookingPrice.maxDays;
         // Validate range: minDays must be <= maxDays (if maxDays is provided)
+        if (newMinDays === null) {
+            throw new Error("minDays cannot be null");
+        }
         if (newMaxDays !== null && newMinDays > newMaxDays) {
             throw new Error("Invalid range: minDays must be less than or equal to maxDays");
         }

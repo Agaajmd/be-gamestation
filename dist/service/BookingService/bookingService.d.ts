@@ -1,5 +1,5 @@
 import { GetAvailableTimesResult } from "./type/getAvailableTimesResult";
-export declare function getBranchesService(): Promise<{
+export declare function getBranchesService(userId: bigint): Promise<{
     name: string;
     id: bigint;
     phone: string | null;
@@ -23,7 +23,7 @@ export declare function getAvailableDatesService(branchId: bigint, startDate: Da
 export declare function getAvailableTimesService(branchId: bigint, date: Date): Promise<GetAvailableTimesResult>;
 export declare function getDurationOptionsService(branchId: bigint, bookingDate: string, startHour: number, startMinute: number): Promise<{
     durationOptions: import("../../helper/generateDurationOptions").DurationOption[];
-    closeHour: number;
+    closeTime: Date | null;
     maxDurationMinutes: number;
 }>;
 export declare function getAvailableCategoriesService(branchId: bigint): Promise<({
@@ -91,11 +91,27 @@ export declare function getBookingCartService(userId: bigint): Promise<{
         branchId: bigint;
         status: import("@prisma/client").$Enums.OrderStatus;
         totalAmount: import("@prisma/client-runtime-utils").Decimal;
-        paymentMethod: string | null;
+        paymentId: bigint | null;
         paymentStatus: import("@prisma/client").$Enums.PaymentStatus;
+        paymentProofFile: string | null;
+        paymentProofUploadedAt: Date | null;
         notes: string | null;
     };
     totalItems: number;
     totalAmount: number;
+    paymentMethods: {
+        id: bigint;
+        createdAt: Date;
+        updatedAt: Date | null;
+        branchId: bigint;
+        method: import("@prisma/client").$Enums.PaymentMethod;
+        provider: import("@prisma/client").$Enums.PaymentProvider;
+        isActive: boolean;
+        accountNumber: string | null;
+        accountName: string | null;
+        qrCodeImage: string | null;
+        instructions: string | null;
+    }[];
 }>;
+export declare function validateBranchForOrderService(userId: bigint, requestedBranchId: bigint): Promise<boolean>;
 //# sourceMappingURL=bookingService.d.ts.map

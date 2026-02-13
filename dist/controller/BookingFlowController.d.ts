@@ -2,8 +2,9 @@ import { Request, Response } from "express";
 /**
  * GET /booking/branches
  * Mendapatkan semua cabang untuk halaman booking
+ * Jika user sudah punya cart order, hanya return branch yang sama
  */
-export declare const getBranches: (_req: Request, res: Response) => Promise<void>;
+export declare const getBranches: (req: Request, res: Response) => Promise<void>;
 /**
  * GET /booking/branches/:branchId/available-dates
  * Mendapatkan tanggal yang tersedia untuk booking
@@ -38,4 +39,5 @@ export declare const getBookingCart: (req: Request, res: Response) => Promise<vo
  * POST /booking/calculate-price
  * Menghitung harga booking sebelum checkout
  */
+export declare const calculateBookingPrice: (req: Request, res: Response) => Promise<void>;
 //# sourceMappingURL=BookingFlowController.d.ts.map

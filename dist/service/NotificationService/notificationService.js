@@ -7,9 +7,14 @@ exports.updateNotificationStatusService = updateNotificationStatusService;
 exports.deleteNotificationService = deleteNotificationService;
 // Database
 const database_1 = require("../../database");
+const inputSanitizer_1 = require("../../helper/inputSanitizer");
 // Service function to create notification
 async function createNotificationService(payload) {
-    const { userId, type, channel, payload: notificationPayload } = payload;
+    const { userId, type: rawType, channel: rawChannel, payload: rawPayload, } = payload;
+    // Sanitize input
+    const type = (0, inputSanitizer_1.sanitizeString)(rawType);
+    const channel = (0, inputSanitizer_1.sanitizeString)(rawChannel);
+    const notificationPayload = (0, inputSanitizer_1.sanitizeObject)(rawPayload);
     // Verify user exists
     const user = await database_1.prisma.user.findUnique({
         where: { id: userId },
@@ -31,7 +36,10 @@ async function createNotificationService(payload) {
 }
 // Service function to get notifications
 async function getNotificationsService(payload) {
-    const { userId, userRole, status, type } = payload;
+    const { userId, userRole, status: rawStatus, type: rawType } = payload;
+    // Sanitize input
+    const status = rawStatus ? (0, inputSanitizer_1.sanitizeString)(rawStatus) : undefined;
+    const type = rawType ? (0, inputSanitizer_1.sanitizeString)(rawType) : undefined;
     let notifications;
     if (userRole === "customer") {
         // Customer sees their own notifications
@@ -95,7 +103,9 @@ async function getNotificationByIdService(payload) {
 }
 // Service function to update notification status
 async function updateNotificationStatusService(payload) {
-    const { notificationId, status } = payload;
+    const { notificationId, status: rawStatus } = payload;
+    // Sanitize input
+    const status = (0, inputSanitizer_1.sanitizeString)(rawStatus);
     // Check if notification exists
     const notification = await database_1.prisma.notification.findUnique({
         where: { id: notificationId },

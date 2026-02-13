@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteReviewService = exports.updateReviewService = exports.getReviewByIdService = exports.getReviewsService = exports.createReviewService = void 0;
 const database_1 = require("../../database");
 const reviewRepository_1 = require("../../repository/reviewRepository");
+const inputSanitizer_1 = require("../../helper/inputSanitizer");
 // Error imports
 const reviewError_1 = require("../../errors/ReviewError/reviewError");
 const orderError_1 = require("../../errors/OrderError/orderError");
@@ -12,9 +13,12 @@ const DuplicateReviewError_1 = require("../../errors/ReviewError/DuplicateReview
  * Create review (customer only, for branch with at least one completed order)
  */
 const createReviewService = async (payload) => {
-    const { userId, branchId, rating, comment } = payload;
+    const { userId, branchId, rating: rawRating, comment: rawComment } = payload;
+    // Sanitize inputs
+    const rating = (0, inputSanitizer_1.sanitizeNumber)(rawRating, 1, 5);
+    const comment = rawComment ? (0, inputSanitizer_1.sanitizeString)(rawComment) : undefined;
     // Validate rating
-    if (rating < 1 || rating > 5 || !Number.isInteger(rating)) {
+    if (rating === null || !Number.isInteger(rating)) {
         throw new reviewError_1.InvalidRatingError();
     }
     // Check if customer has at least one completed order for this branch
@@ -140,12 +144,13 @@ exports.getReviewByIdService = getReviewByIdService;
  * Update review (customer only, own reviews)
  */
 const updateReviewService = async (payload) => {
-    const { userId, reviewId, rating, comment } = payload;
+    const { userId, reviewId, rating: rawRating, comment: rawComment } = payload;
+    // Sanitize inputs
+    const rating = rawRating !== undefined ? (0, inputSanitizer_1.sanitizeNumber)(rawRating, 1, 5) : undefined;
+    const comment = rawComment !== undefined ? (0, inputSanitizer_1.sanitizeString)(rawComment) : undefined;
     // Validate rating if provided
-    if (rating !== undefined) {
-        if (rating < 1 || rating > 5 || !Number.isInteger(rating)) {
-            throw new reviewError_1.InvalidRatingError();
-        }
+    if (rating !== undefined && rating === null) {
+        throw new reviewError_1.InvalidRatingError();
     }
     const review = await reviewRepository_1.ReviewRepository.findById(reviewId);
     if (!review) {

@@ -4,7 +4,7 @@ exports.generateDurationOptions = generateDurationOptions;
 function generateDurationOptions(maxDurationMinutes) {
     const durationOptions = [];
     const minDuration = 60; // Minimum 1 jam
-    const step = 30; // Step 30 menit
+    const step = 60; // Step 60 menit
     for (let duration = minDuration; duration <= maxDurationMinutes; duration += step) {
         const hours = Math.floor(duration / 60);
         const minutes = duration % 60;
@@ -21,7 +21,6 @@ function generateDurationOptions(maxDurationMinutes) {
             value: duration,
             label,
             hours,
-            minutes,
         });
     }
     return durationOptions;

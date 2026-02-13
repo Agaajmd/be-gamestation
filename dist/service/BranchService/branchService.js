@@ -12,6 +12,8 @@ const ownerRepository_1 = require("../../repository/ownerRepository");
 const userRepository_1 = require("../../repository/userRepository");
 // Queries
 const adminQuery_1 = require("../../queries/adminQuery");
+// Helpers
+const inputSanitizer_1 = require("../../helper/inputSanitizer");
 // Error
 const authError_1 = require("../../errors/AuthError/authError");
 const userError_1 = require("../../errors/UserError/userError");
@@ -21,7 +23,12 @@ const branchAmenitiesHelper_1 = require("../../helper/branchAmenitiesHelper");
 const client_1 = require("@prisma/client");
 // Service function to create a new branch
 async function createBranchService(payload) {
-    const { userId, name, address, phone, timeZone, openTime, closeTime, facilities, } = payload;
+    const { userId, name: rawName, address: rawAddress, phone: rawPhone, timeZone: rawTimeZone, openTime, closeTime, facilities, } = payload;
+    // Sanitize inputs
+    const name = (0, inputSanitizer_1.sanitizeString)(rawName);
+    const address = (0, inputSanitizer_1.sanitizeString)(rawAddress);
+    const phone = (0, inputSanitizer_1.sanitizeString)(rawPhone);
+    const timeZone = (0, inputSanitizer_1.sanitizeString)(rawTimeZone);
     const owner = await ownerRepository_1.OwnerRepository.findByUserId(userId);
     if (!owner) {
         throw new userError_1.UserNotOwnerError();
@@ -101,7 +108,12 @@ async function getBranchByIdService(payload) {
 }
 // Service function to update branch
 async function updateBranchService(payload) {
-    const { branchId, userId, name, address, phone, timezone, openTime, closeTime, facilities, } = payload;
+    const { branchId, userId, name: rawName, address: rawAddress, phone: rawPhone, timezone: rawTimezone, openTime, closeTime, facilities, } = payload;
+    // Sanitize inputs
+    const name = rawName ? (0, inputSanitizer_1.sanitizeString)(rawName) : undefined;
+    const address = rawAddress ? (0, inputSanitizer_1.sanitizeString)(rawAddress) : undefined;
+    const phone = rawPhone ? (0, inputSanitizer_1.sanitizeString)(rawPhone) : undefined;
+    const timezone = rawTimezone ? (0, inputSanitizer_1.sanitizeString)(rawTimezone) : undefined;
     // Check if branch exists
     const branch = await branchRepository_1.BranchRepository.findBranchById(branchId);
     if (!branch) {
@@ -118,7 +130,7 @@ async function updateBranchService(payload) {
     }
     // Update facilities if provided
     if (facilities !== undefined) {
-        await (0, branchAmenitiesHelper_1.updateBranchFacilities)(branchId, facilities);
+        await (0, branchAmenitiesHelper_1.updateBranchFacilities)(branchId, (0, inputSanitizer_1.sanitizeObject)(facilities));
     }
     // Update branch
     const updatedBranch = await branchRepository_1.BranchRepository.updateBranch(branchId, {

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cancelOrderService = exports.updateOrderStatusService = exports.getOrderByIdService = exports.getOrdersService = exports.checkoutOrderService = exports.addToCartService = void 0;
+exports.removeItemFromCartService = exports.cancelOrderService = exports.updateOrderStatusService = exports.getOrderByIdService = exports.getOrdersService = exports.checkoutOrderService = exports.addToCartService = exports.calculateBookingPriceService = void 0;
 // Repositories
 const orderRepository_1 = require("../../repository/orderRepository");
 const orderItemRepository_1 = require("../../repository/orderItemRepository");
@@ -14,6 +14,7 @@ const isPastDate_1 = require("../../helper/bookingAvailability/isPastDate");
 const isPastTime_1 = require("../../helper/isPastTime");
 const notificationService_1 = require("../NotificationService/notificationService");
 const database_1 = require("../../database");
+const inputSanitizer_1 = require("../../helper/inputSanitizer");
 // Errors
 const roomAndDeviceError_1 = require("../../errors/RoomAndDeviceError/roomAndDeviceError");
 const categoryError_1 = require("../../errors/CategoryError/categoryError");
@@ -32,7 +33,7 @@ const generateOrderCode = () => {
 /**
  * Calculate booking price using booking flow calculation
  */
-const calculateBookingPrice = async (branchId, deviceId, categoryId, bookingDate, durationMinutes) => {
+const calculateBookingPriceService = async (branchId, deviceId, categoryId, bookingDate, durationMinutes) => {
     const roomAndDevice = await roomAndDeviceRepository_1.RoomAndDeviceRepository.findUnique({
         id: deviceId,
     }, { include: { category: true } });
@@ -74,11 +75,15 @@ const calculateBookingPrice = async (branchId, deviceId, categoryId, bookingDate
         totalAmount,
     };
 };
+exports.calculateBookingPriceService = calculateBookingPriceService;
 /**
  * Add to cart - Create new order with cart status
  */
 const addToCartService = async (payload) => {
-    const { userId, branchId, bookingDate, startTime, durationMinutes, categoryId, roomAndDeviceId, notes, } = payload;
+    const { userId, branchId, bookingDate, startTime, durationMinutes: rawDuration, categoryId, roomAndDeviceId, notes: rawNotes, } = payload;
+    // Sanitize inputs
+    const durationMinutes = (0, inputSanitizer_1.sanitizeNumber)(rawDuration, 0) || 0;
+    const notes = rawNotes ? (0, inputSanitizer_1.sanitizeString)(rawNotes) : undefined;
     // Verify room and device availability
     const roomAndDevice = await roomAndDeviceRepository_1.RoomAndDeviceRepository.findFirst({
         id: roomAndDeviceId,
@@ -112,23 +117,21 @@ const addToCartService = async (payload) => {
         throw new orderError_1.DuplicateBookingError();
     }
     // Calculate pricing
-    const pricing = await calculateBookingPrice(branchId, roomAndDeviceId, categoryId, bookingDate, durationMinutes);
+    const pricing = await (0, exports.calculateBookingPriceService)(branchId, roomAndDeviceId, categoryId, bookingDate, durationMinutes);
     // Check if user already has a cart order, if so, append to it
     const existingCartOrder = await orderRepository_1.OrderRepository.getCartOrder(userId, branchId);
     if (existingCartOrder) {
         // Add new order item to existing cart
         await orderItemRepository_1.OrderItemRepository.create({
-            data: {
-                orderId: existingCartOrder.id,
-                roomAndDeviceId,
-                bookingStart,
-                bookingEnd,
-                durationMinutes,
-                price: pricing.totalAmount.toString(),
-                baseAmount: pricing.baseAmount.toString(),
-                categoryFee: pricing.categoryFee.toString(),
-                advanceBookingFee: pricing.advanceBookingFee.toString(),
-            },
+            orderId: existingCartOrder.id,
+            roomAndDeviceId,
+            bookingStart,
+            bookingEnd,
+            durationMinutes,
+            price: pricing.totalAmount.toString(),
+            baseAmount: pricing.baseAmount.toString(),
+            categoryFee: pricing.categoryFee.toString(),
+            advanceBookingFee: pricing.advanceBookingFee.toString(),
         });
         const updatedTotal = Number(existingCartOrder.totalAmount) + pricing.totalAmount;
         return orderRepository_1.OrderRepository.update(existingCartOrder.id, {
@@ -163,7 +166,7 @@ exports.addToCartService = addToCartService;
  * Checkout order - Convert cart to pending status
  */
 const checkoutOrderService = async (payload) => {
-    const { userId, orderId, paymentMethod } = payload;
+    const { userId, orderId, paymentId, paymentProofFile } = payload;
     // Get order
     const order = await orderRepository_1.OrderRepository.findById(orderId);
     if (!order) {
@@ -178,10 +181,15 @@ const checkoutOrderService = async (payload) => {
         throw new orderError_1.InvalidOrderStatusError();
     }
     // Update order to pending
+    const paymentProofPath = paymentProofFile
+        ? `uploads/payment-proofs/${paymentProofFile.filename}`
+        : null;
     const updatedOrder = await orderRepository_1.OrderRepository.update(orderId, {
         status: "pending",
         paymentStatus: client_1.PaymentStatus.pending,
-        paymentMethod: paymentMethod || null,
+        paymentId: paymentId || null,
+        paymentProofFile: paymentProofPath,
+        paymentProofUploadedAt: paymentProofFile ? new Date() : null,
     });
     // Create notification for customer
     try {
@@ -417,4 +425,47 @@ const cancelOrderService = async (payload) => {
     return updatedOrder;
 };
 exports.cancelOrderService = cancelOrderService;
+/**
+ * Remove item from cart - Customer only
+ */
+const removeItemFromCartService = async (payload) => {
+    const { userId, orderItemId } = payload;
+    // Get order item with order relation
+    const orderItem = (await orderItemRepository_1.OrderItemRepository.findById(orderItemId, {
+        include: { order: true },
+    }));
+    if (!orderItem) {
+        throw new orderError_1.OrderNotFoundError();
+    }
+    // Verify ownership and cart status
+    if (orderItem.order.customerId !== userId) {
+        throw new orderError_1.UnauthorizedOrderAccessError();
+    }
+    if (orderItem.order.status !== "cart") {
+        throw new orderError_1.InvalidOrderStatusError();
+    }
+    // Remove order item
+    await orderItemRepository_1.OrderItemRepository.delete(orderItemId);
+    const remainingItems = await orderItemRepository_1.OrderItemRepository.findMany({
+        orderId: orderItem.orderId,
+    });
+    if (remainingItems.length === 0) {
+        await orderRepository_1.OrderRepository.delete(orderItem.orderId);
+        return {
+            userId,
+            orderItemId,
+            orderDeleted: true,
+            updatedTotal: 0,
+        };
+    }
+    // Update order total amount
+    const updatedTotal = Number(orderItem.order.totalAmount) - Number(orderItem.price);
+    return {
+        userId,
+        orderItemId,
+        orderDeleted: false,
+        updatedTotal,
+    };
+};
+exports.removeItemFromCartService = removeItemFromCartService;
 //# sourceMappingURL=orderService.js.map

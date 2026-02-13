@@ -16,6 +16,9 @@ export declare const login: (req: Request, res: Response) => Promise<void>;
  * Step 2: POST /auth/login-otp with { email, otp } - verify OTP
  */
 export declare const loginOTP: (req: Request, res: Response) => Promise<void>;
+export declare const verifyEmail: (req: Request, res: Response) => Promise<void>;
+export declare const resendVerificationEmail: (req: Request, res: Response) => Promise<void>;
+export declare const checkVerificationStatus: (req: Request, res: Response) => Promise<void>;
 /**
  * POST /auth/refresh-token
  * Refresh access token menggunakan refresh token

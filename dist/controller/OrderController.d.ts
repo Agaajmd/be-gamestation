@@ -29,4 +29,9 @@ export declare const updateOrderStatus: (req: Request, res: Response) => Promise
  * Cancel order - Admin/owner only, only if payment is invalid
  */
 export declare const cancelOrder: (req: Request, res: Response) => Promise<void>;
+/**
+ * DELETE /orders-items/:id
+ * Remove item from cart - Customer only
+ */
+export declare const removeItemFromCart: (req: Request, res: Response) => Promise<void>;
 //# sourceMappingURL=OrderController.d.ts.map

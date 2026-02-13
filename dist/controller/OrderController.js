@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cancelOrder = exports.updateOrderStatus = exports.getOrderById = exports.getOrders = exports.checkoutOrder = exports.addToCart = void 0;
+exports.removeItemFromCart = exports.cancelOrder = exports.updateOrderStatus = exports.getOrderById = exports.getOrders = exports.checkoutOrder = exports.addToCart = void 0;
 const responseHelper_1 = require("../helper/responseHelper");
 const orderService_1 = require("../service/OrderService/orderService");
 /**
@@ -40,11 +40,13 @@ const checkoutOrder = async (req, res) => {
     try {
         const userId = BigInt(req.user.userId);
         const orderId = BigInt(req.params.id);
-        const { paymentMethod } = req.body;
+        const paymentId = BigInt(req.body.paymentId);
+        const paymentProofFile = req.file;
         const order = await (0, orderService_1.checkoutOrderService)({
             userId,
             orderId,
-            paymentMethod,
+            paymentId,
+            paymentProofFile,
         });
         res.status(200).json({
             success: true,
@@ -168,4 +170,27 @@ const cancelOrder = async (req, res) => {
     }
 };
 exports.cancelOrder = cancelOrder;
+/**
+ * DELETE /orders-items/:id
+ * Remove item from cart - Customer only
+ */
+const removeItemFromCart = async (req, res) => {
+    try {
+        const userId = BigInt(req.user.userId);
+        const orderItemId = BigInt(req.params.id);
+        const order = await (0, orderService_1.removeItemFromCartService)({
+            userId,
+            orderItemId,
+        });
+        res.status(200).json({
+            success: true,
+            message: "Item berhasil dihapus dari keranjang",
+            data: order,
+        });
+    }
+    catch (error) {
+        (0, responseHelper_1.handleError)(error, res);
+    }
+};
+exports.removeItemFromCart = removeItemFromCart;
 //# sourceMappingURL=OrderController.js.map

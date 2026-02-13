@@ -5,6 +5,7 @@ const database_1 = require("../../database");
 const paymentRepository_1 = require("../../repository/paymentRepository");
 const checkBranchAccessHelper_1 = require("../../helper/checkBranchAccessHelper");
 const notificationService_1 = require("../NotificationService/notificationService");
+const inputSanitizer_1 = require("../../helper/inputSanitizer");
 // Error imports
 const PaymentNotFoundError_1 = require("../../errors/PaymentError/PaymentNotFoundError");
 const InvalidPaymentStatusError_1 = require("../../errors/PaymentError/InvalidPaymentStatusError");
@@ -15,7 +16,16 @@ const DuplicatePaymentError_1 = require("../../errors/PaymentError/DuplicatePaym
  * Create payment (customer/admin/owner)
  */
 const createPaymentService = async (payload) => {
-    const { userId, role, orderId, amount, method, provider, transactionId, metadata, } = payload;
+    const { userId, role, orderId, amount: rawAmount, method, provider, transactionId: rawTransactionId, metadata: rawMetadata, } = payload;
+    // Sanitize input
+    const amount = (0, inputSanitizer_1.sanitizeNumber)(rawAmount, 0);
+    if (amount === null || amount < 0) {
+        throw new Error("Invalid amount: must be a non-negative number");
+    }
+    const transactionId = rawTransactionId
+        ? (0, inputSanitizer_1.sanitizeString)(rawTransactionId)
+        : undefined;
+    const metadata = rawMetadata ? (0, inputSanitizer_1.sanitizeObject)(rawMetadata) : undefined;
     // Verify order exists
     const order = await database_1.prisma.order.findUnique({
         where: { id: orderId },
@@ -84,7 +94,9 @@ exports.createPaymentService = createPaymentService;
  * Get payments (role-based filtering)
  */
 const getPaymentsService = async (payload) => {
-    const { userId, role, status, branchId, skip = 0, take = 10 } = payload;
+    const { userId, role, status: rawStatus, branchId, skip = 0, take = 10, } = payload;
+    // Sanitize input
+    const status = rawStatus ? (0, inputSanitizer_1.sanitizeString)(rawStatus) : undefined;
     const where = {};
     if (role === "admin") {
         // Admin sees payments only in their branch
@@ -166,7 +178,13 @@ exports.getPaymentByIdService = getPaymentByIdService;
  * Update payment status (admin/owner only)
  */
 const updatePaymentStatusService = async (payload) => {
-    const { userId, role, paymentId, status, transactionId, paidAt, metadata } = payload;
+    const { userId, role, paymentId, status: rawStatus, transactionId: rawTransactionId, paidAt, metadata: rawMetadata, } = payload;
+    // Sanitize input
+    const status = (0, inputSanitizer_1.sanitizeString)(rawStatus);
+    const transactionId = rawTransactionId
+        ? (0, inputSanitizer_1.sanitizeString)(rawTransactionId)
+        : undefined;
+    const metadata = rawMetadata ? (0, inputSanitizer_1.sanitizeObject)(rawMetadata) : undefined;
     // Only admin/owner can update payment
     if (!["admin", "owner"].includes(role)) {
         throw new UnauthorizedPaymentAccessError_1.UnauthorizedPaymentAccessError("Hanya admin/owner yang bisa update payment");

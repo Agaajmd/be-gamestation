@@ -13,35 +13,70 @@ const password_1 = require("../../helper/password");
 const jwtHelper_1 = require("../../helper/jwtHelper");
 const generateOTP_1 = require("../../helper/generateOTP");
 const emailHelper_1 = require("../../helper/emailHelper");
+const sendVerificationEmail_1 = require("../../helper/sendVerificationEmail");
+const inputSanitizer_1 = require("../../helper/inputSanitizer");
+const password_2 = require("../../helper/password");
 // Error
 const authError_1 = require("../../errors/AuthError/authError");
 // Service function to handle user registration
 async function registerUser(payload) {
     const { email, password, fullname, phone } = payload;
-    const existing = await userRepository_1.UserRepository.findByEmail(email);
+    // Sanitize inputs
+    const sanitizedEmail = (0, inputSanitizer_1.sanitizeEmail)(email);
+    const sanitizedFullname = (0, inputSanitizer_1.sanitizeString)(fullname);
+    const sanitizedPhone = (0, inputSanitizer_1.sanitizeString)(phone);
+    if (!sanitizedEmail) {
+        throw new authError_1.InvalidEmailFormatError();
+    }
+    if (!sanitizedFullname || !sanitizedPhone) {
+        throw new Error("Name and phone must be valid");
+    }
+    const existing = await userRepository_1.UserRepository.findByEmail(sanitizedEmail);
     if (existing) {
         throw new authError_1.EmailExistingError();
     }
+    const passwordValidation = (0, password_2.validatePasswordPolicy)(password);
+    if (!passwordValidation.isValid) {
+        throw new authError_1.PasswordError(passwordValidation.errors);
+    }
     const passwordHash = await (0, password_1.hashPassword)(password);
+    const plainToken = (0, sendVerificationEmail_1.generateVerificationToken)();
+    const hashedToken = (0, sendVerificationEmail_1.hashToken)(plainToken);
+    const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
     const newUser = await userRepository_1.UserRepository.createUser({
-        email,
+        email: sanitizedEmail,
         passwordHash,
-        fullname,
-        phone,
+        fullname: sanitizedFullname,
+        phone: sanitizedPhone,
+        verificationToken: hashedToken,
+        verificationTokenExpires: tokenExpires,
     });
-    const accessToken = jwtHelper_1.generateToken.accessToken(newUser.id, newUser.email, "customer");
-    const refreshToken = jwtHelper_1.generateToken.refreshToken(newUser.id, newUser.email, "customer");
-    return { newUser, accessToken, refreshToken };
+    (0, sendVerificationEmail_1.sendVerificationEmail)({
+        to: sanitizedEmail,
+        token: plainToken, // Plain token, bukan yang di-hash
+        username: sanitizedFullname,
+    }).catch((error) => {
+        console.error(`⚠️ Failed to send verification email to ${sanitizedEmail}:`, error);
+    });
+    return newUser;
 }
 // Service function to handle user login
 async function loginUser(payload) {
     const { email, password } = payload;
-    const user = await userRepository_1.UserRepository.findByEmailWithOwnerAndAdmin(email);
+    // Sanitize email before database query
+    const sanitizedEmail = (0, inputSanitizer_1.sanitizeEmail)(email);
+    if (!sanitizedEmail) {
+        throw new authError_1.InvalidEmailFormatError();
+    }
+    const user = await userRepository_1.UserRepository.findByEmailWithOwnerAndAdmin(sanitizedEmail);
     if (!user) {
         throw new authError_1.EmailNotFoundError();
     }
     if (!user.passwordHash) {
         throw new authError_1.PasswordError();
+    }
+    if (!user.isVerified) {
+        throw new authError_1.EmailNotVerifiedError();
     }
     const isPasswordValid = await (0, password_1.comparePassword)(password, user.passwordHash);
     if (!isPasswordValid) {
@@ -55,11 +90,18 @@ async function loginUser(payload) {
 // Service function to handle OTP login (stub implementation)
 async function loginUserOTP(payload) {
     const { email, otp } = payload;
+    // Sanitize email
+    const sanitizedEmail = (0, inputSanitizer_1.sanitizeEmail)(email);
+    if (!sanitizedEmail) {
+        throw new authError_1.InvalidEmailFormatError();
+    }
+    // Sanitize OTP if provided (alphanumeric only)
+    const sanitizedOtp = otp ? (0, inputSanitizer_1.sanitizeString)(otp) : undefined;
     // Check if OTP is provided
-    if (!otp) {
-        const newOtp = await (0, generateOTP_1.generateAndStoreOTP)(email);
+    if (!sanitizedOtp) {
+        const newOtp = await (0, generateOTP_1.generateAndStoreOTP)(sanitizedEmail);
         const emailSent = await (0, emailHelper_1.sendOTPEmail)({
-            to: email,
+            to: sanitizedEmail,
             otp: newOtp,
             expiresInMinutes: 5,
         });
@@ -70,12 +112,12 @@ async function loginUserOTP(payload) {
         }
         return { status: "OTP_SENT", message: "OTP telah dikirim ke email" };
     }
-    // Verify OTP
-    const isOtpValid = await (0, generateOTP_1.verifyOTP)(email, otp);
+    // Verify OTP with sanitized values
+    const isOtpValid = await (0, generateOTP_1.verifyOTP)(sanitizedEmail, sanitizedOtp);
     if (!isOtpValid) {
         throw new authError_1.OTPInvalidError();
     }
-    const user = await userRepository_1.UserRepository.findByEmail(email);
+    const user = await userRepository_1.UserRepository.findByEmail(sanitizedEmail);
     if (!user) {
         throw new authError_1.EmailNotFoundError();
     }
@@ -123,13 +165,18 @@ async function logoutUser(payload) {
 // Service function to handle forgot password (stub implementation)
 async function forgetPasswordUser(payload) {
     const { email } = payload;
-    const user = await userRepository_1.UserRepository.findByEmail(email);
+    // Sanitize email
+    const sanitizedEmail = (0, inputSanitizer_1.sanitizeEmail)(email);
+    if (!sanitizedEmail) {
+        throw new authError_1.InvalidEmailFormatError();
+    }
+    const user = await userRepository_1.UserRepository.findByEmail(sanitizedEmail);
     if (!user) {
         throw new authError_1.UserNotFoundError();
     }
-    const otp = await (0, generateOTP_1.generateAndStoreOTP)(email);
+    const otp = await (0, generateOTP_1.generateAndStoreOTP)(sanitizedEmail);
     await (0, emailHelper_1.sendOTPEmail)({
-        to: email,
+        to: sanitizedEmail,
         otp,
         expiresInMinutes: 10,
     });
@@ -147,13 +194,24 @@ async function forgetPasswordUser(payload) {
 // Service function to handle reset password (stub implementation)
 async function resetPasswordUser(payload) {
     const { email, otp, newPassword } = payload;
-    const isOtpValid = await (0, generateOTP_1.verifyOTP)(email, otp);
+    // Sanitize inputs
+    const sanitizedEmail = (0, inputSanitizer_1.sanitizeEmail)(email);
+    const sanitizedOtp = (0, inputSanitizer_1.sanitizeString)(otp);
+    if (!sanitizedEmail) {
+        throw new authError_1.InvalidEmailFormatError();
+    }
+    // Validate new password strength
+    const passwordValidation = (0, password_2.validatePasswordPolicy)(newPassword);
+    if (!passwordValidation.isValid) {
+        throw new authError_1.PasswordError(passwordValidation.errors);
+    }
+    const isOtpValid = await (0, generateOTP_1.verifyOTP)(sanitizedEmail, sanitizedOtp);
     if (!isOtpValid) {
         throw new authError_1.OTPInvalidError();
     }
     const passwordHash = await (0, password_1.hashPassword)(newPassword);
-    await userRepository_1.UserRepository.updatePassword(email, passwordHash);
-    const user = await userRepository_1.UserRepository.findByEmail(email);
+    await userRepository_1.UserRepository.updatePassword(sanitizedEmail, passwordHash);
+    const user = await userRepository_1.UserRepository.findByEmail(sanitizedEmail);
     if (user) {
         await auditLogRepository_1.AuditLogRepository.createAuditLog({
             userId: user.id,

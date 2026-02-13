@@ -12,7 +12,6 @@ dotenv_1.default.config();
 if (!process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL is not defined in environment variables");
 }
-console.log("🔌 Connecting to database...");
 // Buat atau reuse pool
 const pool = global.__pool ||
     new pg_1.Pool({

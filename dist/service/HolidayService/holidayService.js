@@ -7,6 +7,7 @@ exports.getBranchHolidaysService = getBranchHolidaysService;
 exports.deleteBranchHolidayService = deleteBranchHolidayService;
 // Database
 const database_1 = require("../../database");
+const inputSanitizer_1 = require("../../helper/inputSanitizer");
 // Repository
 const branchHolidayRepository_1 = require("../../repository/branchHolidayRepository");
 // Errors
@@ -14,8 +15,10 @@ const holidayError_1 = require("../../errors/HolidayError/holidayError");
 const branchError_1 = require("../../errors/BranchError/branchError");
 // Service function to sync national holidays
 async function syncNationalHolidaysService(payload) {
-    const { branchIds, year, overwrite = false, deleteExisting = false, } = payload;
-    if (isNaN(year) || year < 2020 || year > 2030) {
+    const { branchIds, year: rawYear, overwrite = false, deleteExisting = false, } = payload;
+    // Sanitize input
+    const year = (0, inputSanitizer_1.sanitizeNumber)(rawYear, 2020, 2030);
+    if (year === null || isNaN(year) || year < 2020 || year > 2030) {
         throw new holidayError_1.YearInvalidError();
     }
     // Get target branches
@@ -157,7 +160,12 @@ async function syncNationalHolidaysService(payload) {
 }
 // Service function to add custom holiday
 async function addCustomHolidayService(payload) {
-    const { branchIds, date, name, description, overwrite = false } = payload;
+    const { branchIds, date, name: rawName, description: rawDescription, overwrite = false, } = payload;
+    // Sanitize input
+    const name = (0, inputSanitizer_1.sanitizeString)(rawName);
+    const description = rawDescription
+        ? (0, inputSanitizer_1.sanitizeString)(rawDescription)
+        : undefined;
     if (!date || !name) {
         throw new Error("Date dan name wajib diisi");
     }
@@ -263,7 +271,15 @@ async function addCustomHolidayService(payload) {
 }
 // Service function to add multiple custom holidays
 async function addCustomHolidaysService(payload) {
-    const { branchIds, holidays, overwrite = false } = payload;
+    const { branchIds, holidays: rawHolidays, overwrite = false } = payload;
+    // Sanitize each holiday in the array
+    const holidays = rawHolidays.map((holiday) => ({
+        date: holiday.date,
+        name: (0, inputSanitizer_1.sanitizeString)(holiday.name),
+        description: holiday.description
+            ? (0, inputSanitizer_1.sanitizeString)(holiday.description)
+            : undefined,
+    }));
     if (!holidays || holidays.length === 0) {
         throw new Error("Minimal ada 1 holiday yang harus ditambahkan");
     }

@@ -10,12 +10,20 @@ const auditLogRepository_1 = require("../../repository/auditLogRepository");
 // Helper
 const checkBranchAccessHelper_1 = require("../../helper/checkBranchAccessHelper");
 const branchAmenitiesHelper_1 = require("../../helper/branchAmenitiesHelper");
+const inputSanitizer_1 = require("../../helper/inputSanitizer");
 // Errors
 const categoryError_1 = require("../../errors/CategoryError/categoryError");
 const userError_1 = require("../../errors/UserError/userError");
 // Service function to add category
 async function addCategoryService(payload) {
-    const { branchId, userId, name, description, tier, pricePerHour, amenities } = payload;
+    const { branchId, userId, name: rawName, description: rawDescription, tier, pricePerHour: rawPrice, amenities, } = payload;
+    // Sanitize inputs
+    const name = (0, inputSanitizer_1.sanitizeString)(rawName);
+    const description = rawDescription
+        ? (0, inputSanitizer_1.sanitizeString)(rawDescription)
+        : undefined;
+    const pricePerHour = (0, inputSanitizer_1.sanitizeNumber)(rawPrice, 0) || 0;
+    const sanitizedAmenities = amenities ? (0, inputSanitizer_1.sanitizeObject)(amenities) : undefined;
     // Check authorization
     const hasAccess = await (0, checkBranchAccessHelper_1.checkBranchAccess)(userId, branchId);
     if (!hasAccess) {
@@ -33,7 +41,7 @@ async function addCategoryService(payload) {
         description,
         tier,
         pricePerHour,
-        amenities,
+        amenities: sanitizedAmenities,
     });
     // Log audit
     await auditLogRepository_1.AuditLogRepository.createAuditLog({
@@ -69,7 +77,9 @@ async function getCategoriesService(payload) {
 }
 // Service function to update category
 async function updateCategoryService(payload) {
-    const { branchId, categoryId, userId, data } = payload;
+    const { branchId, categoryId, userId, data: rawData } = payload;
+    // Sanitize data object
+    const data = (0, inputSanitizer_1.sanitizeObject)(rawData);
     // Check authorization
     const hasAccess = await (0, checkBranchAccessHelper_1.checkBranchAccess)(userId, branchId);
     if (!hasAccess) {

@@ -7,6 +7,7 @@ const categoryRepository_1 = require("../../repository/categoryRepository");
 const roomAndDeviceRepository_1 = require("../../repository/roomAndDeviceRepository");
 const checkBranchAccessHelper_1 = require("../../helper/checkBranchAccessHelper");
 const branchAmenitiesHelper_1 = require("../../helper/branchAmenitiesHelper");
+const inputSanitizer_1 = require("../../helper/inputSanitizer");
 // Queries
 const roomAndDeviceQuery_1 = require("../../queries/roomAndDeviceQuery");
 // Error imports
@@ -18,7 +19,13 @@ const roomAndDeviceError_1 = require("../../errors/RoomAndDeviceError/roomAndDev
  * Add room and device to branch
  */
 const addRoomAndDeviceService = async (payload) => {
-    const { userId, branchId, categoryId, name, deviceType, version, pricePerHour, roomNumber, } = payload;
+    const { userId, branchId, categoryId, name: rawName, deviceType: rawDeviceType, version: rawVersion, pricePerHour: rawPrice, roomNumber: rawRoomNumber, } = payload;
+    // Sanitize inputs
+    const name = (0, inputSanitizer_1.sanitizeString)(rawName);
+    const deviceType = (0, inputSanitizer_1.sanitizeString)(rawDeviceType);
+    const version = (0, inputSanitizer_1.sanitizeString)(rawVersion);
+    const pricePerHour = (0, inputSanitizer_1.sanitizeNumber)(rawPrice, 0) || 0;
+    const roomNumber = (0, inputSanitizer_1.sanitizeString)(rawRoomNumber);
     // Verify authorization
     const hasAccess = await (0, checkBranchAccessHelper_1.checkBranchAccess)(userId, branchId);
     if (!hasAccess) {
@@ -84,7 +91,11 @@ exports.addRoomAndDeviceService = addRoomAndDeviceService;
  * Get rooms and devices by branch with filters
  */
 const getRoomsAndDevicesService = async (payload) => {
-    const { branchId, deviceType, status, categoryId, search, skip = 0, take = 10, } = payload;
+    const { branchId, deviceType: rawDeviceType, status: rawStatus, categoryId, search: rawSearch, skip = 0, take = 10, } = payload;
+    // Sanitize string inputs
+    const deviceType = rawDeviceType ? (0, inputSanitizer_1.sanitizeString)(rawDeviceType) : undefined;
+    const status = rawStatus ? (0, inputSanitizer_1.sanitizeString)(rawStatus) : undefined;
+    const search = rawSearch ? (0, inputSanitizer_1.sanitizeString)(rawSearch) : undefined;
     const where = { branchId };
     if (deviceType && deviceType !== "undefined") {
         where.deviceType = deviceType;
@@ -151,7 +162,14 @@ exports.getRoomAndDeviceDetailsService = getRoomAndDeviceDetailsService;
  * Update room and device
  */
 const updateRoomAndDeviceService = async (payload) => {
-    const { userId, branchId, roomAndDeviceId, categoryId, name, deviceType, version, pricePerHour, roomNumber, status, } = payload;
+    const { userId, branchId, roomAndDeviceId, categoryId, name: rawName, deviceType: rawDeviceType, version: rawVersion, pricePerHour: rawPrice, roomNumber: rawRoomNumber, status: rawStatus, } = payload;
+    // Sanitize inputs
+    const name = rawName ? (0, inputSanitizer_1.sanitizeString)(rawName) : undefined;
+    const deviceType = rawDeviceType ? (0, inputSanitizer_1.sanitizeString)(rawDeviceType) : undefined;
+    const version = rawVersion ? (0, inputSanitizer_1.sanitizeString)(rawVersion) : undefined;
+    const pricePerHour = rawPrice ? (0, inputSanitizer_1.sanitizeNumber)(rawPrice, 0) : undefined;
+    const roomNumber = rawRoomNumber ? (0, inputSanitizer_1.sanitizeString)(rawRoomNumber) : undefined;
+    const status = rawStatus ? (0, inputSanitizer_1.sanitizeString)(rawStatus) : undefined;
     // Verify authorization
     const hasAccess = await (0, checkBranchAccessHelper_1.checkBranchAccess)(userId, branchId);
     if (!hasAccess) {

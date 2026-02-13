@@ -9,6 +9,7 @@ const branchRepository_1 = require("../../repository/branchRepository");
 const userRepository_1 = require("../../repository/userRepository");
 const adminRepository_1 = require("../../repository/adminRepository");
 const auditLogRepository_1 = require("../../repository/auditLogRepository");
+const inputSanitizer_1 = require("../../helper/inputSanitizer");
 // Error
 const branchError_1 = require("../../errors/BranchError/branchError");
 const authError_1 = require("../../errors/AuthError/authError");
@@ -17,10 +18,16 @@ const adminError_1 = require("../../errors/AdminError/adminError");
 const client_1 = require("@prisma/client");
 // Service function to add a branch admin
 async function addBranchAdminService(payload) {
-    const { userId, email } = payload;
+    const { userId, email: rawEmail, role: rawRole } = payload;
+    // Sanitize input
+    const email = (0, inputSanitizer_1.sanitizeEmail)(rawEmail);
+    if (!email) {
+        throw new Error("Invalid email provided");
+    }
+    const role = (0, inputSanitizer_1.sanitizeString)(rawRole);
     const [branch, user] = await Promise.all([
         branchRepository_1.BranchRepository.findById(payload.branchId),
-        userRepository_1.UserRepository.findByEmail(payload.email),
+        userRepository_1.UserRepository.findByEmail(email),
     ]);
     if (!branch) {
         throw new branchError_1.BranchNotFoundError();
@@ -38,7 +45,7 @@ async function addBranchAdminService(payload) {
     const admin = await adminRepository_1.AdminRepository.createAdminWithUserData({
         userId: user.id,
         branchId: payload.branchId,
-        role: payload.role,
+        role,
     });
     await auditLogRepository_1.AuditLogRepository.createAuditLog({
         userId,
@@ -48,7 +55,7 @@ async function addBranchAdminService(payload) {
         meta: {
             branchId: payload.branchId.toString(),
             adminEmail: email,
-            role: payload.role,
+            role,
             timestamp: new Date().toISOString(),
         },
     });
@@ -65,6 +72,10 @@ async function getBranchAdminsService(branchId) {
 }
 // Service function to update branch admin
 async function updateBranchAdminService(adminId, currentBranchId, targetBranchId, role) {
+    // Sanitize input
+    const sanitizedRole = role
+        ? (0, inputSanitizer_1.sanitizeString)(role)
+        : undefined;
     const admin = await adminRepository_1.AdminRepository.findById(adminId);
     if (!admin) {
         throw new adminError_1.AdminNotFoundError();
@@ -77,7 +88,7 @@ async function updateBranchAdminService(adminId, currentBranchId, targetBranchId
     }
     const updatedAdmin = await adminRepository_1.AdminRepository.updateAdmin(adminId, {
         branchId: targetBranchId,
-        role,
+        role: sanitizedRole,
     });
     await auditLogRepository_1.AuditLogRepository.createAuditLog({
         userId: admin.userId,
@@ -87,7 +98,7 @@ async function updateBranchAdminService(adminId, currentBranchId, targetBranchId
         meta: {
             oldBranchId: currentBranchId.toString(),
             newBranchId: targetBranchId?.toString() || admin.branchId.toString(),
-            newRole: role || admin.role,
+            newRole: sanitizedRole || admin.role,
             adminEmail: admin.user.email,
             timestamp: new Date().toISOString(),
         },

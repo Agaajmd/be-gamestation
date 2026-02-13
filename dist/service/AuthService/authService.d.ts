@@ -7,18 +7,18 @@ export declare function registerUser(payload: {
     fullname: string;
     phone: string;
 }): Promise<{
-    newUser: {
-        id: bigint;
-        email: string;
-        passwordHash: string | null;
-        fullname: string;
-        role: import("@prisma/client").$Enums.UserRole;
-        phone: string | null;
-        createdAt: Date;
-        updatedAt: Date | null;
-    };
-    accessToken: string;
-    refreshToken: string;
+    id: bigint;
+    email: string;
+    passwordHash: string | null;
+    fullname: string;
+    role: import("@prisma/client").$Enums.UserRole;
+    phone: string | null;
+    isVerified: boolean;
+    verificationToken: string | null;
+    verificationTokenExpires: Date | null;
+    verificationSentAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date | null;
 }>;
 export declare function loginUser(payload: {
     email: string;

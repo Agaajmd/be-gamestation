@@ -10,9 +10,26 @@ exports.OrderItemRepository = {
             ...options,
         });
     },
+    findMany(where, options) {
+        return database_1.prisma.orderItem.findMany({
+            where: where,
+            ...options,
+        });
+    },
     create(data) {
         return database_1.prisma.orderItem.create({
             data,
+        });
+    },
+    findById(id, options) {
+        return database_1.prisma.orderItem.findUnique({
+            where: { id },
+            ...options,
+        });
+    },
+    delete(id) {
+        return database_1.prisma.orderItem.delete({
+            where: { id },
         });
     }
 };

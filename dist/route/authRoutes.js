@@ -37,6 +37,7 @@ const express_1 = require("express");
 const AuthController = __importStar(require("../controller/AuthController"));
 const ValidateMiddleware = __importStar(require("../middleware/validateMiddleware"));
 const authValidation_1 = require("../validation/bodyValidation/authValidation");
+const authQueryValidation_1 = require("../validation/queryValidation/authQueryValidation");
 const router = (0, express_1.Router)();
 /**
  * @route   POST /auth/register
@@ -60,6 +61,26 @@ router.post("/login", ValidateMiddleware.validateBody(authValidation_1.loginSche
  *          Step 2: { email, otp }
  */
 router.post("/login-otp", ValidateMiddleware.validateBody(authValidation_1.loginOTPSchema), AuthController.loginOTP);
+/**
+  * @route   POST /auth/verify-email
+  * @desc    Verifikasi email dengan token
+  * @access  Public
+*/
+router.get("/verify-email", ValidateMiddleware.validateQuery(authQueryValidation_1.verifyEmailSchema), AuthController.verifyEmail);
+/**
+ * @route   POST /auth/resend-verification-email
+ * @desc    Kirim ulang email verifikasi
+ * @access  Public
+ * @body    { email }
+ */
+router.post("/resend-verification-email", ValidateMiddleware.validateBody(authQueryValidation_1.resendVerificationEmailSchema), AuthController.resendVerificationEmail);
+/**
+ * @route   POST /auth/check-verification-status
+ * @desc    Cek status verifikasi email
+ * @access  Public
+ * @body    { email }
+ */
+router.post("/check-verification-status", ValidateMiddleware.validateBody(authQueryValidation_1.checkVerificationStatusSchema), AuthController.checkVerificationStatus);
 /**
  * @route   POST /auth/refresh-token
  * @desc    Refresh access token

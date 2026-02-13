@@ -81,7 +81,6 @@ const updateBranchAmenities = async (branchId, preserveFacilities = true) => {
             where: { id: branchId },
             data: { amenities: amenities },
         });
-        console.log(`[AMENITIES] Updated for branch ${branchId}: ${amenities.auto.roomAndDevices.total} devices, ${amenities.auto.categories.total} categories`);
         return amenities;
     }
     catch (error) {
@@ -131,7 +130,6 @@ const updateBranchFacilities = async (branchId, facilities) => {
             where: { id: branchId },
             data: { amenities: updatedAmenities },
         });
-        console.log(`[AMENITIES] Updated facilities for branch ${branchId}`);
         return updatedAmenities;
     }
     catch (error) {

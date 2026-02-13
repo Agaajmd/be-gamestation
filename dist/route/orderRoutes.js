@@ -39,15 +39,18 @@ const authMiddleware_1 = require("../middleware/authMiddleware");
 const roleMiddleware_1 = require("../middleware/roleMiddleware");
 const ValidateMiddleware = __importStar(require("../middleware/validateMiddleware"));
 const orderValidation_1 = require("../validation/bodyValidation/orderValidation");
+const uploadImage_1 = require("../helper/uploadImage");
 const router = (0, express_1.Router)();
 // Customer routes
 router.post("/", authMiddleware_1.authenticateToken, roleMiddleware_1.requireCustomer, ValidateMiddleware.validateBody(orderValidation_1.createOrderSchema), OrderController_1.addToCart);
-router.post("/:id/checkout", authMiddleware_1.authenticateToken, roleMiddleware_1.requireCustomer, ValidateMiddleware.validateBody(orderValidation_1.checkoutOrderSchema), OrderController_1.checkoutOrder);
+router.post("/:id/checkout", authMiddleware_1.authenticateToken, roleMiddleware_1.requireCustomer, uploadImage_1.uploadImage.single("paymentProof"), ValidateMiddleware.validateBody(orderValidation_1.checkoutOrderSchema), OrderController_1.checkoutOrder);
 router.delete("/:id", authMiddleware_1.authenticateToken, OrderController_1.cancelOrder);
 // All authenticated users
 router.get("/", authMiddleware_1.authenticateToken, OrderController_1.getOrders);
 router.get("/:id", authMiddleware_1.authenticateToken, OrderController_1.getOrderById);
 // Admin/Owner routes
 router.put("/:id/status", authMiddleware_1.authenticateToken, roleMiddleware_1.requireOwnerOrAdmin, ValidateMiddleware.validateBody(orderValidation_1.updateOrderStatusSchema), OrderController_1.updateOrderStatus);
+// Remove item from cart (customer only)
+router.delete("/items/:id", authMiddleware_1.authenticateToken, roleMiddleware_1.requireCustomer, OrderController_1.removeItemFromCart);
 exports.default = router;
 //# sourceMappingURL=orderRoutes.js.map

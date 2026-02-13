@@ -38,12 +38,9 @@ exports.createOrderSchema = joi_1.default.object({
     notes: joi_1.default.string().optional().allow(""),
 });
 exports.checkoutOrderSchema = joi_1.default.object({
-    paymentMethod: joi_1.default.string()
-        .valid("credit_card", "debit_card", "cash", "e_wallet")
-        .required()
-        .messages({
-        "any.only": "Metode pembayaran tidak valid",
-        "any.required": "Metode pembayaran wajib diisi",
+    paymentId: joi_1.default.string().required().messages({
+        "string.empty": "Payment ID tidak boleh kosong",
+        "any.required": "Payment ID wajib diisi",
     }),
 });
 exports.updateOrderStatusSchema = joi_1.default.object({
