@@ -79,24 +79,17 @@ export const hidePoweredByMiddleware = (
  * CORS security middleware - configure allowed origins
  */
 export const getCorsOptions = () => {
-  const allowedOrigins = process.env.CORS_ORIGINS?.split(",") || [
-    "http://localhost:3001",
-    "http://localhost:3000",
-  ];
+  const allowedOrigins = process.env.CORS_ORIGINS 
+    ? process.env.CORS_ORIGINS.split(",").map(o => o.trim()) 
+    : ["http://localhost:3001", "http://localhost:3000"];
 
   return {
-    origin: (
-      origin: string | undefined,
-      callback: (err: Error | null, allow?: boolean) => void,
-    ) => {
-      // Allow requests with no origin (mobile apps, curl requests, etc)
-      if (!origin) {
-        return callback(null, true);
-      }
-
-      if (allowedOrigins.includes(origin)) {
+    origin: (origin: string | undefined, callback: any) => {
+      // Allow if no origin (like mobile/Postman) or if it's in our list
+      if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
+        console.error(`CORS Blocked for origin: ${origin}`); // Helpful for debugging Railway logs
         callback(new Error("Not allowed by CORS"));
       }
     },
