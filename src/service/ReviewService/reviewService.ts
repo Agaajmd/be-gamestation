@@ -67,11 +67,11 @@ export const createReviewService = async (payload: {
 };
 
 /**
- * Get reviews (role-based filtering)
+ * Get reviews (role-based filtering, public access allowed)
  */
 export const getReviewsService = async (payload: {
-  userId: bigint;
-  role: string;
+  userId?: bigint;
+  role?: string;
   branchId?: bigint;
   minRating?: number;
   skip?: number;
@@ -134,12 +134,13 @@ export const getReviewsService = async (payload: {
 };
 
 /**
- * Get review by ID (role-based access control)
+ * Get review by ID (role-based access control, public access allowed)
  */
 export const getReviewByIdService = async (payload: {
-  userId: bigint;
-  role: string;
+  userId?: bigint;
+  role?: string;
   reviewId: bigint;
+  branchId?: bigint;
 }) => {
   const { userId, role, reviewId } = payload;
 
@@ -149,7 +150,12 @@ export const getReviewByIdService = async (payload: {
     throw new ReviewNotFoundError();
   }
 
-  // Check access rights
+  // Check access rights only if user is authenticated
+  if (!role) {
+    // Public access - allow viewing all reviews
+    return review;
+  }
+
   if (role === "customer") {
     if (review.customerId !== userId) {
       throw new UnauthorizedReviewAccessError();

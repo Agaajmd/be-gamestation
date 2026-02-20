@@ -57,15 +57,15 @@ export const createReview = async (
 
 /**
  * GET /reviews
- * Get reviews (role-based filtering)
+ * Get reviews (public access)
  */
 export const getReviews = async (
   req: Request,
   res: Response,
 ): Promise<void> => {
   try {
-    const userId = BigInt(req.user!.userId);
-    const role = req.user!.role;
+    const userId = req.user ? BigInt(req.user.userId) : undefined;
+    const role = req.user?.role;
     const { branchId, minRating, skip, take } = req.query;
 
     const { reviews, total } = await getReviewsService({

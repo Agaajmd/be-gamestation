@@ -22,7 +22,7 @@ router.post(
   authenticateToken,
   requireCustomer,
   ValidateMiddleware.validateBody(createReviewSchema),
-  createReview
+  createReview,
 );
 
 router.put(
@@ -30,13 +30,13 @@ router.put(
   authenticateToken,
   requireCustomer,
   ValidateMiddleware.validateBody(updateReviewSchema),
-  updateReview
+  updateReview,
 );
 
 router.delete("/:id", authenticateToken, requireCustomer, deleteReview);
 
-// All authenticated users
-router.get("/", authenticateToken, getReviews);
-router.get("/:id", authenticateToken, getReviewById);
+// Public routes - no authentication required
+router.get("/", getReviews);
+router.get("/:id", getReviewById);
 
 export default router;

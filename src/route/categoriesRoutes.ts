@@ -4,8 +4,8 @@ import { authenticateToken } from "../middleware/authMiddleware";
 import { requireOwnerOrAdmin } from "../middleware/roleMiddleware";
 import * as ValidateMiddleware from "../middleware/validateMiddleware";
 import {
-    addCategorySchema,
-    updateCategorySchema,
+  addCategorySchema,
+  updateCategorySchema,
 } from "../validation/bodyValidation/categoryValidation";
 
 const router = Router();
@@ -16,11 +16,11 @@ const router = Router();
  * @access  Private (Owner/Admin)
  */
 router.post(
-    "/:branchId/category",
-    authenticateToken,
-    requireOwnerOrAdmin,
-    ValidateMiddleware.validateBody(addCategorySchema),
-    CategoryController.addCategory
+  "/:branchId/category",
+  authenticateToken,
+  requireOwnerOrAdmin,
+  ValidateMiddleware.validateBody(addCategorySchema),
+  CategoryController.addCategory,
 );
 
 /**
@@ -29,9 +29,8 @@ router.post(
  * @access  Public (atau bisa Private jika perlu)
  */
 router.get(
-    "/:branchId/category",
-    authenticateToken,
-    CategoryController.getCategories
+  "/:branchId/category",
+  CategoryController.getCategories,
 );
 
 /**
@@ -40,10 +39,10 @@ router.get(
  * @access Private (Owner/Admin)
  */
 router.put(
-    "/:branchId/category/:categoryId",
-    authenticateToken,
-    ValidateMiddleware.validateBody(updateCategorySchema),
-    CategoryController.updateCategory
+  "/:branchId/category/:categoryId",
+  authenticateToken,
+  ValidateMiddleware.validateBody(updateCategorySchema),
+  CategoryController.updateCategory,
 );
 
 /**
@@ -54,7 +53,7 @@ router.put(
 router.delete(
   "/:branchId/category/:categoryId",
   authenticateToken,
-  CategoryController.deleteDeviceCategory
+  CategoryController.deleteDeviceCategory,
 );
 
 export default router;

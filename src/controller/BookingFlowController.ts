@@ -18,6 +18,26 @@ import { calculateBookingPriceService } from "../service/OrderService/orderServi
 import { handleError } from "../helper/responseHelper";
 
 /**
+ * GET /booking/branches/public
+ * Mendapatkan semua cabang untuk halaman booking (public)
+ */
+export const getBranchesPublic = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const branches = await getBranchesService(undefined);
+
+    res.status(200).json({
+      success: true,
+      data: branches,
+    });
+  } catch (error) {
+    handleError(error, res);
+  }
+};
+
+/**
  * GET /booking/branches
  * Mendapatkan semua cabang untuk halaman booking
  * Jika user sudah punya cart order, hanya return branch yang sama

@@ -11,6 +11,13 @@ import { authenticateToken } from "../middleware/authMiddleware";
 const router = Router();
 
 /**
+ * @route   GET /booking/public/branches
+ * @desc    Get list cabang 
+ * @access  Public
+ */
+router.get("/public/branches", BookingFlowController.getBranchesPublic);
+
+/**
  * GET /booking/branches
  * Mendapatkan semua cabang untuk halaman booking (public)
  */
