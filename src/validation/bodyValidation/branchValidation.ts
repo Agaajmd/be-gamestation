@@ -1,19 +1,17 @@
 import Joi from "joi";
 
 /**
- * Facilities schema for branch amenities
+ * Validation schema untuk create branch
  */
+const VALID_TIMEZONES = Intl.supportedValuesOf("timeZone");
 const facilitiesSchema = Joi.object({
   general: Joi.array().items(Joi.string()).optional().default([]),
   foodAndBeverage: Joi.array().items(Joi.string()).optional().default([]),
   parking: Joi.array().items(Joi.string()).optional().default([]),
   entertainment: Joi.array().items(Joi.string()).optional().default([]),
   accessibility: Joi.array().items(Joi.string()).optional().default([]),
-});
+}).options({ allowUnknown: false });
 
-/**
- * Validation schema untuk create branch
- */
 export const createBranchSchema = Joi.object({
   name: Joi.string().min(3).max(120).required().messages({
     "string.min": "Nama cabang minimal 3 karakter",
@@ -28,9 +26,14 @@ export const createBranchSchema = Joi.object({
     .messages({
       "string.pattern.base": "Format nomor telepon tidak valid",
     }),
-  timezone: Joi.string().optional().messages({
-    "string.base": "Timezone harus berupa string",
-  }),
+  timezone: Joi.string()
+    .valid(...VALID_TIMEZONES)
+    .default("Asia/Jakarta")
+    .optional()
+    .messages({
+      "string.base": "Timezone harus berupa string",
+      "any.only": "Timezone tidak valid",
+    }),
   openTime: Joi.string()
     .pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/)
     .optional()

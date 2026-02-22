@@ -17,7 +17,7 @@ import { HolidayError } from "../../errors/HolidayError/holidayError";
 
 // Helpers
 import { fetchMonthlyData } from "../../helper/bookingAvailability/fetchMonthlyData";
-import { getBranchOperatingHours } from "../../helper/bookingAvailability/getBranchOperatingHours";
+import { getBranchOperatingTimes } from "../../helper/bookingAvailability/getBranchOperatingTimes";
 import { categorizeDates } from "../../helper/categorizeDates";
 import { generateTimeSlots } from "../../helper/generateTimes";
 import { calculateMaximumDuration } from "../../helper/calculateMaximumDuration";
@@ -71,7 +71,7 @@ export async function getAvailableDatesService(
     endDate,
   );
 
-  const { openHour, closeHour, totalHours } = getBranchOperatingHours(
+  const { openHour, closeHour, totalHours } = getBranchOperatingTimes(
     branch.openTime,
     branch.closeTime,
   );
@@ -115,7 +115,7 @@ export async function getAvailableTimesService(
     throw new HolidayError();
   }
 
-  const { openHour, closeHour } = getBranchOperatingHours(
+  const { openHour, openMinute, closeHour, closeMinute } = getBranchOperatingTimes(
     branch.openTime,
     branch.closeTime,
   );
@@ -125,7 +125,9 @@ export async function getAvailableTimesService(
       branchId,
       date,
       openHour,
+      openMinute,
       closeHour,
+      closeMinute,
     );
 
   if (roomsAndDevices.length === 0) {

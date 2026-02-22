@@ -20,22 +20,28 @@ interface Device {
   }>;
 }
 
-const extractHourFromTime = (
-  time: string | Date | undefined | null,
-): number => {
-  if (!time) return 9; // default
+const extractTimeFromValue = (
+  time: Date | string | null,
+): { hours: number; minutes: number } | null => {
+  if (!time) return null;
 
   if (typeof time === "string") {
     const parts = time.split(":");
     if (parts.length >= 1) {
-      return parseInt(parts[0], 10);
+      const hours = parseInt(parts[0], 10);
+      const minutes = parts.length >= 2 ? parseInt(parts[1], 10) : 0;
+      return { hours, minutes };
     }
   }
+
   if (time instanceof Date) {
-    return time.getUTCHours();
+    return {
+      hours: time.getUTCHours(),
+      minutes: time.getUTCMinutes(),
+    };
   }
 
-  return 9; // default
+  return null;
 };
 
 export function generateTimeSlots(
@@ -46,12 +52,21 @@ export function generateTimeSlots(
   const slots: TimeSlot[] = [];
   const now = new Date();
 
-  const startHour = extractHourFromTime(branch.openTime);
-  const endHour = extractHourFromTime(branch.closeTime);
+  const startTime = extractTimeFromValue(branch.openTime);
+  const endTime = extractTimeFromValue(branch.closeTime);
+
+  const startHour = startTime?.hours ?? 9;
+  const startMinute = startTime?.minutes ?? 0;
+  const endHour = endTime?.hours ?? 23;
+  const endMinute = endTime?.minutes ?? 0;
 
   for (let hour = startHour; hour <= endHour; hour++) {
     for (let minute = 0; minute < 60; minute += 30) {
-      if (hour === endHour && minute > 30) break;
+      // Skip jika sudah melewati closing time
+      if (hour === endHour && minute > endMinute) break;
+
+      // Skip jika jam slot melebihi jam tutup
+      if (hour > endHour) break;
 
       const slotStart = new Date(bookingDate);
       slotStart.setHours(hour, minute, 0, 0);

@@ -99,8 +99,10 @@ export const RoomAndDeviceRepository = {
   findByBranchIdWithOrdersAndExceptions(
     branchId: bigint,
     targetDate: Date,
-    branchOpenTime: number,
-    branchCloseTime: number,
+    branchOpenHour: number,
+    branchOpenMinute: number,
+    branchCloseHour: number,
+    branchCloseMinute: number,
   ) {
     return prisma.roomAndDevice.findMany({
       where: {
@@ -114,18 +116,18 @@ export const RoomAndDeviceRepository = {
               status: { in: ["pending", "confirmed", "completed"] as any },
             },
             bookingStart: {
-              gte: new Date(targetDate.setHours(branchOpenTime, 0, 0, 0)),
-              lte: new Date(targetDate.setHours(branchCloseTime, 0, 0, 0)),
+              gte: new Date(targetDate.setHours(branchOpenHour, branchOpenMinute, 0, 0)),
+              lte: new Date(targetDate.setHours(branchCloseHour, branchCloseMinute, 0, 0)),
             },
           },
         },
         availabilityExceptions: {
           where: {
             startAt: {
-              lte: new Date(targetDate.setHours(branchCloseTime, 0, 0, 0)),
+              lte: new Date(targetDate.setHours(branchCloseHour, branchCloseMinute, 0, 0)),
             },
             endAt: {
-              gte: new Date(targetDate.setHours(branchOpenTime, 0, 0, 0)),
+              gte: new Date(targetDate.setHours(branchOpenHour, branchOpenMinute, 0, 0)),
             },
           },
         },

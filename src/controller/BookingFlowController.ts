@@ -116,8 +116,11 @@ export const getAvailableTimes = async (
   try {
     const branchId = BigInt(req.params.branchId);
     const { bookingDate } = req.query;
-
+    console.log(bookingDate);
+    
     const date = new Date(bookingDate as string);
+    console.log(date);
+    
 
     const slots = await getAvailableTimesService(branchId, date);
 
