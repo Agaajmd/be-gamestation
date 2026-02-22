@@ -2,7 +2,7 @@ export function calculateMaximumDuration(
   bookingDate: string,
   startHour: number,
   startMinute: number,
-  closeTime: Date | null,
+  closeTime: Date | string | null,
 ): number {
   const bookingDateObj = new Date(bookingDate);
   const startDateTime = new Date(bookingDateObj);
@@ -11,9 +11,20 @@ export function calculateMaximumDuration(
   const closeDateTime = new Date(bookingDateObj);
 
   if (closeTime) {
-    const closeDate = new Date(closeTime);
-    const closeHour = closeDate.getUTCHours();
-    const closeMinute = closeDate.getUTCMinutes();
+    let closeHour = 23;
+    let closeMinute = 59;
+
+    // Parse closeTime whether it's a Date or string
+    if (typeof closeTime === "string") {
+      const parts = closeTime.split(":");
+      if (parts.length >= 1) closeHour = parseInt(parts[0], 10);
+      if (parts.length >= 2) closeMinute = parseInt(parts[1], 10);
+    } else if (closeTime instanceof Date) {
+      // PostgreSQL Time fields: use getUTCHours/getUTCMinutes
+      closeHour = closeTime.getUTCHours();
+      closeMinute = closeTime.getUTCMinutes();
+    }
+
     closeDateTime.setUTCHours(closeHour, closeMinute, 0, 0);
   } else {
     closeDateTime.setUTCHours(23, 59, 59, 0);
