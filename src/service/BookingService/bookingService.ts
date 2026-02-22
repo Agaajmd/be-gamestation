@@ -135,11 +135,14 @@ export async function getAvailableTimesService(
   const timeSlots = generateTimeSlots(
     date.toISOString(),
     {
-      openTime: branch.openTime?.toISOString(),
-      closeTime: branch.closeTime?.toISOString(),
+      openTime: branch.openTime,
+      closeTime: branch.closeTime,
     },
     roomsAndDevices,
   );
+
+  console.log("timeSlots: ", timeSlots);
+  
 
   return { timeSlots, totalDevices: roomsAndDevices.length };
 }

@@ -20,25 +20,17 @@ interface Device {
   }>;
 }
 
-/**
- * Parse time value (Date or ISO string) and extract hours
- */
 const extractHourFromTime = (
   time: string | Date | undefined | null,
 ): number => {
   if (!time) return 9; // default
 
-  // If it's a string, parse it as HH:mm:ss format
   if (typeof time === "string") {
     const parts = time.split(":");
     if (parts.length >= 1) {
       return parseInt(parts[0], 10);
     }
   }
-
-  // If it's a Date object from database (PostgreSQL Time)
-  // PostgreSQL Time fields don't have timezone - they're stored as plain time values
-  // Prisma returns them as Date objects, and getUTCHours() gives us the stored time
   if (time instanceof Date) {
     return time.getUTCHours();
   }
@@ -57,8 +49,10 @@ export function generateTimeSlots(
   const startHour = extractHourFromTime(branch.openTime);
   const endHour = extractHourFromTime(branch.closeTime);
 
-  for (let hour = startHour; hour < endHour; hour++) {
+  for (let hour = startHour; hour <= endHour; hour++) {
     for (let minute = 0; minute < 60; minute += 30) {
+      if (hour === endHour && minute > 30) break;
+
       const slotStart = new Date(bookingDate);
       slotStart.setHours(hour, minute, 0, 0);
 
