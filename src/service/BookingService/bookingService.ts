@@ -115,10 +115,8 @@ export async function getAvailableTimesService(
     throw new HolidayError();
   }
 
-  const { openHour, openMinute, closeHour, closeMinute } = getBranchOperatingTimes(
-    branch.openTime,
-    branch.closeTime,
-  );
+  const { openHour, openMinute, closeHour, closeMinute } =
+    getBranchOperatingTimes(branch.openTime, branch.closeTime);
 
   const roomsAndDevices =
     await RoomAndDeviceRepository.findByBranchIdWithOrdersAndExceptions(
@@ -141,10 +139,8 @@ export async function getAvailableTimesService(
       closeTime: branch.closeTime,
     },
     roomsAndDevices,
+    branch.timezone || "UTC",
   );
-
-  console.log("timeSlots: ", timeSlots);
-  
 
   return { timeSlots, totalDevices: roomsAndDevices.length };
 }
@@ -205,8 +201,8 @@ export async function getAvailableRoomAndDeviceService(
 ) {
   // Sanitize inputs
   const date = sanitizeString(bookingDate);
-  const hour = sanitizeNumber(startHour,  0,  23 ) ?? 0;
-  const minute = sanitizeNumber(startMinute, 0, 59 ) ?? 0;
+  const hour = sanitizeNumber(startHour, 0, 23) ?? 0;
+  const minute = sanitizeNumber(startMinute, 0, 59) ?? 0;
   const duration = sanitizeNumber(durationMinutes, 0) ?? 0;
 
   const targetStart = new Date(date);
