@@ -122,6 +122,11 @@ export function generateTimeSlots(
   const endHour = endTime?.hours ?? 23;
   const endMinute = endTime?.minutes ?? 0;
 
+  console.log("raw openTime:", branch.openTime);
+  console.log("raw closeTime:", branch.closeTime);
+  console.log("parsed endTime:", endTime);
+  console.log("endHour:", endHour, "endMinute:", endMinute);
+
   const bookingDateStr = bookingDate.includes("T")
     ? bookingDate.split("T")[0]
     : bookingDate;
