@@ -503,7 +503,7 @@ model Announcement {
   title       String               @db.VarChar(150)
   imageFile   String?              @map("image_file") @db.Text
   description String               @db.Text
-  priority    AnnouncementPriority
+  priority    AnnouncementPriority @default(medium)
   forBranch   BigInt?              @map("for_branch")
   startDate   DateTime             @map("start_at") @db.Timestamp(6)
   endDate     DateTime             @map("end_at") @db.Timestamp(6)
