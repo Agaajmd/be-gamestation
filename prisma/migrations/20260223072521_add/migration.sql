@@ -12,6 +12,3 @@ CREATE TYPE "AnnouncementPriority" AS ENUM ('low', 'medium', 'high');
 -- AlterTable
 ALTER TABLE "announcements" ADD COLUMN "priority" "AnnouncementPriority" NOT NULL DEFAULT 'medium';
 
--- AlterTable
-ALTER TABLE "branches" ALTER COLUMN "open_time" SET DATA TYPE VARCHAR(5),
-ALTER COLUMN "close_time" SET DATA TYPE VARCHAR(5);
