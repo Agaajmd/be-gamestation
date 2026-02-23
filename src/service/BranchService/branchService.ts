@@ -53,16 +53,6 @@ export async function createBranchService(payload: {
     throw new UserNotOwnerError();
   }
 
-  let parsedOpenTime: Date | undefined;
-  let parsedCloseTime: Date | undefined;
-
-  if (openTime) {
-    parsedOpenTime = new Date(`1970-01-01T${openTime}Z`);
-  }
-  if (closeTime) {
-    parsedCloseTime = new Date(`1970-01-01T${closeTime}Z`);
-  }
-
   const initialAmenities = {
     auto: {
       roomAndDevices: { types: [], versions: [], total: 0 },
@@ -84,8 +74,8 @@ export async function createBranchService(payload: {
     address,
     phone,
     timezone: timeZone || "Asia/Jakarta",
-    openTime: parsedOpenTime!,
-    closeTime: parsedCloseTime!,
+    openTime: openTime || undefined,
+    closeTime: closeTime || undefined,
     amenities: initialAmenities,
   });
 
@@ -179,16 +169,10 @@ export async function updateBranchService(payload: {
     throw new Error("Cabang tidak ditemukan");
   }
 
-  // Parse time if provided
-  let parsedOpenTime: Date | undefined;
-  let parsedCloseTime: Date | undefined;
-
-  if (openTime) {
-    parsedOpenTime = new Date(`1970-01-01T${openTime}Z`);
-  }
-  if (closeTime) {
-    parsedCloseTime = new Date(`1970-01-01T${closeTime}Z`);
-  }
+  // openTime dan closeTime disimpan sebagai string HH:MM
+  // Tidak perlu convert ke Date untuk menghindari timezone confusion
+  const parsedOpenTime = openTime; // "09:00" tetap "09:00"
+  const parsedCloseTime = closeTime; // "22:00" tetap "22:00"
 
   // Update facilities if provided
   if (facilities !== undefined) {
@@ -201,8 +185,8 @@ export async function updateBranchService(payload: {
     address: address !== null ? address : undefined,
     phone: phone !== null ? phone : undefined,
     timezone: timezone || branch.timezone,
-    openTime: parsedOpenTime !== null ? parsedOpenTime : undefined,
-    closeTime: parsedCloseTime !== null ? parsedCloseTime : undefined,
+    openTime: parsedOpenTime || undefined,
+    closeTime: parsedCloseTime || undefined,
   });
 
   // Log audit

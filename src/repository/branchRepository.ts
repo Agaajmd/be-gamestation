@@ -56,12 +56,12 @@ export const BranchRepository = {
     address: string;
     phone: string;
     timezone: string;
-    openTime: Date;
-    closeTime: Date;
+    openTime?: string;
+    closeTime?: string;
     amenities?: any;
   }) {
     return prisma.branch.create({
-      data,
+      data: data as any,
     });
   },
 
@@ -134,13 +134,13 @@ export const BranchRepository = {
       address?: string;
       phone?: string;
       timezone?: string;
-      openTime?: Date;
-      closeTime?: Date;
+      openTime?: string;
+      closeTime?: string;
     },
   ) {
     return prisma.branch.update({
       where: { id: branchId },
-      data,
+      data: data as any,
     });
   },
 

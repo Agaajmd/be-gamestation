@@ -9,3 +9,5 @@
 ALTER TABLE "announcements" DROP COLUMN "content",
 ADD COLUMN     "description" TEXT NOT NULL,
 ADD COLUMN     "image_file" TEXT;
+
+ALTER TABLE "announcements" ALTER COLUMN "description" DROP DEFAULT;

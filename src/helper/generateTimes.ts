@@ -5,8 +5,8 @@ export interface TimeSlot {
 }
 
 interface Branch {
-  openTime?: string | Date | null;
-  closeTime?: string | Date | null;
+  openTime?: string | null;
+  closeTime?: string | null;
 }
 
 interface Device {
@@ -21,26 +21,16 @@ interface Device {
 }
 
 const extractTimeFromValue = (
-  time: Date | string | null,
+  time: string | null,
 ): { hours: number; minutes: number } | null => {
   if (!time) return null;
 
-  if (typeof time === "string") {
-    const parts = time.split(":");
-    if (parts.length >= 1) {
-      const hours = parseInt(parts[0], 10);
-      const minutes = parts.length >= 2 ? parseInt(parts[1], 10) : 0;
-      return { hours, minutes };
-    }
+  const parts = time.split(":");
+  if (parts.length >= 1) {
+    const hours = parseInt(parts[0], 10);
+    const minutes = parts.length >= 2 ? parseInt(parts[1], 10) : 0;
+    return { hours, minutes };
   }
-
-  if (time instanceof Date) {
-    return {
-      hours: time.getUTCHours(),
-      minutes: time.getUTCMinutes(),
-    };
-  }
-
   return null;
 };
 
@@ -76,6 +66,41 @@ const getLocalDateInTimezone = (date: Date, timezone: string): Date => {
   }
 };
 
+/**
+ * Parse a date string (YYYY-MM-DD) sebagai midnight dalam timezone yang diberikan
+ * Returns UTC equivalent dari local midnight
+ */
+const parseLocalDateInTimezone = (
+  dateString: string,
+  timezone: string,
+): Date => {
+  try {
+    // Handle ISO format: ekstrak hanya tanggal (YYYY-MM-DD)
+    const datePart = dateString.includes("T")
+      ? dateString.split("T")[0]
+      : dateString;
+
+    const [year, month, day] = datePart.split("-").map(Number);
+
+    // Buat date UTC midnight
+    const utcMidnight = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+
+    // Convert ke local time dalam timezone
+    const localMidnight = getLocalDateInTimezone(utcMidnight, timezone);
+
+    // Hitung selisih jam antara UTC midnight dengan local midnight
+    const offsetHours = localMidnight.getUTCHours() - 0;
+    const offsetMinutes = localMidnight.getUTCMinutes() - 0;
+
+    // UTC time untuk midnight dalam target timezone = UTC midnight - offset
+    return new Date(
+      utcMidnight.getTime() - (offsetHours * 60 + offsetMinutes) * 60000,
+    );
+  } catch (error) {
+    return new Date(dateString);
+  }
+};
+
 export function generateTimeSlots(
   bookingDate: string,
   branch: Branch,
@@ -84,9 +109,10 @@ export function generateTimeSlots(
 ): TimeSlot[] {
   const slots: TimeSlot[] = [];
 
-  // Get current time in branch timezone
   const nowUTC = new Date();
-  const nowInTimezone = getLocalDateInTimezone(nowUTC, timezone);
+  const nowLocal = getLocalDateInTimezone(nowUTC, timezone);
+
+  const bookingDayStart = parseLocalDateInTimezone(bookingDate, timezone);
 
   const startTime = extractTimeFromValue(branch.openTime);
   const endTime = extractTimeFromValue(branch.closeTime);
@@ -96,20 +122,34 @@ export function generateTimeSlots(
   const endHour = endTime?.hours ?? 23;
   const endMinute = endTime?.minutes ?? 0;
 
+  const bookingDateStr = bookingDate.includes("T")
+    ? bookingDate.split("T")[0]
+    : bookingDate;
+  const nowLocalDateStr = `${nowLocal.getUTCFullYear()}-${String(nowLocal.getUTCMonth() + 1).padStart(2, "0")}-${String(nowLocal.getUTCDate()).padStart(2, "0")}`;
+  const isToday = bookingDateStr === nowLocalDateStr;
+
   for (let hour = startHour; hour <= endHour; hour++) {
     for (let minute = 0; minute < 60; minute += 30) {
-      // Skip jika sudah melewati closing time
-      if (hour === endHour && minute > endMinute) break;
+      if (hour === endHour && minute >= endMinute) break;
 
-      // Skip jika jam slot melebihi jam tutup
-      if (hour > endHour) break;
+      if (isToday) {
+        const nowLocalHour = nowLocal.getUTCHours();
+        const nowLocalMinute = nowLocal.getUTCMinutes();
 
-      // Create slot time in booking date
-      const slotStart = new Date(bookingDate);
-      slotStart.setHours(hour, minute, 0, 0);
+        const nextSlotMinute = nowLocalMinute < 30 ? 30 : 60;
+        const nextSlotHour =
+          nowLocalMinute < 30 ? nowLocalHour : nowLocalHour + 1;
 
-      // Compare dengan current time dalam timezone yang sama
-      if (slotStart < nowInTimezone) continue;
+        const slotTotalMinutes = hour * 60 + minute;
+        const nextSlotTotalMinutes =
+          nextSlotHour * 60 + (nextSlotMinute === 60 ? 0 : nextSlotMinute);
+
+        if (slotTotalMinutes < nextSlotTotalMinutes) continue;
+      }
+
+      const slotStart = new Date(
+        bookingDayStart.getTime() + (hour * 60 + minute) * 60000,
+      );
 
       let availableDeviceCount = 0;
 
@@ -131,9 +171,7 @@ export function generateTimeSlots(
       }
 
       slots.push({
-        time: `${hour.toString().padStart(2, "0")}:${minute
-          .toString()
-          .padStart(2, "0")}`,
+        time: `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`,
         availableDeviceCount,
         isAvailable: availableDeviceCount > 0,
       });

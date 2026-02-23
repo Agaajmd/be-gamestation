@@ -132,14 +132,25 @@ export async function getAvailableTimesService(
     throw new RoomAndDeviceUnavailableError();
   }
 
+  // Generate booking date string dalam timezone branch
+  // Using Intl untuk convert UTC date ke local timezone format
+  const timezone = branch.timezone || "UTC";
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const bookingDateString = formatter.format(date);
+
   const timeSlots = generateTimeSlots(
-    date.toISOString(),
+    bookingDateString,
     {
       openTime: branch.openTime,
       closeTime: branch.closeTime,
     },
     roomsAndDevices,
-    branch.timezone || "UTC",
+    timezone,
   );
 
   return { timeSlots, totalDevices: roomsAndDevices.length };
