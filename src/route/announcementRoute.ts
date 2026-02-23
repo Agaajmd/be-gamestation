@@ -14,6 +14,7 @@ import {
   createAnnouncementSchema,
   updateAnnouncementSchema,
 } from "../validation/bodyValidation/announcementValidation";
+import { uploadImage } from "../helper/uploadImage";
 
 const router = Router();
 
@@ -29,6 +30,7 @@ router.post(
   "/",
   authenticateToken,
   requireOwnerOrAdmin,
+  uploadImage.single("imageFile"),
   ValidateMiddleware.validateBody(createAnnouncementSchema),
   createAnnouncement,
 );
@@ -37,6 +39,7 @@ router.put(
   "/:id",
   authenticateToken,
   requireOwnerOrAdmin,
+  uploadImage.single("imageFile"),
   ValidateMiddleware.validateBody(updateAnnouncementSchema),
   updateAnnouncement,
 );

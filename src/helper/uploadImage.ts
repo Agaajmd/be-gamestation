@@ -4,6 +4,7 @@ import fs from "fs";
 const uploadDirs = [
   "uploads/payment-proofs",
   "uploads/payment-qrcodes",
+  "uploads/announcements-images",
 ];
 
 uploadDirs.forEach((dir) => {
@@ -16,6 +17,8 @@ const storage = multer.diskStorage({
   destination: (req, _file, cb) => {
     if (req.baseUrl.includes("branch-payment-methods")) {
       cb(null, "uploads/payment-qrcodes/");
+    } else if (req.baseUrl.includes("announcements")) {
+      cb(null, "uploads/announcements-images/");
     } else {
       cb(null, "uploads/payment-proofs/");
     }

@@ -14,11 +14,14 @@ import {
  */
 export const createAnnouncement = async (req: Request, res: Response) => {
   try {
-    const { title, content, forBranch, startDate, endDate } = req.body;
+    const { title, description, forBranch, startDate, endDate } = req.body;
+
+    const imageFile = req.file ? `uploads/announcements-images/${req.file.filename}` : undefined;
 
     const announcement = await createAnnouncementService({
+      imageFile,
       title,
-      content,
+      description,
       forBranch: forBranch ? BigInt(forBranch) : null,
       startDate,
       endDate,
@@ -123,12 +126,15 @@ export const getAnnouncementById = async (req: Request, res: Response) => {
 export const updateAnnouncement = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { title, content, forBranch, startDate, endDate } = req.body;
+    const { title, description, forBranch, startDate, endDate } = req.body;
+
+    const imageFile = req.file ? `uploads/announcements-images/${req.file.filename}` : undefined;
 
     const updatedAnnouncement = await updateAnnouncementService({
       id,
+      imageFile,
       title,
-      content,
+      description,
       forBranch,
       startDate,
       endDate,

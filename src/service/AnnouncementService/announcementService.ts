@@ -12,15 +12,17 @@ import {
  * Create announcement
  */
 export const createAnnouncementService = async (payload: {
+  imageFile?: string;
   title: string;
-  content: string;
+  description: string;
   forBranch: bigint | null;
   startDate: string;
   endDate: string;
 }) => {
   const {
+    imageFile: rawImageFile,
     title: rawTitle,
-    content: rawContent,
+    description: rawDescription,
     forBranch,
     startDate,
     endDate,
@@ -28,7 +30,8 @@ export const createAnnouncementService = async (payload: {
 
   // Sanitize inputs
   const title = sanitizeString(rawTitle);
-  const content = sanitizeString(rawContent);
+  const description = sanitizeString(rawDescription);
+  const imageFile = rawImageFile ? sanitizeString(rawImageFile) : undefined;
 
   // Validate dates
   const startDateObj = new Date(startDate);
@@ -40,8 +43,9 @@ export const createAnnouncementService = async (payload: {
 
   // Create announcement
   const announcement = await AnnouncementRepository.create({
+    imageFile,
     title,
-    content,
+    description,
     forBranch: forBranch,
     startDate: startDateObj,
     endDate: endDateObj,
@@ -122,24 +126,27 @@ export const getAnnouncementByIdService = async (id: string | number) => {
  */
 export const updateAnnouncementService = async (payload: {
   id: string | number;
+  imageFile?: string | null;  
   title?: string;
-  content?: string;
+  description?: string;
   forBranch?: string | number | null;
   startDate?: string;
   endDate?: string;
 }) => {
   const {
     id,
+    imageFile: rawImageFile,
     title: rawTitle,
-    content: rawContent,
+    description: rawDescription,
     forBranch,
     startDate,
     endDate,
   } = payload;
 
   // Sanitize inputs
-  const title = rawTitle ? sanitizeString(rawTitle) : undefined;
-  const content = rawContent ? sanitizeString(rawContent) : undefined;
+  const title = rawTitle ? sanitizeString(rawTitle) : rawTitle;
+  const description = rawDescription ? sanitizeString(rawDescription) : rawDescription;
+  const imageFile = rawImageFile ? sanitizeString(rawImageFile) : rawImageFile;
 
   // Check if announcement exists
   const announcement = await AnnouncementRepository.findById(BigInt(id));
@@ -149,8 +156,9 @@ export const updateAnnouncementService = async (payload: {
 
   // Prepare update data
   const updateData: any = {};
+  if (imageFile !== undefined) updateData.imageFile = imageFile 
   if (title) updateData.title = title;
-  if (content) updateData.content = content;
+  if (description) updateData.description = description;
   if (forBranch !== undefined) {
     updateData.forBranch = forBranch ? BigInt(forBranch) : null;
   }
@@ -210,6 +218,7 @@ export const deleteAnnouncementService = async (id: string | number) => {
 const formatAnnouncementResponse = (announcement: any) => {
   return {
     id: announcement.id,
+    imageFile: announcement.imageFile,
     title: announcement.title,
     content: announcement.content,
     forBranch: announcement.forBranch,

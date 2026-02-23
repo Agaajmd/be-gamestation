@@ -4,14 +4,17 @@ import Joi from "joi";
  * Validation schema untuk create announcement
  */
 export const createAnnouncementSchema = Joi.object({
+  imageFile: Joi.string().allow(null, "").messages({
+    "string.base": "Announncement image harus berupa string (path/URL)",
+  }),
   title: Joi.string().min(3).max(150).required().messages({
     "string.min": "Judul minimal 3 karakter",
     "string.max": "Judul maksimal 150 karakter",
     "any.required": "Judul wajib diisi",
   }),
-  content: Joi.string().min(10).required().messages({
-    "string.min": "Konten minimal 10 karakter",
-    "any.required": "Konten wajib diisi",
+  description: Joi.string().min(10).required().messages({
+    "string.min": "Deskripsi minimal 10 karakter",
+    "any.required": "Deskripsi wajib diisi",
   }),
   forBranch: Joi.alternatives()
     .try(Joi.number(), Joi.string().pattern(/^\d+$/))
@@ -35,6 +38,9 @@ export const createAnnouncementSchema = Joi.object({
  * Validation schema untuk update announcement
  */
 export const updateAnnouncementSchema = Joi.object({
+  imageFile: Joi.string().allow(null, "").messages({
+    "string.base": "Announncement image harus berupa string (path/URL)",
+  }),
   title: Joi.string().min(3).max(150).optional().messages({
     "string.min": "Judul minimal 3 karakter",
     "string.max": "Judul maksimal 150 karakter",
