@@ -7,6 +7,7 @@ import {
   AnnouncementNotFoundError,
   InvalidAnnouncementDateError,
 } from "../../errors/AnnouncementError/announcementError";
+import { AnnouncementPriority } from "@prisma/client";
 
 /**
  * Create announcement
@@ -15,6 +16,7 @@ export const createAnnouncementService = async (payload: {
   imageFile?: string;
   title: string;
   description: string;
+  priority: AnnouncementPriority;
   forBranch: bigint | null;
   startDate: string;
   endDate: string;
@@ -23,6 +25,7 @@ export const createAnnouncementService = async (payload: {
     imageFile: rawImageFile,
     title: rawTitle,
     description: rawDescription,
+    priority,
     forBranch,
     startDate,
     endDate,
@@ -46,6 +49,7 @@ export const createAnnouncementService = async (payload: {
     imageFile,
     title,
     description,
+    priority,
     forBranch: forBranch,
     startDate: startDateObj,
     endDate: endDateObj,
@@ -126,9 +130,10 @@ export const getAnnouncementByIdService = async (id: string | number) => {
  */
 export const updateAnnouncementService = async (payload: {
   id: string | number;
-  imageFile?: string | null;  
+  imageFile?: string | null;
   title?: string;
   description?: string;
+  priority?: AnnouncementPriority;
   forBranch?: string | number | null;
   startDate?: string;
   endDate?: string;
@@ -145,7 +150,9 @@ export const updateAnnouncementService = async (payload: {
 
   // Sanitize inputs
   const title = rawTitle ? sanitizeString(rawTitle) : rawTitle;
-  const description = rawDescription ? sanitizeString(rawDescription) : rawDescription;
+  const description = rawDescription
+    ? sanitizeString(rawDescription)
+    : rawDescription;
   const imageFile = rawImageFile ? sanitizeString(rawImageFile) : rawImageFile;
 
   // Check if announcement exists
@@ -156,7 +163,7 @@ export const updateAnnouncementService = async (payload: {
 
   // Prepare update data
   const updateData: any = {};
-  if (imageFile !== undefined) updateData.imageFile = imageFile 
+  if (imageFile !== undefined) updateData.imageFile = imageFile;
   if (title) updateData.title = title;
   if (description) updateData.description = description;
   if (forBranch !== undefined) {
@@ -220,7 +227,8 @@ const formatAnnouncementResponse = (announcement: any) => {
     id: announcement.id,
     imageFile: announcement.imageFile,
     title: announcement.title,
-    content: announcement.content,
+    description: announcement.description,
+    priority: announcement.priority,
     forBranch: announcement.forBranch,
     startDate: announcement.startDate,
     endDate: announcement.endDate,

@@ -1,5 +1,17 @@
 import { prisma } from "../database";
 
+import { AnnouncementPriority } from "@prisma/client";
+
+interface CreateAnnouncementData {
+  title: string;
+  description: string;
+  imageFile?: string | null;
+  priority: AnnouncementPriority;
+  startDate: Date;
+  endDate: Date;
+  forBranch?: bigint | null;
+}
+
 export const AnnouncementRepository = {
   // Find unique announcement
   findUnique(where: any) {
@@ -41,7 +53,7 @@ export const AnnouncementRepository = {
   },
 
   // Create announcement
-  create(data: any) {
+  create(data: CreateAnnouncementData) {
     return prisma.announcement.create({
       data,
     });

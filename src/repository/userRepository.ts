@@ -6,7 +6,7 @@ import {
 } from "./type/user/userWithOwnerAndAdmin";
 
 export const UserRepository = {
-  // Find First
+  
   findFirst(where: object, options?: object) {
     return prisma.user.findFirst({
       where: where,
@@ -14,7 +14,6 @@ export const UserRepository = {
     });
   },
 
-  // Find by ID User only
   findByIdUserOnly(userId: string | bigint) {
     return prisma.user.findUnique({
       where: {
@@ -23,7 +22,6 @@ export const UserRepository = {
     });
   },
 
-  // Find user by ID
   findById(userId: string | bigint): Promise<UserWithOwnerAndAdmin | null> {
     return prisma.user.findUnique({
       where: { id: BigInt(userId) },
@@ -31,7 +29,6 @@ export const UserRepository = {
     });
   },
 
-  // find user by email without relations
   findByEmail(email: string): Promise<UserWithOwnerAndAdmin | null> {
     return prisma.user.findUnique({
       where: { email },
@@ -39,7 +36,6 @@ export const UserRepository = {
     });
   },
 
-  // Find user by email with owner and admin relations
   findByEmailWithOwnerAndAdmin(
     email: string,
   ): Promise<UserWithOwnerAndAdmin | null> {
@@ -49,7 +45,6 @@ export const UserRepository = {
     });
   },
 
-  // Create new user
   createUser(data: {
     email: string;
     passwordHash: string;
@@ -89,22 +84,32 @@ export const UserRepository = {
     });
   },
 
-  updateVerification(
+  updateVerificationToken(
     userId: bigint,
-    verificationToken?: string | null,
-    verificationTokenExpires?: Date | null,
+    verificationToken: string,
+    verificationTokenExpires: Date,
   ) {
     return prisma.user.update({
       where: { id: userId },
       data: {
-        isVerified: true,
-        verificationToken: verificationToken ?? null,
-        verificationTokenExpires: verificationTokenExpires ?? null,
+        verificationToken,
+        verificationTokenExpires,
+        verificationSentAt: new Date(),
       },
     });
   },
 
-  // Update user information
+  setVerified(userId: bigint) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: {
+        isVerified: true,
+        verificationToken: null,
+        verificationTokenExpires: null,
+      },
+    });
+  },
+
   updateUserInfo(
     userId: bigint,
     data: {

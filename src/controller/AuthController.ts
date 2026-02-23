@@ -131,9 +131,12 @@ export const verifyEmail = async (
   res: Response,
 ): Promise<void> => {
   try {
-    const { token } = req.query;
+    const { token, email } = req.query;
 
-    const result = await verifyEmailService(token as string);
+    const result = await verifyEmailService({
+      token: token as string,
+      email: email as string,
+    });
 
     res.status(200).json({
       success: true,

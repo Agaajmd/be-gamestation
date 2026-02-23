@@ -18,15 +18,24 @@ import {
   FailedSendingEmailError,
 } from "../../errors/AuthError/authError";
 
-export async function verifyEmailService(token: string): Promise<boolean> {
+export async function verifyEmailService(payload: {
+  token: string;
+  email: string;
+}): Promise<boolean> {
+  const { token, email } = payload;
+
   // Sanitize input
   const sanitizedToken = sanitizeString(token);
+  const sanitizedEmail = sanitizeEmail(email);
+
+  if (!sanitizedEmail) {
+    throw new UserNotFoundError();
+  }
 
   const hashedToken = hashToken(sanitizedToken);
 
-  const user = await UserRepository.findFirst({
-    verificationToken: hashedToken,
-  });
+  // Find user by email first (prevent token enumeration)
+  const user = await UserRepository.findByEmail(sanitizedEmail);
 
   if (!user) {
     throw new UserNotFoundError();
@@ -36,6 +45,11 @@ export async function verifyEmailService(token: string): Promise<boolean> {
     return true;
   }
 
+  // Validate token matches user's token
+  if (user.verificationToken !== hashedToken) {
+    throw new UserNotFoundError();
+  }
+
   if (
     !user.verificationTokenExpires ||
     new Date() > user.verificationTokenExpires
@@ -43,7 +57,7 @@ export async function verifyEmailService(token: string): Promise<boolean> {
     throw new TokenExpiredError();
   }
 
-  await UserRepository.updateVerification(user.id);
+  await UserRepository.setVerified(user.id);
 
   return true;
 }
@@ -64,6 +78,7 @@ export async function resendVerificationEmailService(
     throw new EmailAlreadyVerifiedError();
   }
 
+  // Check cooldown
   if (user.verificationSentAt) {
     const lastSent = user.verificationSentAt.getTime();
     const now = Date.now();
@@ -77,11 +92,23 @@ export async function resendVerificationEmailService(
     }
   }
 
+  if (!user.verificationToken || !user.verificationTokenExpires) {
+    throw new UserNotFoundError();
+  }
+
+  if (new Date() > user.verificationTokenExpires) {
+    throw new TokenExpiredError();
+  }
+
   const plainToken = generateVerificationToken();
   const hashedToken = hashToken(plainToken);
   const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-  await UserRepository.updateVerification(user.id, hashedToken, tokenExpires);
+  await UserRepository.updateVerificationToken(
+    user.id,
+    hashedToken,
+    tokenExpires,
+  );
 
   const emailSent = await sendVerificationEmail({
     to: sanitizedEmail,

@@ -126,6 +126,12 @@ enum SubscriptionStatus {
   cancelled
 }
 
+enum AnnouncementPriority {
+  low
+  medium
+  high
+}
+
 // Models
 model User {
   id           BigInt   @id @default(autoincrement())
@@ -175,11 +181,11 @@ model Branch {
   id        BigInt    @id @default(autoincrement())
   ownerId   BigInt    @map("owner_id")
   name      String    @db.VarChar(120)
-  address   String   @db.Text
-  phone     String   @db.VarChar(20)
+  address   String    @db.Text
+  phone     String    @db.VarChar(20)
   timezone  String    @default("Asia/Jakarta") @db.VarChar(50)
-  openTime  String   @map("open_time") @db.VarChar(5)
-  closeTime String   @map("close_time") @db.VarChar(5)
+  openTime  String    @map("open_time") @db.VarChar(5)
+  closeTime String    @map("close_time") @db.VarChar(5)
   amenities Json?     @default("[]")
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt DateTime? @updatedAt @map("updated_at") @db.Timestamp(6)
@@ -493,15 +499,16 @@ model FailedJob {
 }
 
 model Announcement {
-  id          BigInt    @id @default(autoincrement())
-  title       String    @db.VarChar(150)
-  imageFile   String?   @map("image_file") @db.Text
-  description String    @db.Text
-  forBranch   BigInt?   @map("for_branch")
-  startDate   DateTime  @map("start_at") @db.Timestamp(6)
-  endDate     DateTime  @map("end_at") @db.Timestamp(6)
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime? @updatedAt @map("updated_at")
+  id          BigInt               @id @default(autoincrement())
+  title       String               @db.VarChar(150)
+  imageFile   String?              @map("image_file") @db.Text
+  description String               @db.Text
+  priority    AnnouncementPriority
+  forBranch   BigInt?              @map("for_branch")
+  startDate   DateTime             @map("start_at") @db.Timestamp(6)
+  endDate     DateTime             @map("end_at") @db.Timestamp(6)
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime?            @updatedAt @map("updated_at")
 
   branch Branch? @relation(fields: [forBranch], references: [id], onDelete: Cascade)
 

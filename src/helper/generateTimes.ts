@@ -106,6 +106,7 @@ export function generateTimeSlots(
   branch: Branch,
   devices: Device[],
   timezone: string = "UTC",
+  minDurationMinutes: number = 60,
 ): TimeSlot[] {
   const slots: TimeSlot[] = [];
 
@@ -126,12 +127,16 @@ export function generateTimeSlots(
   console.log("raw closeTime:", branch.closeTime);
   console.log("parsed endTime:", endTime);
   console.log("endHour:", endHour, "endMinute:", endMinute);
+  console.log("minDurationMinutes:", minDurationMinutes);
 
   const bookingDateStr = bookingDate.includes("T")
     ? bookingDate.split("T")[0]
     : bookingDate;
   const nowLocalDateStr = `${nowLocal.getUTCFullYear()}-${String(nowLocal.getUTCMonth() + 1).padStart(2, "0")}-${String(nowLocal.getUTCDate()).padStart(2, "0")}`;
   const isToday = bookingDateStr === nowLocalDateStr;
+
+  // Calculate close time in minutes
+  const closeTimeInMinutes = endHour * 60 + endMinute;
 
   for (let hour = startHour; hour <= endHour; hour++) {
     for (let minute = 0; minute < 60; minute += 30) {
@@ -150,6 +155,16 @@ export function generateTimeSlots(
           nextSlotHour * 60 + (nextSlotMinute === 60 ? 0 : nextSlotMinute);
 
         if (slotTotalMinutes < nextSlotTotalMinutes) continue;
+      }
+
+      const slotTimeInMinutes = hour * 60 + minute;
+      const availableTimeUntilClose = closeTimeInMinutes - slotTimeInMinutes;
+
+      if (availableTimeUntilClose < minDurationMinutes) {
+        console.log(
+          `Slot ${hour}:${minute.toString().padStart(2, "0")} filtered - only ${availableTimeUntilClose}min available, need ${minDurationMinutes}min`,
+        );
+        continue;
       }
 
       const slotStart = new Date(

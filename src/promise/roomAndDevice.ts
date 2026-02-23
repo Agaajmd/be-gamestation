@@ -3,6 +3,13 @@ import { Prisma } from "@prisma/client";
 export const RoomAndDeviceConfig = {
   include: {
     category: true,
+    games: {
+      include: {
+        game: {
+          select: {name: true},
+        },
+      },
+    },
     orderItems: {
       include: {
         order: {

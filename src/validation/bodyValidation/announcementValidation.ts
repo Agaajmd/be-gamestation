@@ -16,6 +16,10 @@ export const createAnnouncementSchema = Joi.object({
     "string.min": "Deskripsi minimal 10 karakter",
     "any.required": "Deskripsi wajib diisi",
   }),
+  priority: Joi.string().valid("low", "medium", "high").required().messages({
+    "any.only": "Priority harus salah satu dari: low, medium, high",
+    "any.required": "Priority wajib diisi",
+  }),
   forBranch: Joi.alternatives()
     .try(Joi.number(), Joi.string().pattern(/^\d+$/))
     .optional()

@@ -59,7 +59,7 @@ export const sendVerificationEmail = async ({
   username = "User",
 }: SendVerificationEmailParams): Promise<boolean> => {
   try {
-    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}&email=${encodeURIComponent(to)}`;
 
     // Development mode: print link ke console
     if (isDevelopment || process.env.EMAIL_DEBUG === "true") {

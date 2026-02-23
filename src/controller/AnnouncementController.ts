@@ -14,7 +14,7 @@ import {
  */
 export const createAnnouncement = async (req: Request, res: Response) => {
   try {
-    const { title, description, forBranch, startDate, endDate } = req.body;
+    const { title, description, priority, forBranch, startDate, endDate } = req.body;
 
     const imageFile = req.file ? `uploads/announcements-images/${req.file.filename}` : undefined;
 
@@ -22,6 +22,7 @@ export const createAnnouncement = async (req: Request, res: Response) => {
       imageFile,
       title,
       description,
+      priority,
       forBranch: forBranch ? BigInt(forBranch) : null,
       startDate,
       endDate,

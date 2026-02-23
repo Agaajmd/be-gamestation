@@ -151,6 +151,7 @@ export async function getAvailableTimesService(
     },
     roomsAndDevices,
     timezone,
+    60, // Minimum 1 hour duration
   );
 
   return { timeSlots, totalDevices: roomsAndDevices.length };
@@ -250,6 +251,7 @@ export async function getAvailableRoomAndDeviceService(
       pricePerHour: item.roomAndDevice.pricePerHour.toString(),
       categoryName: item.roomAndDevice.category?.name,
       categoryTier: item.roomAndDevice.category?.tier,
+      games: item.roomAndDevice.games.map((g) => g.game.name),
     }));
 
   if (availableRoomsAndDevices.length === 0) {

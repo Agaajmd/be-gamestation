@@ -98,7 +98,31 @@ if (securityConfig.features.enableRateLimiting) {
   app.use(apiRateLimiter);
 }
 
-// Static file serving for uploads
+// Static file serving - CORS headers for uploads
+app.use("/uploads", (_req: Request, res: Response, next: any) => {
+  // Get allowed origins from CORS_ORIGINS env var
+  const corsOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim())
+    : ["http://localhost:3001", "http://localhost:3000"];
+
+  // For static assets, allow specific origins only (more secure than *)
+  const origin = _req.headers.origin;
+  if (origin && corsOrigins.includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+  }
+
+  res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type");
+  res.header("Cross-Origin-Resource-Policy", "cross-origin");
+
+  // Handle OPTIONS preflight
+  if (_req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+
+  next();
+});
+
 app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
 // ========================================
