@@ -8,6 +8,7 @@ import {
   updateOrderStatusService,
   cancelOrderService,
   removeItemFromCartService,
+  addCustomOrderToCartService,
 } from "../service/OrderService/orderService";
 
 /**
@@ -50,7 +51,8 @@ export const addToCart = async (req: Request, res: Response): Promise<void> => {
 
 /**
  * PUT /orders/:id/checkout
- * Checkout order - Convert cart to pending (customer only)
+ * Checkout order - Convert cart to pending
+ * Handles both customer and custom orders from staff
  */
 export const checkoutOrder = async (
   req: Request,
@@ -58,6 +60,7 @@ export const checkoutOrder = async (
 ): Promise<void> => {
   try {
     const userId = BigInt(req.user!.userId);
+    const role = req.user!.role;
     const orderId = BigInt(req.params.id);
     const paymentId = BigInt(req.body.paymentId);
     const paymentProofFile = req.file;
@@ -67,6 +70,7 @@ export const checkoutOrder = async (
       orderId,
       paymentId,
       paymentProofFile,
+      role,
     });
 
     res.status(200).json({
@@ -223,6 +227,53 @@ export const removeItemFromCart = async (
     res.status(200).json({
       success: true,
       message: "Item berhasil dihapus dari keranjang",
+      data: order,
+    });
+  } catch (error) {
+    handleError(error, res);
+  }
+};
+
+/**
+ * POST /orders/custom
+ * Add custom order to cart - Create order for offline/walk-in customers (staff/owner only)
+ */
+export const addCustomOrderToCart = async (
+  req: Request,
+  res: Response,
+): Promise<void> => {
+  try {
+    const staffUserId = BigInt(req.user!.userId);
+    const {
+      branchId,
+      customerId,
+      guestCustomerName,
+      guestCustomerPhone,
+      guestCustomerEmail,
+      startTime,
+      durationMinutes,
+      categoryId,
+      roomAndDeviceId,
+      notes,
+    } = req.body;
+
+    const order = await addCustomOrderToCartService({
+      staffUserId,
+      branchId: BigInt(branchId),
+      customerId: customerId ? BigInt(customerId) : undefined,
+      guestCustomerName,
+      guestCustomerPhone,
+      guestCustomerEmail,
+      startTime,
+      durationMinutes: parseInt(durationMinutes),
+      categoryId: BigInt(categoryId),
+      roomAndDeviceId: BigInt(roomAndDeviceId),
+      notes,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Custom order berhasil ditambahkan ke keranjang",
       data: order,
     });
   } catch (error) {

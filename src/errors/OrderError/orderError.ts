@@ -53,3 +53,35 @@ export class OrderNotCompletedError extends AppError {
     super("Order belum selesai", 400, "ORDER_NOT_COMPLETED");
   }
 }
+
+export class MissingCustomerIdentifierError extends AppError {
+  constructor() {
+    super(
+      "Harus memberikan customerId atau nama lengkap customer",
+      400,
+      "MISSING_CUSTOMER_IDENTIFIER",
+    );
+  }
+}
+
+export class MissingGuestCustomerPhoneError extends AppError {
+  constructor() {
+    super(
+      "Harus memberikan nomor telepon customer untuk guest order",
+      400,
+      "MISSING_GUEST_CUSTOMER_PHONE",
+    );
+  }
+}
+
+export class InvalidCartItemsError extends AppError {
+  constructor(invalidItems: any[]) {
+    const itemCount = invalidItems.length;
+    super(
+      `${itemCount} item di keranjang tidak valid lagi. Silakan periksa dan hapus item yang tidak valid.`,
+      400,
+      "INVALID_CART_ITEMS",
+      { invalidItems }, // Pass as details
+    );
+  }
+}

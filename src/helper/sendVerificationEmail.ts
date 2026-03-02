@@ -44,9 +44,13 @@ export const hashToken = (token: string): string => {
   return crypto.createHash("sha256").update(token).digest("hex");
 };
 
+export const generateMagicKey = (): string => {
+  return crypto.randomBytes(48).toString("hex");
+}
+
 interface SendVerificationEmailParams {
   to: string;
-  token: string; // Plain token (belum di-hash)
+  key: string; // Plain token (belum di-hash)
   username?: string;
 }
 
@@ -55,11 +59,11 @@ interface SendVerificationEmailParams {
  */
 export const sendVerificationEmail = async ({
   to,
-  token,
+  key,
   username = "User",
 }: SendVerificationEmailParams): Promise<boolean> => {
   try {
-    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}&email=${encodeURIComponent(to)}`;
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?key=${key}`;
 
     // Development mode: print link ke console
     if (isDevelopment || process.env.EMAIL_DEBUG === "true") {
@@ -222,9 +226,6 @@ export const sendVerificationEmail = async ({
                   <li>You need to verify your email before you can login</li>
                   <li>Once verified, you'll have full access to all features</li>
                 </ul>
-                
-                <p style="margin-top: 15px; margin-bottom: 5px; color: #666;">If the button above doesn't work, copy and paste this link into your browser:</p>
-                <span class="link-text">${verificationUrl}</span>
               </div>
               
               <p class="warning">⚠️ If you didn't create an account with Game Station, please ignore this email and no account will be created.</p>

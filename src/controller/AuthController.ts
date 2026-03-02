@@ -131,11 +131,10 @@ export const verifyEmail = async (
   res: Response,
 ): Promise<void> => {
   try {
-    const { token, email } = req.query;
+    const { key } = req.body;
 
     const result = await verifyEmailService({
-      token: token as string,
-      email: email as string,
+      key: key as string,
     });
 
     res.status(200).json({

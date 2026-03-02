@@ -27,8 +27,7 @@ const orderInclude = {
       phone: true,
     },
   },
-  payment: true,
-  session: true,
+  paymentMethodUsed: true,
 };
 
 export const OrderRepository = {

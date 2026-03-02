@@ -5,6 +5,7 @@ import { sanitizeString, sanitizeEmail } from "../../helper/inputSanitizer";
 // Helper
 import {
   generateVerificationToken,
+  generateMagicKey,
   hashToken,
   sendVerificationEmail,
 } from "../../helper/sendVerificationEmail";
@@ -19,23 +20,15 @@ import {
 } from "../../errors/AuthError/authError";
 
 export async function verifyEmailService(payload: {
-  token: string;
-  email: string;
+  key: string; 
 }): Promise<boolean> {
-  const { token, email } = payload;
+  const { key } = payload;
 
   // Sanitize input
-  const sanitizedToken = sanitizeString(token);
-  const sanitizedEmail = sanitizeEmail(email);
+  const sanitizedKey = sanitizeString(key);
 
-  if (!sanitizedEmail) {
-    throw new UserNotFoundError();
-  }
-
-  const hashedToken = hashToken(sanitizedToken);
-
-  // Find user by email first (prevent token enumeration)
-  const user = await UserRepository.findByEmail(sanitizedEmail);
+  // Find user by verification key (magic key)
+  const user = await UserRepository.findByVerificationKey(sanitizedKey);
 
   if (!user) {
     throw new UserNotFoundError();
@@ -45,18 +38,16 @@ export async function verifyEmailService(payload: {
     return true;
   }
 
-  // Validate token matches user's token
-  if (user.verificationToken !== hashedToken) {
-    throw new UserNotFoundError();
-  }
-
+  // Validate token still valid
   if (
+    !user.verificationToken ||
     !user.verificationTokenExpires ||
     new Date() > user.verificationTokenExpires
   ) {
     throw new TokenExpiredError();
   }
 
+  // Set verified and clear verification data
   await UserRepository.setVerified(user.id);
 
   return true;
@@ -92,27 +83,23 @@ export async function resendVerificationEmailService(
     }
   }
 
-  if (!user.verificationToken || !user.verificationTokenExpires) {
-    throw new UserNotFoundError();
-  }
-
-  if (new Date() > user.verificationTokenExpires) {
-    throw new TokenExpiredError();
-  }
-
+  // Generate new token and magic key
   const plainToken = generateVerificationToken();
   const hashedToken = hashToken(plainToken);
+  const magicKey = generateMagicKey();
   const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-  await UserRepository.updateVerificationToken(
+  // Update both token and key
+  await UserRepository.updateVerificationTokenAndKey(
     user.id,
     hashedToken,
+    magicKey,
     tokenExpires,
   );
 
   const emailSent = await sendVerificationEmail({
     to: sanitizedEmail,
-    token: plainToken,
+    key: magicKey, // Send magic key, not token
     username: user.fullname,
   });
 

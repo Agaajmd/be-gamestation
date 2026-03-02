@@ -14,7 +14,15 @@ export const BranchRepository = {
 
   // Find Branch
   findBranch() {
-    return prisma.branch.findMany();
+    return prisma.branch.findMany({
+      include: {
+        _count: {
+          select: {
+            orders: true,
+          },
+        },
+      }
+    });
   },
 
   // Find all branches

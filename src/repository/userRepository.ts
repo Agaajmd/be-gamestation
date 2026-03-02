@@ -36,6 +36,13 @@ export const UserRepository = {
     });
   },
 
+  findByVerificationKey(verificationKey: string): Promise<UserWithOwnerAndAdmin | null> {
+    return prisma.user.findFirst({
+      where: { verificationKey },
+      ...UserWithOwnerAndAdminConfig,
+    });
+  },
+
   findByEmailWithOwnerAndAdmin(
     email: string,
   ): Promise<UserWithOwnerAndAdmin | null> {
@@ -52,6 +59,7 @@ export const UserRepository = {
     phone: string;
     verificationToken?: string | null;
     verificationTokenExpires?: Date | null;
+    verificationKey?: string | null;
   }) {
     return prisma.user.create({
       data: {
@@ -84,9 +92,10 @@ export const UserRepository = {
     });
   },
 
-  updateVerificationToken(
+  updateVerificationTokenAndKey(
     userId: bigint,
     verificationToken: string,
+    verificationKey: string,
     verificationTokenExpires: Date,
   ) {
     return prisma.user.update({
@@ -94,6 +103,7 @@ export const UserRepository = {
       data: {
         verificationToken,
         verificationTokenExpires,
+        verificationKey,
         verificationSentAt: new Date(),
       },
     });
@@ -106,6 +116,7 @@ export const UserRepository = {
         isVerified: true,
         verificationToken: null,
         verificationTokenExpires: null,
+        verificationKey: null,
       },
     });
   },

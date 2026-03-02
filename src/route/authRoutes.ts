@@ -9,7 +9,7 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
 } from "../validation/bodyValidation/authValidation";
-import { checkVerificationStatusSchema, resendVerificationEmailSchema, verifyEmailSchema } from "../validation/queryValidation/authQueryValidation";
+import { checkVerificationStatusSchema, resendVerificationEmailSchema, verifyEmailSchema } from "../validation/bodyValidation/authQueryValidation";
 
 const router = Router();
 
@@ -43,7 +43,7 @@ router.post("/login-otp", ValidateMiddleware.validateBody(loginOTPSchema), AuthC
   * @desc    Verifikasi email dengan token
   * @access  Public
 */
-router.get("/verify-email", ValidateMiddleware.validateQuery(verifyEmailSchema), AuthController.verifyEmail);
+router.post("/verify-email", ValidateMiddleware.validateBody(verifyEmailSchema), AuthController.verifyEmail);
 
 /**
  * @route   POST /auth/resend-verification-email

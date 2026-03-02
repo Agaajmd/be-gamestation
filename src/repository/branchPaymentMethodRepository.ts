@@ -64,7 +64,7 @@ export const BranchPaymentMethodRepository = {
   create(data: {
     branchId: bigint;
     method: PaymentMethod;
-    provider: PaymentProvider;
+    provider?: PaymentProvider;
     isActive?: boolean;
     accountNumber?: string;
     accountName?: string;

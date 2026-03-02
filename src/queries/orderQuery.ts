@@ -8,6 +8,7 @@ export const OrderQuery = {
     customerId: bigint,
     bookingStart: Date,
     bookingEnd: Date,
+    excludeOrderId?: bigint,
   ) {
     return OrderItemRepository.findFirst({
       roomAndDeviceId,
@@ -17,6 +18,8 @@ export const OrderQuery = {
         status: {
           in: [OrderStatus.pending, OrderStatus.confirmed, OrderStatus.cart],
         },
+        // Exclude current order if checking for conflicts
+        ...(excludeOrderId && { NOT: { id: excludeOrderId } }),
       },
       OR: [
         {

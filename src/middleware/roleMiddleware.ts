@@ -59,7 +59,7 @@ export const requireAdmin = (
 /**
  * Middleware untuk memastikan user adalah Owner atau Admin
  */
-export const requireOwnerOrAdmin = (
+export const requireOwnerOrAdminManager = (
   req: Request,
   res: Response,
   next: NextFunction,
@@ -87,7 +87,7 @@ export const requireOwnerOrAdmin = (
   next();
 };
 
-export const requireOwnerOrAdminStaff = (
+export const requireOwnerOrAdmin = (
   req: Request,
   res: Response,
   next: NextFunction,

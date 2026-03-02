@@ -6,7 +6,7 @@ export const createBranchPaymentMethodSchema = Joi.object({
     "any.required": "Branch ID wajib diisi",
   }),
   method: Joi.string()
-    .valid("e_wallet", "bank_transfer", "gateway")
+    .valid("cash", "e_wallet", "bank_transfer", "gateway")
     .required()
     .messages({
       "string.empty": "Payment method tidak boleh kosong",
@@ -34,12 +34,11 @@ export const createBranchPaymentMethodSchema = Joi.object({
       "xendit",
       "doku",
     )
-    .required()
+    .optional()
+    .allow("")
     .messages({
-      "string.empty": "Provider tidak boleh kosong",
       "any.only":
         "Provider harus salah satu dari: qris, gopay, ovo, dana, shopeepay, linkaja, bca, bri, bni, mandiri, permata, cimb, midtrans, xendit, doku",
-      "any.required": "Provider wajib diisi",
     }),
   isActive: Joi.boolean().default(true).messages({
     "boolean.base": "Is active harus berupa boolean",

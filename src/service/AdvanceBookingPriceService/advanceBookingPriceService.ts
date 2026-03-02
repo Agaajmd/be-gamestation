@@ -5,7 +5,15 @@ import { sanitizeNumber } from "../../helper/inputSanitizer";
 
 // Error
 import { BranchNotFoundError } from "../../errors/BranchError/branchError";
-import { AdvanceBookingPriceNotFoundError } from "../../errors/AdvanceBookingPriceError/advanceBookingPriceError";
+import {
+  AdvanceBookingPriceNotFoundError,
+  InvalidMinDaysError,
+  InvalidMaxDaysError,
+  InvalidAdditionalFeeError,
+  InvalidAdvanceBookingPriceRangeError,
+  MultipleUnlimitedRangesError,
+  RangeOverlapError,
+} from "../../errors/AdvanceBookingPriceError/advanceBookingPriceError";
 
 // Service function to add an advance booking price
 export async function addAdvanceBookingPriceService(payload: {
@@ -28,20 +36,18 @@ export async function addAdvanceBookingPriceService(payload: {
 
   // Validate sanitization
   if (minDays === null) {
-    throw new Error("Invalid minDays provided");
+    throw new InvalidMinDaysError();
   }
   if (additionalFee === null) {
-    throw new Error("Invalid additionalFee provided");
+    throw new InvalidAdditionalFeeError();
   }
   if (maxDays === null && rawMaxDays !== null) {
-    throw new Error("Invalid maxDays provided");
+    throw new InvalidMaxDaysError();
   }
 
   // Validate range: minDays must be <= maxDays (if maxDays is provided)
   if (maxDays !== null && minDays > maxDays) {
-    throw new Error(
-      "Invalid range: minDays must be less than or equal to maxDays",
-    );
+    throw new InvalidAdvanceBookingPriceRangeError();
   }
 
   const branch = await BranchRepository.findById(branchId);
@@ -67,16 +73,14 @@ export async function addAdvanceBookingPriceService(payload: {
       (existingMax === null || minDays <= existingMax);
 
     if (isOverlap) {
-      throw new Error(
-        `Range overlap detected: ${existingMin}-${existingMax || "unlimited"}`,
-      );
+      throw new RangeOverlapError(existingMin, existingMax);
     }
   }
 
   // Check for multiple unlimited ranges (maxDays = null)
   const hasUnlimitedRange = branchExisting.some((abp) => abp.maxDays === null);
   if (hasUnlimitedRange && maxDays === null) {
-    throw new Error("Cannot have multiple unlimited ranges (maxDays = null)");
+    throw new MultipleUnlimitedRangesError();
   }
 
   const newAdvanceBookingPrice = await AdvanceBookingPriceRepository.create({
@@ -130,12 +134,10 @@ export async function updateAdvanceBookingPriceService(payload: {
 
     // Validate range: minDays must be <= maxDays (if maxDays is provided)
     if (newMinDays === null) {
-      throw new Error("minDays cannot be null");
+      throw new InvalidMinDaysError();
     }
     if (newMaxDays !== null && newMinDays > newMaxDays) {
-      throw new Error(
-        "Invalid range: minDays must be less than or equal to maxDays",
-      );
+      throw new InvalidAdvanceBookingPriceRangeError();
     }
 
     // Check for overlapping ranges with other entries (excluding current)
@@ -156,9 +158,7 @@ export async function updateAdvanceBookingPriceService(payload: {
         (existingMax === null || newMinDays <= existingMax);
 
       if (isOverlap) {
-        throw new Error(
-          `Range overlap detected: ${existingMin}-${existingMax || "unlimited"}`,
-        );
+        throw new RangeOverlapError(existingMin, existingMax);
       }
     }
 
@@ -167,7 +167,7 @@ export async function updateAdvanceBookingPriceService(payload: {
       (abp) => abp.maxDays === null,
     );
     if (hasUnlimitedRange && newMaxDays === null) {
-      throw new Error("Cannot have multiple unlimited ranges (maxDays = null)");
+      throw new MultipleUnlimitedRangesError();
     }
   }
 

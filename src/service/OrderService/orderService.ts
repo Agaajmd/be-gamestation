@@ -25,6 +25,9 @@ import {
   InvalidOrderStatusError,
   InvalidPaymentStatusError,
   UnauthorizedOrderAccessError,
+  MissingCustomerIdentifierError,
+  MissingGuestCustomerPhoneError,
+  InvalidCartItemsError,
 } from "../../errors/OrderError/orderError";
 import { HasNoAccessError } from "../../errors/UserError/userError";
 
@@ -84,13 +87,14 @@ export const calculateBookingPriceService = async (
 
   let advanceBookingFee = 0;
   if (daysFromToday > 0) {
-    const advancePrice = await AdvanceBookingPriceRepository.findFirst({
-      where: {
-        branchId,
-        minDays: { lte: daysFromToday },
-        OR: [{ maxDays: { gte: daysFromToday } }, { maxDays: null }],
-      },
+    const allPrices = await AdvanceBookingPriceRepository.findAll({
+      branchId,
+      minDays: { lte: daysFromToday },
     });
+
+    const advancePrice = allPrices.find(
+      (p) => p.maxDays === null || p.maxDays >= daysFromToday,
+    );
 
     if (advancePrice) {
       advanceBookingFee = Number(advancePrice.additionalFee) * hours;
@@ -244,15 +248,134 @@ export const addToCartService = async (payload: {
 };
 
 /**
+ * Validate order before checkout - Check if order items are still valid
+ * Validates booking times, device availability, and conflict with other bookings
+ */
+export const validateOrderBeforeCheckoutService = async (
+  orderId: bigint,
+): Promise<{ isValid: boolean; invalidItems: any[] }> => {
+  const order = await OrderRepository.findById(orderId);
+
+  if (!order) {
+    throw new OrderNotFoundError();
+  }
+
+  const invalidItems: any[] = [];
+
+  for (const item of order.orderItems) {
+    // Check if item booking time is still in the future
+    if (isPastTime(item.bookingStart, new Date())) {
+      invalidItems.push({
+        itemId: item.id,
+        roomAndDeviceId: item.roomAndDeviceId,
+        reason: "Waktu pemesanan telah berlalu",
+        bookingStart: item.bookingStart,
+      });
+      continue;
+    }
+
+    // Check if device is still available
+    const device = await RoomAndDeviceRepository.findUnique(
+      {
+        id: item.roomAndDeviceId,
+      },
+      { include: { category: true } },
+    );
+
+    if (!device || device.status !== "available") {
+      invalidItems.push({
+        itemId: item.id,
+        roomAndDeviceId: item.roomAndDeviceId,
+        reason: "Device tidak tersedia lagi",
+        deviceStatus: device?.status || "tidak ditemukan",
+      });
+      continue;
+    }
+
+    // Check for conflicting bookings with other orders
+    if (order.customerId) {
+      // Member order: check conflicts only for same customer
+      const conflictingOrder = await OrderQuery.findDuplicateOrder(
+        item.roomAndDeviceId,
+        order.branchId,
+        order.customerId,
+        item.bookingStart,
+        item.bookingEnd,
+        orderId, // Exclude current order from conflict check
+      );
+
+      if (conflictingOrder) {
+        invalidItems.push({
+          itemId: item.id,
+          roomAndDeviceId: item.roomAndDeviceId,
+          reason: "Device sudah terbooking untuk jadwal ini",
+          bookingStart: item.bookingStart,
+          bookingEnd: item.bookingEnd,
+        });
+      }
+    } else {
+      // Guest order: check if device is booked by anyone in that time
+      const deviceConflict = await OrderItemRepository.findFirst({
+        roomAndDeviceId: item.roomAndDeviceId,
+        order: {
+          branchId: order.branchId,
+          NOT: { id: orderId }, // Exclude current order
+          status: {
+            in: [OrderStatus.pending, OrderStatus.confirmed, OrderStatus.cart],
+          },
+        },
+        OR: [
+          {
+            AND: [
+              { bookingStart: { lte: item.bookingStart } },
+              { bookingEnd: { gt: item.bookingStart } },
+            ],
+          },
+          {
+            AND: [
+              { bookingStart: { lt: item.bookingEnd } },
+              { bookingEnd: { gte: item.bookingEnd } },
+            ],
+          },
+          {
+            AND: [
+              { bookingStart: { gte: item.bookingStart } },
+              { bookingEnd: { lte: item.bookingEnd } },
+            ],
+          },
+        ],
+      });
+
+      if (deviceConflict) {
+        invalidItems.push({
+          itemId: item.id,
+          roomAndDeviceId: item.roomAndDeviceId,
+          reason: "Device sudah terbooking untuk jadwal ini",
+          bookingStart: item.bookingStart,
+          bookingEnd: item.bookingEnd,
+        });
+      }
+    }
+  }
+
+  return {
+    isValid: invalidItems.length === 0,
+    invalidItems,
+  };
+};
+
+/**
  * Checkout order - Convert cart to pending status
+ * Handles both regular customer orders and custom orders created by staff
  */
 export const checkoutOrderService = async (payload: {
   userId: bigint;
   orderId: bigint;
   paymentId: bigint;
   paymentProofFile?: Express.Multer.File;
+  role: string;
 }) => {
-  const { userId, orderId, paymentId, paymentProofFile } = payload;
+  const { userId, orderId, paymentId, paymentProofFile, role } = payload;
 
   // Get order
   const order = await OrderRepository.findById(orderId);
@@ -261,44 +384,58 @@ export const checkoutOrderService = async (payload: {
     throw new OrderNotFoundError();
   }
 
-  // Verify ownership
-  if (order.customerId !== userId) {
-    throw new UnauthorizedOrderAccessError();
+  if (role === UserRole.customer) {
+    if (order.customerId !== userId) {
+      throw new UnauthorizedOrderAccessError();
+    }
+  } else if (role === UserRole.admin) {
+    await checkBranchAccess(userId, order.branchId);
+  } else if (role !== UserRole.owner) {
+    throw new HasNoAccessError();
   }
 
-  // Verify order is in cart status
   if (order.status !== "cart") {
     throw new InvalidOrderStatusError();
   }
 
-  // Update order to pending
+  // Validate order items before checkout
+  const validation = await validateOrderBeforeCheckoutService(orderId);
+  if (!validation.isValid) {
+    throw new InvalidCartItemsError(validation.invalidItems);
+  }
+
   const paymentProofPath = paymentProofFile
     ? `uploads/payment-proofs/${paymentProofFile.filename}`
     : null;
 
+  const isStaff = role === UserRole.admin || role === UserRole.owner;
+  const newStatus = isStaff ? "confirmed" : "pending";
+  const newPaymentStatus = isStaff ? PaymentStatus.paid : PaymentStatus.pending;
+
   const updatedOrder = await OrderRepository.update(orderId, {
-    status: "pending",
-    paymentStatus: PaymentStatus.pending,
+    status: newStatus,
+    paymentStatus: newPaymentStatus,
     paymentId: paymentId || null,
     paymentProofFile: paymentProofPath,
     paymentProofUploadedAt: paymentProofFile ? new Date() : null,
   });
 
-  // Create notification for customer
-  try {
-    await createNotificationService({
-      userId,
-      type: "order_checkout",
-      channel: "email",
-      payload: {
-        subject: "Order Checkout Successful",
-        message:
-          "Pesanan Anda telah berhasil di-checkout. Menunggu konfirmasi dari admin.",
-        orderCode: updatedOrder.orderCode,
-      },
-    });
-  } catch (error) {
-    console.warn("Notification creation skipped:", error);
+  if (order.customerId) {
+    try {
+      await createNotificationService({
+        userId: order.customerId,
+        type: "order_checkout",
+        channel: "email",
+        payload: {
+          subject: "Order Checkout Successful",
+          message:
+            "Pesanan Anda telah berhasil di-checkout. Menunggu konfirmasi dari admin.",
+          orderCode: updatedOrder.orderCode,
+        },
+      });
+    } catch (error) {
+      console.warn("Notification creation skipped:", error);
+    }
   }
 
   return updatedOrder;
@@ -320,16 +457,17 @@ export const getOrdersService = async (payload: {
   const where: any = {};
 
   if (role === UserRole.customer) {
-    // Customers can only see their own orders
     where.customerId = userId;
-  } else if (role === UserRole.admin || role === UserRole.owner) {
-    // Admins and owners can see orders for their branch
+  } else if (role === UserRole.admin) {
     if (branchId) {
-      // Verify access to branch
       await checkBranchAccess(userId, branchId);
       where.branchId = branchId;
     } else {
       throw new HasNoAccessError();
+    }
+  } else if (role === UserRole.owner) {
+    if (branchId) {
+      where.branchId = branchId;
     }
   } else {
     throw new HasNoAccessError();
@@ -627,4 +765,174 @@ export const removeItemFromCartService = async (payload: {
     orderDeleted: false,
     updatedTotal,
   };
+};
+
+/**
+ * Add custom order to cart - Create new order for offline/walk-in customers (staff/owner only)
+ * Uses today's date as booking date
+ * Supports both member customers (customerId) and guest customers (name + phone)
+ */
+export const addCustomOrderToCartService = async (payload: {
+  staffUserId: bigint;
+  branchId: bigint;
+  customerId?: bigint;
+  guestCustomerName?: string;
+  guestCustomerPhone?: string;
+  guestCustomerEmail?: string;
+  startTime: string;
+  durationMinutes: number;
+  categoryId: bigint;
+  roomAndDeviceId: bigint;
+  notes?: string;
+}) => {
+  const {
+    staffUserId,
+    branchId,
+    customerId,
+    guestCustomerName: rawGuestName,
+    guestCustomerPhone: rawGuestPhone,
+    guestCustomerEmail: rawGuestEmail,
+    startTime,
+    durationMinutes: rawDuration,
+    categoryId,
+    roomAndDeviceId,
+    notes: rawNotes,
+  } = payload;
+
+  // Sanitize inputs
+  const durationMinutes = sanitizeNumber(rawDuration, 0) || 0;
+  const notes = rawNotes ? sanitizeString(rawNotes) : undefined;
+  const guestCustomerName = rawGuestName
+    ? sanitizeString(rawGuestName)
+    : undefined;
+  const guestCustomerPhone = rawGuestPhone
+    ? sanitizeString(rawGuestPhone)
+    : undefined;
+  const guestCustomerEmail = rawGuestEmail
+    ? sanitizeString(rawGuestEmail)
+    : undefined;
+
+  // Check branch access for staff
+  await checkBranchAccess(staffUserId, branchId);
+
+  // Validate that either customerId OR guest details are provided
+  if (!customerId && !guestCustomerName) {
+    throw new MissingCustomerIdentifierError();
+  }
+
+  if (!customerId && !guestCustomerPhone) {
+    throw new MissingGuestCustomerPhoneError();
+  }
+
+  // Verify room and device availability
+  const roomAndDevice = await RoomAndDeviceRepository.findFirst({
+    id: roomAndDeviceId,
+    branchId,
+    categoryId,
+    status: "available",
+  });
+
+  if (!roomAndDevice) {
+    throw new RoomAndDeviceUnavailableError();
+  }
+
+  // Use today's date for walk-in/offline orders
+  const bookingDate = new Date();
+  bookingDate.setHours(0, 0, 0, 0);
+
+  // Parse booking date and time
+  const [startHours, startMinutes] = startTime.split(":").map(Number);
+  const bookingStart = new Date(bookingDate);
+  bookingStart.setHours(startHours, startMinutes, 0, 0);
+
+  const bookingEnd = new Date(bookingStart);
+  bookingEnd.setMinutes(
+    bookingEnd.getMinutes() + parseInt(String(durationMinutes)),
+  );
+
+  // Check if booking time is not in the past
+  if (isPastTime(bookingStart, bookingDate)) {
+    throw new BookingInPastError();
+  }
+
+  // Only check duplicate booking if it's a member customer
+  if (customerId) {
+    const duplicateOrder = await OrderQuery.findDuplicateOrder(
+      roomAndDeviceId,
+      branchId,
+      customerId,
+      bookingStart,
+      bookingEnd,
+    );
+
+    if (duplicateOrder) {
+      throw new DuplicateBookingError();
+    }
+  }
+
+  // Calculate pricing - use today's date string for calculation
+  const todayString = bookingDate.toISOString().split("T")[0];
+  const pricing = await calculateBookingPriceService(
+    branchId,
+    roomAndDeviceId,
+    categoryId,
+    todayString,
+    durationMinutes,
+  );
+
+  // Check if customer already has a cart order for this branch, only for member customers
+  if (customerId) {
+    const existingCartOrder = await OrderRepository.getCartOrder(
+      customerId,
+      branchId,
+    );
+
+    if (existingCartOrder) {
+      // Add new order item to existing cart
+      await OrderItemRepository.create({
+        orderId: existingCartOrder.id,
+        roomAndDeviceId,
+        bookingStart,
+        bookingEnd,
+        durationMinutes,
+        price: pricing.totalAmount.toString(),
+        baseAmount: pricing.baseAmount.toString(),
+        categoryFee: pricing.categoryFee.toString(),
+        advanceBookingFee: pricing.advanceBookingFee.toString(),
+      });
+
+      const updatedTotal =
+        Number(existingCartOrder.totalAmount) + pricing.totalAmount;
+      return OrderRepository.update(existingCartOrder.id, {
+        totalAmount: updatedTotal,
+      });
+    }
+  }
+
+  // For guest orders, always create a new order (no appending to existing)
+  // Create order with order items (add to cart)
+  return OrderRepository.create({
+    orderCode: generateOrderCode(),
+    customerId: customerId || null,
+    branchId,
+    status: "cart",
+    totalAmount: pricing.totalAmount,
+    paymentStatus: "unpaid",
+    guestCustomerName: guestCustomerName || null,
+    guestCustomerPhone: guestCustomerPhone || null,
+    guestCustomerEmail: guestCustomerEmail || null,
+    notes,
+    orderItems: {
+      create: {
+        roomAndDeviceId,
+        bookingStart,
+        bookingEnd,
+        durationMinutes,
+        price: pricing.totalAmount.toString(),
+        baseAmount: pricing.baseAmount.toString(),
+        categoryFee: pricing.categoryFee.toString(),
+        advanceBookingFee: pricing.advanceBookingFee.toString(),
+      },
+    },
+  });
 };

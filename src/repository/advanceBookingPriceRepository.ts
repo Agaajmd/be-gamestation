@@ -35,8 +35,10 @@ export const AdvanceBookingPriceRepository = {
   },
 
   // Find all advance booking prices
-  findAll() {
-    return prisma.advanceBookingPrice.findMany();
+  findAll(where?: object) {
+    return prisma.advanceBookingPrice.findMany({
+      where,
+    });
   },
 
   // Find advance booking price by ID

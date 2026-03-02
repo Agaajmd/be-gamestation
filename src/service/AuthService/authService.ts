@@ -9,6 +9,7 @@ import {
 import { generateAndStoreOTP, verifyOTP } from "../../helper/generateOTP";
 import { sendOTPEmail } from "../../helper/emailHelper";
 import {
+  generateMagicKey,
   generateVerificationToken,
   hashToken,
   sendVerificationEmail,
@@ -69,6 +70,7 @@ export async function registerUser(payload: {
 
   const plainToken = generateVerificationToken();
   const hashedToken = hashToken(plainToken);
+  const magicKey = generateMagicKey();
   const tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
   const newUser = await UserRepository.createUser({
@@ -78,11 +80,12 @@ export async function registerUser(payload: {
     phone: sanitizedPhone,
     verificationToken: hashedToken,
     verificationTokenExpires: tokenExpires,
+    verificationKey: magicKey,
   });
 
   sendVerificationEmail({
     to: sanitizedEmail,
-    token: plainToken, // Plain token, bukan yang di-hash
+    key: magicKey, // Magic key, not plain token
     username: sanitizedFullname,
   }).catch((error) => {
     console.error(

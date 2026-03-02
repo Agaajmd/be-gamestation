@@ -10,7 +10,7 @@ export const createPaymentSchema = Joi.object({
     "any.required": "Amount wajib diisi",
   }),
   method: Joi.string()
-    .valid("e_wallet", "bank_transfer", "gateway")
+    .valid("cash", "e_wallet", "bank_transfer", "gateway")
     .required()
     .messages({
       "any.only":

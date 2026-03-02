@@ -65,6 +65,7 @@ enum PaymentStatus {
 }
 
 enum PaymentMethod {
+  cash
   e_wallet
   bank_transfer
   gateway
@@ -144,6 +145,7 @@ model User {
   // Email Verification Fields
   isVerified               Boolean   @default(false) @map("is_verified")
   verificationToken        String?   @map("verification_token") @db.VarChar(255)
+  verificationKey          String?   @map("verification_key") @db.VarChar(96)
   verificationTokenExpires DateTime? @map("verification_token_expires")
   verificationSentAt       DateTime? @map("verification_sent_at")
 
@@ -312,7 +314,7 @@ model AvailabilityException {
 model Order {
   id                     BigInt        @id @default(autoincrement())
   orderCode              String        @unique @map("order_code") @db.VarChar(32)
-  customerId             BigInt        @map("customer_id")
+  customerId             BigInt?       @map("customer_id")
   branchId               BigInt        @map("branch_id")
   status                 OrderStatus
   totalAmount            Decimal       @map("total_amount") @db.Decimal(12, 2)
@@ -322,10 +324,13 @@ model Order {
   paymentStatus          PaymentStatus @map("payment_status")
   paymentProofFile       String?       @map("payment_proof_file") @db.Text
   paymentProofUploadedAt DateTime?     @map("payment_proof_uploaded_at") @db.Timestamp(6)
+  guestCustomerName      String?       @map("guest_customer_name") @db.VarChar(100)
+  guestCustomerPhone     String?       @map("guest_customer_phone") @db.VarChar(20)
+  guestCustomerEmail     String?       @map("guest_customer_email") @db.VarChar(255)
   notes                  String?       @db.Text
 
   // Relations
-  customer          User                 @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer          User?                @relation(fields: [customerId], references: [id], onDelete: Cascade)
   branch            Branch               @relation(fields: [branchId], references: [id], onDelete: Cascade)
   paymentMethodUsed BranchPaymentMethod? @relation(fields: [paymentId], references: [id])
   orderItems        OrderItem[]
@@ -516,17 +521,17 @@ model Announcement {
 }
 
 model BranchPaymentMethod {
-  id            BigInt          @id @default(autoincrement())
-  branchId      BigInt          @map("branch_id")
+  id            BigInt           @id @default(autoincrement())
+  branchId      BigInt           @map("branch_id")
   method        PaymentMethod
-  provider      PaymentProvider
-  isActive      Boolean         @default(true) @map("is_active")
-  accountNumber String?         @map("account_number") @db.VarChar(255)
-  accountName   String?         @map("account_name") @db.VarChar(255)
-  qrCodeImage   String?         @map("qr_code_image") @db.Text
-  instructions  String?         @db.Text
-  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt     DateTime?       @updatedAt @map("updated_at") @db.Timestamp(6)
+  provider      PaymentProvider?
+  isActive      Boolean          @default(true) @map("is_active")
+  accountNumber String?          @map("account_number") @db.VarChar(255)
+  accountName   String?          @map("account_name") @db.VarChar(255)
+  qrCodeImage   String?          @map("qr_code_image") @db.Text
+  instructions  String?          @db.Text
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime?        @updatedAt @map("updated_at") @db.Timestamp(6)
 
   // Relations
   branch Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)

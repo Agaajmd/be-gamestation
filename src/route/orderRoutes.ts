@@ -7,6 +7,7 @@ import {
   updateOrderStatus,
   cancelOrder,
   removeItemFromCart,
+  addCustomOrderToCart,
 } from "../controller/OrderController";
 import { authenticateToken } from "../middleware/authMiddleware";
 import {
@@ -18,6 +19,7 @@ import {
   createOrderSchema,
   checkoutOrderSchema,
   updateOrderStatusSchema,
+  createCustomOrderSchema,
 } from "../validation/bodyValidation/orderValidation";
 import { uploadImage } from "../helper/uploadImage";
 
@@ -33,9 +35,16 @@ router.post(
 );
 
 router.post(
+  "/custom",
+  authenticateToken,
+  requireOwnerOrAdmin,
+  ValidateMiddleware.validateBody(createCustomOrderSchema),
+  addCustomOrderToCart,
+);
+
+router.post(
   "/:id/checkout",
   authenticateToken,
-  requireCustomer,
   uploadImage.single("paymentProof"),
   ValidateMiddleware.validateBody(checkoutOrderSchema),
   checkoutOrder,

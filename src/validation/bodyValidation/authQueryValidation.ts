@@ -1,9 +1,9 @@
 import Joi from "joi";
 
 export const verifyEmailSchema = Joi.object({
-  token: Joi.string().required().messages({
-    "any.required": "Token verifikasi wajib diisi",
-    "string.base": "Token verifikasi harus berupa string",
+  key: Joi.string().required().messages({
+    "any.required": "Key wajib diisi",
+    "string.base": "Key harus berupa string",
   }),
 });
 
