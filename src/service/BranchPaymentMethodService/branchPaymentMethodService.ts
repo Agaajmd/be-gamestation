@@ -15,7 +15,7 @@ import { PaymentMethod, PaymentProvider } from "@prisma/client";
 export async function addBranchPaymentMethodService(payload: {
   branchId: bigint;
   method: PaymentMethod;
-  provider: PaymentProvider;
+  provider?: PaymentProvider;
   isActive?: boolean;
   accountNumber?: string;
   accountName?: string;
@@ -54,14 +54,16 @@ export async function addBranchPaymentMethodService(payload: {
   }
 
   // Check if payment method for this provider already exists
-  const existingPaymentMethod =
-    await BranchPaymentMethodRepository.findByBranchIdAndProvider(
-      branchId,
-      provider,
-    );
+  if (provider) {
+    const existingPaymentMethod =
+      await BranchPaymentMethodRepository.findByBranchIdAndProvider(
+        branchId,
+        provider,
+      );
 
-  if (existingPaymentMethod) {
-    throw new BranchPaymentMethodAlreadyExistsError(provider);
+    if (existingPaymentMethod) {
+      throw new BranchPaymentMethodAlreadyExistsError(provider);
+    }
   }
 
   const newPaymentMethod = await BranchPaymentMethodRepository.create({
