@@ -1,1 +1,0 @@
-{"version":3,"file":"roomAndDeviceQuery.d.ts","sourceRoot":"","sources":["../../src/queries/roomAndDeviceQuery.ts"],"names":[],"mappings":"AAEA,OAAO,EACL,0BAA0B,EAE1B,yBAAyB,EAE1B,MAAM,0BAA0B,CAAC;AAElC,eAAO,MAAM,kBAAkB;6DAEjB,MAAM,cACJ,MAAM,GACjB,OAAO,CAAC,0BAA0B,EAAE,CAAC;4BAYV,MAAM,GAAG,OAAO,CAAC,yBAAyB,CAAC;CAS1E,CAAC"}

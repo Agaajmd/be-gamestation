@@ -1,1 +1,0 @@
-{"version":3,"file":"LoginResult.d.ts","sourceRoot":"","sources":["../../../../src/service/AuthService/type/LoginResult.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,qBAAqB,EAAE,MAAM,qDAAqD,CAAC;AAE5F,MAAM,MAAM,WAAW,GAAG;IACxB,MAAM,EAAE,SAAS,CAAC;IAClB,IAAI,EAAE,qBAAqB,CAAC;IAC5B,WAAW,EAAE,MAAM,CAAC;IACpB,YAAY,EAAE,MAAM,CAAC;CACtB,CAAC"}

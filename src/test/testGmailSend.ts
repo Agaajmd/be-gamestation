@@ -49,7 +49,7 @@ async function testGmailDelivery() {
     const token = generateVerificationToken();
     const emailSent = await sendVerificationEmail({
       to: testEmail,
-      token: token,
+      key: token,
       username: "Test User",
     });
 

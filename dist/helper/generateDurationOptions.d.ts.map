@@ -1,1 +1,0 @@
-{"version":3,"file":"generateDurationOptions.d.ts","sourceRoot":"","sources":["../../src/helper/generateDurationOptions.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,cAAc;IAC7B,KAAK,EAAE,MAAM,CAAC;IACd,KAAK,EAAE,MAAM,CAAC;IACd,KAAK,EAAE,MAAM,CAAC;CACf;AAED,wBAAgB,uBAAuB,CACrC,kBAAkB,EAAE,MAAM,GACzB,cAAc,EAAE,CA8BlB"}

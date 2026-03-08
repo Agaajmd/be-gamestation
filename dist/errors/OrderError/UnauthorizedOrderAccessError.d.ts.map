@@ -1,1 +1,0 @@
-{"version":3,"file":"UnauthorizedOrderAccessError.d.ts","sourceRoot":"","sources":["../../../src/errors/OrderError/UnauthorizedOrderAccessError.ts"],"names":[],"mappings":"AAAA,qBAAa,4BAA6B,SAAQ,KAAK;gBACzC,OAAO,GAAE,MAA6C;CAInE"}

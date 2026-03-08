@@ -1,1 +1,0 @@
-{"version":3,"file":"UnauthorizedRoomAndDeviceAccessError.js","sourceRoot":"","sources":["../../../src/errors/RoomAndDeviceError/UnauthorizedRoomAndDeviceAccessError.ts"],"names":[],"mappings":";;;AAAA,MAAa,oCAAqC,SAAQ,KAAK;IAC7D,YACE,UAAkB,8CAA8C;QAEhE,KAAK,CAAC,OAAO,CAAC,CAAC;QACf,IAAI,CAAC,IAAI,GAAG,sCAAsC,CAAC;IACrD,CAAC;CACF;AAPD,oFAOC"}

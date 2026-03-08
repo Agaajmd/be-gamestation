@@ -1,1 +1,0 @@
-{"version":3,"file":"branchWithCountRoomAndDevice.js","sourceRoot":"","sources":["../../../../src/repository/type/branch/branchWithCountRoomAndDevice.ts"],"names":[],"mappings":";;;AAEa,QAAA,kCAAkC,GAAG;IAChD,OAAO,EAAE;QACP,MAAM,EAAE;YACN,MAAM,EAAE;gBACN,cAAc,EAAE;oBACd,KAAK,EAAE;wBACL,MAAM,EAAE,WAAW;qBACpB;iBACF;aACF;SACF;KACF;CACiC,CAAC"}

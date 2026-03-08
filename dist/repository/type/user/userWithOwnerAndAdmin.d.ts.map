@@ -1,1 +1,0 @@
-{"version":3,"file":"userWithOwnerAndAdmin.d.ts","sourceRoot":"","sources":["../../../../src/repository/type/user/userWithOwnerAndAdmin.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,MAAM,EAAE,MAAM,gBAAgB,CAAC;AAExC,eAAO,MAAM,2BAA2B;;;;;;;;;CASN,CAAC;AAEnC,MAAM,MAAM,qBAAqB,GAAG,MAAM,CAAC,cAAc,CACvD,OAAO,2BAA2B,CACnC,CAAC"}

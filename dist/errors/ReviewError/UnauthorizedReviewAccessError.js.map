@@ -1,1 +1,0 @@
-{"version":3,"file":"UnauthorizedReviewAccessError.js","sourceRoot":"","sources":["../../../src/errors/ReviewError/UnauthorizedReviewAccessError.ts"],"names":[],"mappings":";;;AAAA,MAAa,6BAA8B,SAAQ,KAAK;IACtD,YAAY,UAAkB,qCAAqC;QACjE,KAAK,CAAC,OAAO,CAAC,CAAC;QACf,IAAI,CAAC,IAAI,GAAG,+BAA+B,CAAC;IAC9C,CAAC;CACF;AALD,sEAKC"}

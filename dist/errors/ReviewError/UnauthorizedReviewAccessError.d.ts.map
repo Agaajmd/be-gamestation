@@ -1,1 +1,0 @@
-{"version":3,"file":"UnauthorizedReviewAccessError.d.ts","sourceRoot":"","sources":["../../../src/errors/ReviewError/UnauthorizedReviewAccessError.ts"],"names":[],"mappings":"AAAA,qBAAa,6BAA8B,SAAQ,KAAK;gBAC1C,OAAO,GAAE,MAA8C;CAIpE"}

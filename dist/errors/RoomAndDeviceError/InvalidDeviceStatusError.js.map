@@ -1,1 +1,0 @@
-{"version":3,"file":"InvalidDeviceStatusError.js","sourceRoot":"","sources":["../../../src/errors/RoomAndDeviceError/InvalidDeviceStatusError.ts"],"names":[],"mappings":";;;AAAA,MAAa,wBAAyB,SAAQ,KAAK;IACjD,YAAY,UAAkB,2BAA2B;QACvD,KAAK,CAAC,OAAO,CAAC,CAAC;QACf,IAAI,CAAC,IAAI,GAAG,0BAA0B,CAAC;IACzC,CAAC;CACF;AALD,4DAKC"}

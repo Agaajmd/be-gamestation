@@ -1,1 +1,0 @@
-{"version":3,"file":"UnauthorizedPaymentAccessError.d.ts","sourceRoot":"","sources":["../../../src/errors/PaymentError/UnauthorizedPaymentAccessError.ts"],"names":[],"mappings":"AAAA,qBAAa,8BAA+B,SAAQ,KAAK;gBAC3C,OAAO,GAAE,MAA+C;CAIrE"}
